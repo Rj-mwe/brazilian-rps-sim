@@ -11,7 +11,7 @@ import base64
 import numpy as np
 
 def generate_orbit_gltf(output_path: str, radius: float, inclination_deg: float, thickness: float,
-                        r: float, g: float, b: float, alpha: float = 0.8, num_pts: int = 480):
+                        r: float, g: float, b: float, alpha: float = 1.0, num_pts: int = 480):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     theta = np.linspace(0, 2 * np.pi, num_pts, endpoint=False)
     inc = np.radians(inclination_deg)
@@ -160,7 +160,7 @@ def main():
         radius=1200.0,
         inclination_deg=0.0,
         thickness=0.10,
-        r=1.0, g=0.75, b=0.1, alpha=0.7,
+        r=1.0, g=0.75, b=0.1, alpha=1.0,
         num_pts=720
     )
 
@@ -170,7 +170,7 @@ def main():
         radius=384.4,
         inclination_deg=5.145,
         thickness=0.03,
-        r=0.0, g=0.85, b=1.0, alpha=0.7,
+        r=0.0, g=0.85, b=1.0, alpha=1.0,
         num_pts=480
     )
 

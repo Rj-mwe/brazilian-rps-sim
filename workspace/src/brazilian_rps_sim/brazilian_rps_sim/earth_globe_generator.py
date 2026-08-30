@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Gera o modelo 3D hiper-realista da Terra em glTF 2.0 PBR utilizando as texturas
-oficiais de domínio público da NASA (Blue Marble + Night Lights).
+Gera o modelo 3D da CAMADA BASE da Terra em glTF 2.0 PBR utilizando estritamente
+a textura diurna oficial da NASA (Blue Marble Albedo), sem mapa de emissão e sem camadas extras.
 
-Calibração Cartográfica Rigorosa:
-- Polo Norte no eixo +Z (V = 0.0) e Polo Sul no eixo -Z (V = 1.0).
-- Greenwich (Lon 0°) no eixo +X (U = 0.5).
-- Leste (Ásia/Índia) no eixo +Y (U > 0.5) e Oeste (Américas/Brasil) no eixo -Y (U < 0.5).
-- Triângulos com enrolamento anti-horário (CCW) voltados para FORA (East x South = Outward).
-- Opacidade 100% OPAQUE com teste de profundidade Z-buffer ativo para ocluir órbitas.
+Propriedades:
+- Geometria esférica UV com normais voltadas rigorosamente para fora (Outward Normals).
+- Cartografia: Greenwich (0°) no centro frontal, América do Sul / Brasil a Oeste (+Y), África/Ásia a Leste (-Y).
+- Material PBR 100% OPAQUE, dielétrico (metallic=0), sem canal de emissão (emissive=0).
 """
 
 import os
@@ -17,33 +15,21 @@ import struct
 import base64
 import urllib.request
 import math
-from PIL import Image
 
-def download_nasa_textures(target_dir: str):
+def download_nasa_albedo(target_dir: str):
     os.makedirs(target_dir, exist_ok=True)
     day_path = os.path.join(target_dir, "earth_day_albedo_2k.jpg")
-    night_path = os.path.join(target_dir, "earth_night_lights_2k.jpg")
-
     url_day = "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57752/land_shallow_topo_2048.jpg"
-    url_night = "https://eoimages.gsfc.nasa.gov/images/imagerecords/55000/55167/earth_lights_lrg.jpg"
 
     if not os.path.exists(day_path):
         print(f"📥 [NASA] Baixando textura diurna Blue Marble (2048x1024)...")
         urllib.request.urlretrieve(url_day, day_path)
         print(f"✅ Textura diurna salva em: {day_path}")
 
-    if not os.path.exists(night_path):
-        print(f"📥 [NASA] Baixando textura noturna Earth at Night (City Lights)...")
-        urllib.request.urlretrieve(url_night, night_path)
-        img_night = Image.open(night_path)
-        img_night_resized = img_night.resize((2048, 1024), Image.Resampling.LANCZOS)
-        img_night_resized.save(night_path, "JPEG", quality=90)
-        print(f"✅ Textura noturna calibrada em: {night_path}")
+    return day_path
 
-    return day_path, night_path
-
-def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_img_path: str,
-                               radius: float = 6.378137, lat_segs: int = 64, lon_segs: int = 128):
+def generate_base_earth_gltf(output_gltf_path: str, day_img_path: str,
+                             radius: float = 6.378137, lat_segs: int = 64, lon_segs: int = 128):
     os.makedirs(os.path.dirname(output_gltf_path), exist_ok=True)
 
     vertices = []
@@ -53,20 +39,16 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
 
     # i de 0 (Norte: +pi/2, +Z, V=0.0) até lat_segs (Sul: -pi/2, -Z, V=1.0)
     for i in range(lat_segs + 1):
-        lat = (math.pi / 2.0) - (math.pi * i / lat_segs) # [+pi/2, -pi/2]
-        v = i / lat_segs                                 # [0, 1]
+        lat = (math.pi / 2.0) - (math.pi * i / lat_segs)
+        v = i / lat_segs
 
-        # j de 0 (-180° Oeste, U=0.0) até lon_segs (+180° Leste, U=1.0)
+        # j de 0 (U=0.0, -180° Oeste) até lon_segs (U=1.0, +180° Leste)
         for j in range(lon_segs + 1):
-            lon = -math.pi + (2.0 * math.pi * j / lon_segs) # [-pi, +pi]
-            u = j / lon_segs                                # [0, 1]
+            u = j / lon_segs
+            phi = math.pi - (2.0 * math.pi * j / lon_segs)
 
-            # Coordenadas Cartesianas ECEF:
-            # lon = 0 (Greenwich) -> x = +R, y = 0, z = 0
-            # lon = +pi/2 (Leste) -> x = 0, y = +R, z = 0
-            # lon = -pi/2 (Oeste/Américas) -> x = 0, y = -R, z = 0
-            x = radius * math.cos(lat) * math.cos(lon)
-            y = radius * math.cos(lat) * math.sin(lon)
+            x = radius * math.cos(lat) * math.cos(phi)
+            y = radius * math.cos(lat) * math.sin(phi)
             z = radius * math.sin(lat)
 
             vertices.append([x, y, z])
@@ -74,7 +56,7 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
             normals.append([x/norm, y/norm, z/norm])
             uvs.append([u, v])
 
-    # Triângulos voltados para FORA (East x South = Outward)
+    # Triângulos voltados para FORA (Outward CCW)
     for i in range(lat_segs):
         for j in range(lon_segs):
             p00 = i * (lon_segs + 1) + j
@@ -82,8 +64,8 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
             p10 = (i + 1) * (lon_segs + 1) + j
             p11 = p10 + 1
 
-            indices.extend([p00, p01, p10])
-            indices.extend([p01, p11, p10])
+            indices.extend([p00, p10, p01])
+            indices.extend([p01, p10, p11])
 
     vertex_bytes = b"".join(struct.pack("<fff", *v) for v in vertices)
     normal_bytes = b"".join(struct.pack("<fff", *n) for n in normals)
@@ -106,10 +88,6 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
         b64_day = base64.b64encode(f_day.read()).decode('ascii')
     uri_day = f"data:image/jpeg;base64,{b64_day}"
 
-    with open(night_img_path, "rb") as f_night:
-        b64_night = base64.b64encode(f_night.read()).decode('ascii')
-    uri_night = f"data:image/jpeg;base64,{b64_night}"
-
     min_v = [min(v[k] for v in vertices) for k in range(3)]
     max_v = [max(v[k] for v in vertices) for k in range(3)]
 
@@ -125,13 +103,13 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
     gltf_doc = {
         "asset": {
             "version": "2.0",
-            "generator": "RPS-BR NASA Blue Marble Earth Generator"
+            "generator": "RPS-BR NASA Blue Marble Pure Base Layer"
         },
         "scene": 0,
         "scenes": [{"nodes": [0]}],
-        "nodes": [{"mesh": 0, "name": "EarthGlobeNode"}],
+        "nodes": [{"mesh": 0, "name": "EarthBaseGlobeNode"}],
         "meshes": [{
-            "name": "EarthGlobeMesh",
+            "name": "EarthBaseGlobeMesh",
             "primitives": [{
                 "attributes": {
                     "POSITION": 0,
@@ -143,24 +121,22 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
             }]
         }],
         "materials": [{
-            "name": "EarthNasaPbrMaterial",
+            "name": "EarthBasePbrMaterial",
             "pbrMetallicRoughness": {
+                "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
                 "baseColorTexture": {"index": 0},
                 "metallicFactor": 0.0,
                 "roughnessFactor": 0.85
             },
-            "emissiveTexture": {"index": 1},
-            "emissiveFactor": [0.4, 0.4, 0.4],
+            "emissiveFactor": [0.0, 0.0, 0.0],
             "alphaMode": "OPAQUE",
             "doubleSided": False
         }],
         "textures": [
-            {"sampler": 0, "source": 0},
-            {"sampler": 0, "source": 1}
+            {"sampler": 0, "source": 0}
         ],
         "images": [
-            {"uri": uri_day, "name": "NasaBlueMarbleAlbedo"},
-            {"uri": uri_night, "name": "NasaEarthAtNightLights"}
+            {"uri": uri_day, "name": "NasaBlueMarbleAlbedo"}
         ],
         "samplers": [{
             "magFilter": 9729,
@@ -205,15 +181,15 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
     with open(output_gltf_path, "w") as f:
         json.dump(gltf_doc, f, indent=2)
 
-    print(f"🌍 [NASA Blue Marble] Modelo glTF 2.0 calibrado: {output_gltf_path}")
+    print(f"🌍 [Camada Base da Terra] Modelo glTF 2.0 puro gerado com sucesso: {output_gltf_path}")
 
 def main():
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     target_tex_dir = os.path.join(pkg_dir, "materials", "textures")
     output_gltf = os.path.join(pkg_dir, "meshes", "earth_globe.gltf")
 
-    day_path, night_path = download_nasa_textures(target_tex_dir)
-    generate_earth_sphere_gltf(output_gltf, day_path, night_path)
+    day_path = download_nasa_albedo(target_tex_dir)
+    generate_base_earth_gltf(output_gltf, day_path)
 
 if __name__ == '__main__':
     main()

@@ -49,9 +49,9 @@ install(TARGETS OrbitalMotionPlugin CelestialMechanicsPlugin
 )
 
 # ------------------------------------------------------------------------------
-# 2. Instalação de Recursos Estáticos (Mundos SDF, Launch e Malhas glTF 2.0)
+# 2. Instalação de Recursos Estáticos (Mundos SDF, Launch, Malhas e Texturas)
 # ------------------------------------------------------------------------------
-install(DIRECTORY worlds launch meshes
+install(DIRECTORY worlds launch meshes materials
     DESTINATION share/${PROJECT_NAME}
 )
 

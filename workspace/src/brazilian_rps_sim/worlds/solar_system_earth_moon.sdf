@@ -9,7 +9,7 @@
 
     <!-- 🌌 ESPAÇO SIDERAL PROFUNDO -->
     <scene>
-      <ambient>0.05 0.05 0.08 1.0</ambient>
+      <ambient>0.0 0.0 0.0 1.0</ambient>
       <background>0.001 0.001 0.008 1.0</background>
       <grid>false</grid>
       <shadows>true</shadows>
@@ -75,10 +75,10 @@
       <pose>1200 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
-          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
         </collision>
         <visual name="earth_surface">
-          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
           <material>
             <ambient>0.08 0.35 0.7 1</ambient>
             <diffuse>0.15 0.5 0.9 1</diffuse>

@@ -9,7 +9,7 @@
     <gravity>0 0 0</gravity>
 
     <scene>
-      <ambient>0.05 0.05 0.08 1.0</ambient>
+      <ambient>0.0 0.0 0.0 1.0</ambient>
       <background>0.002 0.002 0.01 1.0</background>
       <grid>false</grid>
       <shadows>true</shadows>
@@ -25,8 +25,8 @@
         <pose>0 -130 45 0 0.32 1.5708</pose>
         <view_controller>orbit</view_controller>
         <clip>
-          <near>0.5</near>
-          <far>100000.0</far>
+          <near>1.0</near>
+          <far>15000.0</far>
         </clip>
       </camera>
     </gui>
@@ -46,10 +46,10 @@
       <pose>0 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
-          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
         </collision>
         <visual name="earth_surface">
-          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
           <material>
             <ambient>0.08 0.32 0.65 1</ambient>
             <diffuse>0.12 0.45 0.85 1</diffuse>

@@ -27,7 +27,7 @@ except ImportError:
         SIDEREAL_DAY
     )
 
-def generate_orbit_gltf_from_points(output_path: str, pts: list, thickness: float, r: float, g: float, b: float, alpha: float = 0.8):
+def generate_orbit_gltf_from_points(output_path: str, pts: list, thickness: float, r: float, g: float, b: float, alpha: float = 1.0):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     num_pts = len(pts)
 
@@ -165,7 +165,7 @@ def generate_constellation_meshes(output_dir: str):
                 output_path=os.path.join(output_dir, "orbit_geo.gltf"),
                 pts=pts,
                 thickness=0.15,
-                r=1.0, g=0.75, b=0.1, alpha=0.8
+                r=1.0, g=0.75, b=0.1, alpha=1.0
             )
         elif sat.sat_type == "IGSO":
             pts = [eci_to_ecef(propagate_orbit_eci(sat, t), t) * scale for t in t_seconds]
@@ -173,7 +173,7 @@ def generate_constellation_meshes(output_dir: str):
                 output_path=os.path.join(output_dir, "orbit_igso.gltf"),
                 pts=pts,
                 thickness=0.15,
-                r=0.0, g=0.85, b=1.0, alpha=0.8
+                r=0.0, g=0.85, b=1.0, alpha=1.0
             )
 
 if __name__ == '__main__':
