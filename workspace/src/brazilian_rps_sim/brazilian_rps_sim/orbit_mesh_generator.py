@@ -103,7 +103,7 @@ def generate_orbit_gltf_from_points(output_path: str, pts: list, thickness: floa
                 "roughnessFactor": 0.8
             },
             "emissiveFactor": [float(r * 0.9), float(g * 0.9), float(b * 0.9)],
-            "alphaMode": "BLEND",
+            "alphaMode": "OPAQUE",
             "doubleSided": True
         }],
         "accessors": [

@@ -102,7 +102,7 @@ def generate_orbit_gltf(output_path: str, radius: float, inclination_deg: float,
                 "roughnessFactor": 0.8
             },
             "emissiveFactor": [float(r * 0.9), float(g * 0.9), float(b * 0.9)],
-            "alphaMode": "BLEND",
+            "alphaMode": "OPAQUE",
             "doubleSided": True
         }],
         "accessors": [

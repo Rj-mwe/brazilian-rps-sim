@@ -3,11 +3,12 @@
 Gera o modelo 3D hiper-realista da Terra em glTF 2.0 PBR utilizando as texturas
 oficiais de domínio público da NASA (Blue Marble + Night Lights).
 
-Correções de Orientação e Shading:
+Calibração Cartográfica Rigorosa:
 - Polo Norte no eixo +Z (V = 0.0) e Polo Sul no eixo -Z (V = 1.0).
-- Longitude 0° (Greenwich) no eixo +X (U = 0.5).
-- América do Sul / Brasil visíveis no hemisfério ocidental com formato geográfico correto.
-- Triângulos com enrolamento anti-horário (CCW) voltados para FORA, garantindo opacidade total.
+- Greenwich (Lon 0°) no eixo +X (U = 0.5).
+- Leste (Ásia/Índia) no eixo +Y (U > 0.5) e Oeste (Américas/Brasil) no eixo -Y (U < 0.5).
+- Triângulos com enrolamento anti-horário (CCW) voltados para FORA (East x South = Outward).
+- Opacidade 100% OPAQUE com teste de profundidade Z-buffer ativo para ocluir órbitas.
 """
 
 import os
@@ -50,17 +51,20 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
     uvs = []
     indices = []
 
-    # i de 0 (Polo Norte: +pi/2, +Z, V=0.0) até lat_segs (Polo Sul: -pi/2, -Z, V=1.0)
+    # i de 0 (Norte: +pi/2, +Z, V=0.0) até lat_segs (Sul: -pi/2, -Z, V=1.0)
     for i in range(lat_segs + 1):
         lat = (math.pi / 2.0) - (math.pi * i / lat_segs) # [+pi/2, -pi/2]
-        v = i / lat_segs                                 # [0, 1] de Norte para Sul (topo para base da imagem)
+        v = i / lat_segs                                 # [0, 1]
 
-        # j de 0 (-180° Longitude, U=0.0) até lon_segs (+180° Longitude, U=1.0)
+        # j de 0 (-180° Oeste, U=0.0) até lon_segs (+180° Leste, U=1.0)
         for j in range(lon_segs + 1):
             lon = -math.pi + (2.0 * math.pi * j / lon_segs) # [-pi, +pi]
-            u = j / lon_segs                                # [0, 1] de Oeste para Leste
+            u = j / lon_segs                                # [0, 1]
 
-            # Coordenadas Cartesianas ECEF (Greenwich lon=0 -> x=+R, y=0, z=0)
+            # Coordenadas Cartesianas ECEF:
+            # lon = 0 (Greenwich) -> x = +R, y = 0, z = 0
+            # lon = +pi/2 (Leste) -> x = 0, y = +R, z = 0
+            # lon = -pi/2 (Oeste/Américas) -> x = 0, y = -R, z = 0
             x = radius * math.cos(lat) * math.cos(lon)
             y = radius * math.cos(lat) * math.sin(lon)
             z = radius * math.sin(lat)
@@ -70,7 +74,7 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
             normals.append([x/norm, y/norm, z/norm])
             uvs.append([u, v])
 
-    # Enrolamento de triângulos voltados RIGOROSAMENTE para FORA (Outward CCW)
+    # Triângulos voltados para FORA (East x South = Outward)
     for i in range(lat_segs):
         for j in range(lon_segs):
             p00 = i * (lon_segs + 1) + j
@@ -111,13 +115,10 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
 
     offset_v = 0
     len_v = len(vertex_bytes)
-
     offset_n = len(v_padded)
     len_n = len(normal_bytes)
-
     offset_uv = offset_n + len(n_padded)
     len_uv = len(uv_bytes)
-
     offset_idx = offset_uv + len(uv_padded)
     len_idx = len(index_bytes)
 
@@ -146,7 +147,7 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
             "pbrMetallicRoughness": {
                 "baseColorTexture": {"index": 0},
                 "metallicFactor": 0.0,
-                "roughnessFactor": 0.9
+                "roughnessFactor": 0.85
             },
             "emissiveTexture": {"index": 1},
             "emissiveFactor": [0.4, 0.4, 0.4],
@@ -204,7 +205,7 @@ def generate_earth_sphere_gltf(output_gltf_path: str, day_img_path: str, night_i
     with open(output_gltf_path, "w") as f:
         json.dump(gltf_doc, f, indent=2)
 
-    print(f"🌍 [NASA Blue Marble] Modelo glTF 2.0 corrigido com opacidade total e cartografia correta: {output_gltf_path}")
+    print(f"🌍 [NASA Blue Marble] Modelo glTF 2.0 calibrado: {output_gltf_path}")
 
 def main():
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

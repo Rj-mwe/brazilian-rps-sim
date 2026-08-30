@@ -49,7 +49,7 @@
         0.765,
         0.9
       ],
-      "alphaMode": "BLEND",
+      "alphaMode": "OPAQUE",
       "doubleSided": true
     }
   ],

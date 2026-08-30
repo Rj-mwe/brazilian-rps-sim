@@ -41,7 +41,7 @@
           "index": 0
         },
         "metallicFactor": 0.0,
-        "roughnessFactor": 0.9
+        "roughnessFactor": 0.85
       },
       "emissiveTexture": {
         "index": 1
