@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="solar_system_world">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <gravity>0 0 0</gravity>
+
+    <!-- 🌌 ESPAÇO SIDERAL PROFUNDO -->
+    <scene>
+      <ambient>0.05 0.05 0.08 1.0</ambient>
+      <background>0.001 0.001 0.008 1.0</background>
+      <grid>false</grid>
+      <shadows>true</shadows>
+    </scene>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
+
+    <!-- ☀️ O SOL (Origem 0, 0, 0) -->
+    <light type="point" name="sun_omni_light">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 0 0 0 0</pose>
+      <diffuse>1.0 0.98 0.92 1</diffuse>
+      <specular>0.0 0.0 0.0 1</specular>
+      <attenuation>
+        <range>50000</range>
+        <constant>0.05</constant>
+        <linear>0.00001</linear>
+        <quadratic>0.0000001</quadratic>
+      </attenuation>
+    </light>
+
+    <model name="sun">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="sun_link">
+        <visual name="sun_sphere">
+          <geometry><sphere><radius>45.0</radius></sphere></geometry>
+          <material>
+            <ambient>1.0 0.9 0.2 1</ambient>
+            <diffuse>1.0 0.95 0.3 1</diffuse>
+            <emissive>1.0 0.9 0.3 1</emissive>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>sun</body_type>
+        <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- 🌟 TRILHA 3D DA ÓRBITA DA TERRA (glTF 2.0 com Dourado PBR Embutido) -->
+    <model name="earth_orbit_trail">
+      <pose>0 0 0 0 0 0</pose>
+      <link name="earth_trail_link">
+        <visual name="earth_trail_vis">
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/earth_orbit_ring.gltf</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>earth_trail</body_type>
+        <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- 🌍 A TERRA (Raio: 6.378 km | Eixo Inclinado a 23.44° | Órbita Heliocêntrica) -->
+    <model name="earth">
+      <pose>1200 0 0 0 0 0</pose>
+      <link name="earth_link">
+        <collision name="earth_col">
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+        </collision>
+        <visual name="earth_surface">
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+          <material>
+            <ambient>0.08 0.35 0.7 1</ambient>
+            <diffuse>0.15 0.5 0.9 1</diffuse>
+            <specular>0.2 0.3 0.5 1</specular>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>earth</body_type>
+        <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- 🌀 TRILHA 3D DA ÓRBITA DA LUA (glTF 2.0 com Ciano PBR Embutido) -->
+    <model name="moon_orbit_trail">
+      <pose>1200 0 0 0 0 0</pose>
+      <link name="trail_link">
+        <visual name="trail_vis">
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/moon_orbit_ring.gltf</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>moon_trail</body_type>
+        <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- 🌕 A LUA (Raio: 1.737 km | Distância: 384.400 km | Órbita de 27.32 dias a 5.145°) -->
+    <model name="moon">
+      <pose>1584.4 0 0 0 0 0</pose>
+      <link name="moon_link">
+        <collision name="moon_col">
+          <geometry><sphere><radius>1.737</radius></sphere></geometry>
+        </collision>
+        <visual name="moon_surface">
+          <geometry><sphere><radius>1.737</radius></sphere></geometry>
+          <material>
+            <ambient>0.5 0.5 0.55 1</ambient>
+            <diffuse>0.7 0.7 0.75 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>moon</body_type>
+        <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+  </world>
+</sdf>

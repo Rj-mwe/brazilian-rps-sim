@@ -1,0 +1,16 @@
+# ROS 2 Build Artifacts
+workspace/build/
+workspace/install/
+workspace/log/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Logs & Temporary Files
+*.log
+.directory
+.DS_Store

@@ -1,0 +1,150 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="rps_earth_world">
+    <!-- Física no Espaço (Gravidade Zero) -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <gravity>0 0 0</gravity>
+
+    <scene>
+      <ambient>0.05 0.05 0.08 1.0</ambient>
+      <background>0.002 0.002 0.01 1.0</background>
+      <grid>false</grid>
+      <shadows>true</shadows>
+    </scene>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
+
+    <!-- 🎥 CÂMERA COM ALCANCE ESTENDIDO (Far Clip de 100.000 unidades) -->
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>0 -130 45 0 0.32 1.5708</pose>
+        <view_controller>orbit</view_controller>
+        <clip>
+          <near>0.5</near>
+          <far>100000.0</far>
+        </clip>
+      </camera>
+    </gui>
+
+    <!-- Iluminação Solar Direcional -->
+    <light type="directional" name="sun_light">
+      <cast_shadows>true</cast_shadows>
+      <pose>200 100 150 0 0 0</pose>
+      <diffuse>1.0 0.98 0.95 1</diffuse>
+      <specular>0.6 0.6 0.6 1</specular>
+      <direction>-0.8 -0.4 -0.6</direction>
+    </light>
+
+    <!-- 🌍 GLOBO TERRESTRE -->
+    <model name="earth_globe">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="earth_link">
+        <collision name="earth_col">
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+        </collision>
+        <visual name="earth_surface">
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+          <material>
+            <ambient>0.08 0.32 0.65 1</ambient>
+            <diffuse>0.12 0.45 0.85 1</diffuse>
+            <specular>0.3 0.4 0.6 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 🌀 TRILHA 3D VISÍVEL DA ÓRBITA IGSO (glTF 2.0 PBR) -->
+    <model name="igso_orbital_trail">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="trail_link">
+        <visual name="trail_visual">
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/orbit_igso.gltf</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 🛰️ SATÉLITE 1: RPS-GEO -->
+    <model name="rps_geo_satellite">
+      <pose>27.1 -32.3 0.0 0 0 0</pose>
+      <link name="bus_geo">
+        <visual name="v_bus">
+          <geometry><box><size>1.6 1.6 2.2</size></box></geometry>
+          <material>
+            <ambient>0.85 0.65 0.1 1</ambient>
+            <diffuse>0.95 0.75 0.15 1</diffuse>
+            <specular>0.8 0.7 0.3 1</specular>
+          </material>
+        </visual>
+        <visual name="v_solar">
+          <geometry><box><size>6.5 0.9 0.12</size></box></geometry>
+          <material>
+            <ambient>0.05 0.15 0.7 1</ambient>
+            <diffuse>0.1 0.25 0.9 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_marker">
+          <pose>0 0 1.2 0 0 0</pose>
+          <geometry><sphere><radius>0.4</radius></sphere></geometry>
+          <material><ambient>0.9 0.1 0.1 1</ambient><diffuse>1.0 0.1 0.1 1</diffuse></material>
+        </visual>
+      </link>
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164</semi_major_axis>
+        <eccentricity>0.0</eccentricity>
+        <inclination_deg>0.0</inclination_deg>
+        <raan_deg>0.0</raan_deg>
+        <arg_perigee_deg>0.0</arg_perigee_deg>
+        <mean_anomaly_deg>310.0</mean_anomaly_deg>
+        <time_scale>300.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- 🛰️ SATÉLITE 2: RPS-IGSO -->
+    <model name="rps_igso_satellite">
+      <pose>27.1 -32.3 0.0 0 0 0</pose>
+      <link name="bus_igso">
+        <visual name="v_bus">
+          <geometry><cylinder><radius>1.0</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.7 0.75 0.8 1</ambient>
+            <diffuse>0.85 0.9 0.95 1</diffuse>
+            <specular>0.9 0.9 0.9 1</specular>
+          </material>
+        </visual>
+        <visual name="v_solar">
+          <geometry><box><size>0.9 6.5 0.12</size></box></geometry>
+          <material>
+            <ambient>0.05 0.15 0.7 1</ambient>
+            <diffuse>0.1 0.25 0.9 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_marker">
+          <pose>0 0 1.3 0 0 0</pose>
+          <geometry><sphere><radius>0.5</radius></sphere></geometry>
+          <material><ambient>0.1 0.9 0.9 1</ambient><diffuse>0.2 1.0 1.0 1</diffuse></material>
+        </visual>
+      </link>
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164</semi_major_axis>
+        <eccentricity>0.06</eccentricity>
+        <inclination_deg>29.0</inclination_deg>
+        <raan_deg>310.0</raan_deg>
+        <arg_perigee_deg>270.0</arg_perigee_deg>
+        <mean_anomaly_deg>0.0</mean_anomaly_deg>
+        <time_scale>300.0</time_scale>
+      </plugin>
+    </model>
+
+  </world>
+</sdf>
