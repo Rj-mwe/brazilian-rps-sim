@@ -46,10 +46,10 @@
       <pose>0 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
-          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
         </collision>
         <visual name="earth_surface">
-          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
           <material>
             <ambient>0.08 0.32 0.65 1</ambient>
             <diffuse>0.12 0.45 0.85 1</diffuse>

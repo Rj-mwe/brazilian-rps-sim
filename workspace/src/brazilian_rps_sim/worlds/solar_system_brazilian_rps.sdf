@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
-  <world name="solar_system_world">
+  <world name="solar_system_rps_world">
     <physics name="1ms" type="ignored">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -70,20 +70,19 @@
       </plugin>
     </model>
 
-    <!-- 🌍 A TERRA (Raio: 6.378 km | Eixo Inclinado a 23.44° | Órbita Heliocêntrica) -->
+    <!-- 🌍 A TERRA (NASA Blue Marble + City Lights PBR | Raio: 6.378 km | Eixo a 23.44°) -->
     <model name="earth">
       <pose>1200 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
-          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
         </collision>
         <visual name="earth_surface">
-          <geometry><mesh><uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri></mesh></geometry>
-          <material>
-            <ambient>0.08 0.35 0.7 1</ambient>
-            <diffuse>0.15 0.5 0.9 1</diffuse>
-            <specular>0.2 0.3 0.5 1</specular>
-          </material>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/earth_globe.gltf</uri>
+            </mesh>
+          </geometry>
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
@@ -110,7 +109,7 @@
       </plugin>
     </model>
 
-    <!-- 🌕 A LUA (Raio: 1.737 km | Distância: 384.400 km | Órbita de 27.32 dias a 5.145°) -->
+    <!-- 🌕 A LUA (Raio: 1.737 km | Distância: 384.400 km | Órbita a 5.145°) -->
     <model name="moon">
       <pose>1584.4 0 0 0 0 0</pose>
       <link name="moon_link">
@@ -129,6 +128,80 @@
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>moon</body_type>
         <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- 🛰️ SATÉLITE 1 DO RPS-BR: RPS-GEO (Âncora sobre Brasília - 50°W) -->
+    <model name="rps_geo_satellite">
+      <pose>1227.1 -32.3 0.0 0 0 0</pose>
+      <link name="bus_geo">
+        <visual name="v_bus">
+          <geometry><box><size>1.6 1.6 2.2</size></box></geometry>
+          <material>
+            <ambient>0.85 0.65 0.1 1</ambient>
+            <diffuse>0.95 0.75 0.15 1</diffuse>
+            <specular>0.8 0.7 0.3 1</specular>
+          </material>
+        </visual>
+        <visual name="v_solar">
+          <geometry><box><size>6.5 0.9 0.12</size></box></geometry>
+          <material>
+            <ambient>0.05 0.15 0.7 1</ambient>
+            <diffuse>0.1 0.25 0.9 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_marker">
+          <pose>0 0 1.2 0 0 0</pose>
+          <geometry><sphere><radius>0.4</radius></sphere></geometry>
+          <material><ambient>0.9 0.1 0.1 1</ambient><diffuse>1.0 0.1 0.1 1</diffuse></material>
+        </visual>
+      </link>
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164</semi_major_axis>
+        <eccentricity>0.0</eccentricity>
+        <inclination_deg>0.0</inclination_deg>
+        <raan_deg>0.0</raan_deg>
+        <arg_perigee_deg>0.0</arg_perigee_deg>
+        <mean_anomaly_deg>310.0</mean_anomaly_deg>
+        <time_scale>86400.0</time_scale>
+        <heliocentric>true</heliocentric>
+      </plugin>
+    </model>
+
+    <!-- 🛰️ SATÉLITE 2 DO RPS-BR: RPS-IGSO (Figura-8 sobre o Território Brasileiro) -->
+    <model name="rps_igso_satellite">
+      <pose>1227.1 -32.3 0.0 0 0 0</pose>
+      <link name="bus_igso">
+        <visual name="v_bus">
+          <geometry><cylinder><radius>1.0</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.7 0.75 0.8 1</ambient>
+            <diffuse>0.85 0.9 0.95 1</diffuse>
+            <specular>0.9 0.9 0.9 1</specular>
+          </material>
+        </visual>
+        <visual name="v_solar">
+          <geometry><box><size>0.9 6.5 0.12</size></box></geometry>
+          <material>
+            <ambient>0.05 0.15 0.7 1</ambient>
+            <diffuse>0.1 0.25 0.9 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_marker">
+          <pose>0 0 1.3 0 0 0</pose>
+          <geometry><sphere><radius>0.5</radius></sphere></geometry>
+          <material><ambient>0.1 0.9 0.9 1</ambient><diffuse>0.2 1.0 1.0 1</diffuse></material>
+        </visual>
+      </link>
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164</semi_major_axis>
+        <eccentricity>0.06</eccentricity>
+        <inclination_deg>29.0</inclination_deg>
+        <raan_deg>310.0</raan_deg>
+        <arg_perigee_deg>270.0</arg_perigee_deg>
+        <mean_anomaly_deg>0.0</mean_anomaly_deg>
+        <time_scale>86400.0</time_scale>
+        <heliocentric>true</heliocentric>
       </plugin>
     </model>
 

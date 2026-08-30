@@ -5,6 +5,7 @@
  * Funcionalidades:
  * - Resolução da Equação de Kepler por Newton-Raphson para satélites GEO e IGSO.
  * - Transformação analítica de coordenadas: Perifocal (PQW) -> Inercial (ECI J2000) -> Terrestre (ECEF).
+ * - Suporte a sistemas Heliocêntricos Unificados (satélites orbitam a Terra enquanto ela translada ao redor do Sol).
  * - Apontamento Nadir contínuo (antenas do satélite apontadas para o centro da Terra).
  */
 
@@ -22,6 +23,11 @@
 namespace brazilian_rps
 {
 
+// Constantes Astronômicas Heliocêntricas
+constexpr double DIST_SUN_EARTH = 1200.0;                   // Distância representativa Sol-Terra
+constexpr double SECONDS_PER_YEAR = 365.256363 * 86400.0;   // Ano Sideral da Terra (s)
+constexpr double OMEGA_EARTH_ORBIT = 2.0 * M_PI / SECONDS_PER_YEAR;
+
 class OrbitalMotionPlugin : public gz::sim::System,
                             public gz::sim::ISystemConfigure,
                             public gz::sim::ISystemPreUpdate
@@ -36,8 +42,9 @@ private:
     double raan{310.0 * M_PI / 180.0};  // Longitude do Nó Ascendente - RAAN (rad)
     double argp{270.0 * M_PI / 180.0};  // Argumento do Perigeu (rad)
     double m0{0.0};                     // Anomalia Média inicial (rad)
-    double time_scale{300.0};           // Fator de aceleração temporal (300x)
-    
+    double time_scale{86400.0};         // Fator de aceleração temporal (1s = 1 dia simulado)
+    bool heliocentric{false};           // Se true, translada junto com a Terra ao redor do Sol
+
     // Velocidades Angulares
     double mean_motion{7.292115e-5};    // Velocidade angular orbital média (rad/s)
     double earth_rotation{7.292115e-5};  // Rotação sidérea da Terra (rad/s)
@@ -64,10 +71,13 @@ public:
             this->m0 = _sdf->Get<double>("mean_anomaly_deg") * M_PI / 180.0;
         if (_sdf->HasElement("time_scale"))
             this->time_scale = _sdf->Get<double>("time_scale");
+        if (_sdf->HasElement("heliocentric"))
+            this->heliocentric = _sdf->Get<bool>("heliocentric");
 
         std::cout << "🛰️ [OrbitalPlugin] Satélite " << this->model.Name(_ecm) 
                   << " ativo: a=" << this->a << " e=" << this->e 
-                  << " inc=" << (this->inc * 180.0 / M_PI) << "° (Scale: " << this->time_scale << "x)\n";
+                  << " inc=" << (this->inc * 180.0 / M_PI) << "° (Scale: " << this->time_scale 
+                  << "x, Helio: " << (this->heliocentric ? "Sim" : "Não") << ")\n";
     }
 
     void PreUpdate(const gz::sim::UpdateInfo &_info,
@@ -122,16 +132,27 @@ public:
         double z_ecef = z_eci;
 
         // 7. Apontamento de Atitude Nadir (Eixo Z apontado para o centro da Terra)
-        gz::math::Vector3d pos(x_ecef, y_ecef, z_ecef);
-        gz::math::Vector3d dir_to_earth = (-pos).Normalized();
+        gz::math::Vector3d pos_rel(x_ecef, y_ecef, z_ecef);
+        gz::math::Vector3d dir_to_earth = (-pos_rel).Normalized();
         gz::math::Quaterniond rot;
         rot.SetFrom2Axes(gz::math::Vector3d::UnitZ, dir_to_earth);
 
-        // 8. Aplicação da Pose no Gazebo
+        // 8. Posição Absoluta no Universo (Suporte Heliocêntrico)
+        double earth_x = 0.0, earth_y = 0.0, earth_z = 0.0;
+        if (this->heliocentric)
+        {
+            double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
+            earth_x = DIST_SUN_EARTH * std::cos(theta_earth_orbit);
+            earth_y = DIST_SUN_EARTH * std::sin(theta_earth_orbit);
+        }
+
+        gz::math::Vector3d pos_abs(earth_x + x_ecef, earth_y + y_ecef, earth_z + z_ecef);
+
+        // 9. Aplicação da Pose no Gazebo
         auto poseComp = _ecm.Component<gz::sim::components::Pose>(this->model.Entity());
         if (poseComp)
         {
-            *poseComp = gz::sim::components::Pose(gz::math::Pose3d(pos, rot));
+            *poseComp = gz::sim::components::Pose(gz::math::Pose3d(pos_abs, rot));
             _ecm.SetChanged(this->model.Entity(), gz::sim::components::Pose::typeId, gz::sim::ComponentState::PeriodicChange);
         }
     }
