@@ -3,10 +3,12 @@
   ==============================================================================
   Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
   Arquivo: solar_system_brazilian_rps.sdf
-  Descrição: Mundo SDFormat unificado de simulação heliocêntrica do Sistema Solar,
-             com a Terra multicamadas PBR de alta fidelidade da NASA (Albedo,
-             Emissão Noturna, Rugosidade, Relevo 3D, Nuvens com Deriva Zonal
-             e Halo Azul Atmosférico), a Lua, o Sol e os satélites do RPS-BR.
+  Descrição: Mundo SDFormat de simulação heliocêntrica com:
+             - Campo Estrelado do Espaço Profundo e Via Láctea (NASA/ESA Gaia 360° GLB com Winding Duplo)
+             - Terra (5 camadas PBR da NASA + Halo Rayleigh)
+             - Lua (CGI Moon Kit LRO com Albedo e Relevo de Crateras 3D)
+             - Sol (Fotosfera SDO com Convecção de Plasma e Manchas Solares)
+             - Satélites do RPS-BR (GEO e IGSO com materiais PBR MLI/GaAs).
   ==============================================================================
 -->
 <sdf version="1.8">
@@ -32,6 +34,30 @@
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
 
     <!-- ======================================================================= -->
+    <!-- 🌌 CAMPO ESTRELADO DO ESPAÇO PROFUNDO E VIA LÁCTEA (NASA/ESA Gaia GLB)  -->
+    <!-- ======================================================================= -->
+    <model name="celestial_starfield">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="starfield_link">
+        <visual name="v_stars">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/celestial_skydome.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>true</double_sided>
+            <ambient>1.0 1.0 1.0 1.0</ambient>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
+            <emissive>1.0 1.0 1.0 1.0</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ======================================================================= -->
     <!-- ☀️ ILUMINAÇÃO SOLAR HELIOCÊNTRICA (Luz Pontual Omnidirecional na Origem) -->
     <!-- ======================================================================= -->
     <light type="point" name="sun_omni_light">
@@ -50,7 +76,7 @@
     </light>
 
     <!-- ======================================================================= -->
-    <!-- ☀️ O CORPO SOLAR (Origem 0, 0, 0 | Emissão Térmica Radiativa de Plasma) -->
+    <!-- ☀️ O CORPO SOLAR: FOTOSFERA PBR DA NASA SDO (Plasma & Manchas Solares)   -->
     <!-- ======================================================================= -->
     <model name="sun">
       <static>true</static>
@@ -60,9 +86,17 @@
           <cast_shadows>false</cast_shadows>
           <geometry><sphere><radius>45.0</radius></sphere></geometry>
           <material>
-            <ambient>1.0 0.95 0.35 1.0</ambient>
-            <diffuse>1.0 0.95 0.35 1.0</diffuse>
-            <emissive>1.0 0.95 0.35 1.0</emissive>
+            <ambient>1.0 1.0 1.0 1.0</ambient>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
+            <emissive>1.0 0.95 0.8 1.0</emissive>
+            <pbr>
+              <metal>
+                <albedo_map>package://brazilian_rps_sim/materials/textures/sun_photosphere_2k.jpg</albedo_map>
+                <emissive_map>package://brazilian_rps_sim/materials/textures/sun_photosphere_2k.jpg</emissive_map>
+                <roughness>0.9</roughness>
+                <metalness>0.0</metalness>
+              </metal>
+            </pbr>
           </material>
         </visual>
       </link>
@@ -211,7 +245,7 @@
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🌕 A LUA (Albedo Geométrico Físico do Regolito Lunar: ~12% difuso)      -->
+    <!-- 🌕 A LUA: MODELO PBR DA NASA (CGI Moon Kit LRO: Albedo + Relevo 3D)    -->
     <!-- ======================================================================= -->
     <model name="moon">
       <pose>1584.4 0 0 0 0 0</pose>
@@ -223,11 +257,14 @@
           <cast_shadows>false</cast_shadows>
           <geometry><sphere><radius>1.737</radius></sphere></geometry>
           <material>
-            <ambient>0.0 0.0 0.0 1.0</ambient>
-            <diffuse>0.65 0.65 0.68 1.0</diffuse>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
             <specular>0.05 0.05 0.05 1.0</specular>
             <pbr>
               <metal>
+                <!-- Camada 1: Albedo e Mares Lunares da NASA LRO -->
+                <albedo_map>package://brazilian_rps_sim/materials/textures/moon_day_albedo_2k.jpg</albedo_map>
+                <!-- Camada 2: Relevo Altimétrico de Crateras (Tycho/Copernicus) -->
+                <normal_map>package://brazilian_rps_sim/materials/textures/moon_normal_2k.jpg</normal_map>
                 <metalness>0.0</metalness>
                 <roughness>0.95</roughness>
               </metal>
