@@ -12,7 +12,7 @@
       <ambient>0.0 0.0 0.0 1.0</ambient>
       <background>0.002 0.002 0.01 1.0</background>
       <grid>false</grid>
-      <shadows>true</shadows>
+      <shadows>false</shadows>
     </scene>
 
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
@@ -25,7 +25,7 @@
         <pose>0 -130 45 0 0.32 1.5708</pose>
         <view_controller>orbit</view_controller>
         <clip>
-          <near>1.0</near>
+          <near>0.05</near>
           <far>15000.0</far>
         </clip>
       </camera>

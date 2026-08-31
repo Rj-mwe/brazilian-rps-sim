@@ -1,48 +1,68 @@
 <?xml version="1.0" ?>
+<!--
+  ==============================================================================
+  Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
+  Arquivo: solar_system_brazilian_rps.sdf
+  Descrição: Mundo SDFormat unificado de simulação heliocêntrica do Sistema Solar,
+             com a Terra multicamadas PBR de alta fidelidade da NASA (Albedo,
+             Emissão Noturna, Rugosidade, Relevo 3D, Nuvens com Deriva Zonal
+             e Halo Azul Atmosférico), a Lua, o Sol e os satélites do RPS-BR.
+  ==============================================================================
+-->
 <sdf version="1.8">
   <world name="solar_system_rps_world">
+    <!-- Configurações de Física Analítica -->
     <physics name="1ms" type="ignored">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
     <gravity>0 0 0</gravity>
 
-    <!-- 🌌 ESPAÇO SIDERAL PROFUNDO -->
+    <!-- 🌌 Vácuo Espacial: Sem luz ambiente residual e transição de sombra analítica N·L -->
     <scene>
       <ambient>0.0 0.0 0.0 1.0</ambient>
-      <background>0.001 0.001 0.008 1.0</background>
+      <background>0.0005 0.0005 0.002 1.0</background>
       <grid>false</grid>
-      <shadows>true</shadows>
+      <shadows>false</shadows>
     </scene>
 
+    <!-- Plugins Fundamentais do Gazebo Sim -->
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
 
-    <!-- ☀️ O SOL (Origem 0, 0, 0) -->
+    <!-- ======================================================================= -->
+    <!-- ☀️ ILUMINAÇÃO SOLAR HELIOCÊNTRICA (Luz Pontual Omnidirecional na Origem) -->
+    <!-- ======================================================================= -->
     <light type="point" name="sun_omni_light">
-      <cast_shadows>true</cast_shadows>
+      <cast_shadows>false</cast_shadows>
       <pose>0 0 0 0 0 0</pose>
-      <diffuse>1.0 0.98 0.92 1</diffuse>
-      <specular>0.0 0.0 0.0 1</specular>
+      <!-- Espectro Térmico Solar 5778 K (CIE D65 / NASA Solar Direct Radiance) -->
+      <diffuse>1.0 0.985 0.94 1.0</diffuse>
+      <specular>0.8 0.8 0.8 1.0</specular>
       <attenuation>
-        <range>50000</range>
-        <constant>0.05</constant>
-        <linear>0.00001</linear>
-        <quadratic>0.0000001</quadratic>
+        <range>500000.0</range>
+        <!-- No vácuo: constant=1.0, linear=0, quad=0 preserva irradiância constante -->
+        <constant>1.0</constant>
+        <linear>0.0</linear>
+        <quadratic>0.0</quadratic>
       </attenuation>
     </light>
 
+    <!-- ======================================================================= -->
+    <!-- ☀️ O CORPO SOLAR (Origem 0, 0, 0 | Emissão Térmica Radiativa de Plasma) -->
+    <!-- ======================================================================= -->
     <model name="sun">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
       <link name="sun_link">
         <visual name="sun_sphere">
+          <cast_shadows>false</cast_shadows>
           <geometry><sphere><radius>45.0</radius></sphere></geometry>
           <material>
-            <ambient>1.0 0.9 0.2 1</ambient>
-            <diffuse>1.0 0.95 0.3 1</diffuse>
-            <emissive>1.0 0.9 0.3 1</emissive>
+            <ambient>1.0 0.95 0.35 1.0</ambient>
+            <diffuse>1.0 0.95 0.35 1.0</diffuse>
+            <emissive>1.0 0.95 0.35 1.0</emissive>
           </material>
         </visual>
       </link>
@@ -52,11 +72,14 @@
       </plugin>
     </model>
 
-    <!-- 🌟 TRILHA 3D DA ÓRBITA DA TERRA (glTF 2.0 com Dourado PBR Embutido) -->
+    <!-- ======================================================================= -->
+    <!-- 🌟 TRILHA 3D DA ÓRBITA DA TERRA (Linha Matemática de Referência Visual) -->
+    <!-- ======================================================================= -->
     <model name="earth_orbit_trail">
       <pose>0 0 0 0 0 0</pose>
       <link name="earth_trail_link">
         <visual name="earth_trail_vis">
+          <cast_shadows>false</cast_shadows>
           <geometry>
             <mesh>
               <uri>package://brazilian_rps_sim/meshes/earth_orbit_ring.gltf</uri>
@@ -70,27 +93,59 @@
       </plugin>
     </model>
 
-    <!-- 🌍 A TERRA (Alinhamento Polar: Polo Norte em +Z, Greenwich em +X) -->
+    <!-- ======================================================================= -->
+    <!-- 🌍 A TERRA: CORPO SÓLIDO + HALO AZUL ATMOSFÉRICO DE RAYLEIGH           -->
+    <!-- ======================================================================= -->
     <model name="earth">
       <pose>1200 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
           <geometry><sphere><radius>6.378</radius></sphere></geometry>
         </collision>
+
+        <!-- 1. Superfície Sólida da Terra (4 Camadas PBR Integradas) -->
         <visual name="earth_surface">
-          <!-- Rotação de alinhamento polar: Roll 90° para posicionar o Polo Norte no topo (+Z) -->
+          <cast_shadows>false</cast_shadows>
+          <!-- Alinhamento Polar Vertical (+Z Norte, +X Greenwich) -->
           <pose>0 0 0 1.57079632679 0 0</pose>
           <geometry>
             <sphere><radius>6.378</radius></sphere>
           </geometry>
           <material>
             <diffuse>1.0 1.0 1.0 1.0</diffuse>
-            <specular>0.1 0.1 0.1 1.0</specular>
+            <specular>0.8 0.8 0.8 1.0</specular>
             <pbr>
               <metal>
+                <!-- Camada 1: Albedo Diurno da NASA Blue Marble -->
                 <albedo_map>package://brazilian_rps_sim/materials/textures/earth_day_albedo_2k.jpg</albedo_map>
+                <!-- Camada 2: Luzes Noturnas Urbanas da NASA Black Marble -->
+                <emissive_map>package://brazilian_rps_sim/materials/textures/earth_night_lights_2k.jpg</emissive_map>
+                <!-- Camada 3: Mapa de Rugosidade (Espelho d'Água nos Oceanos) -->
+                <roughness_map>package://brazilian_rps_sim/materials/textures/earth_roughness_2k.jpg</roughness_map>
+                <!-- Camada 4: Topografia e Batimetria (Relevo das Cordilheiras) -->
+                <normal_map>package://brazilian_rps_sim/materials/textures/earth_normal_2k.jpg</normal_map>
                 <metalness>0.0</metalness>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+
+        <!-- 2. Halo Azul Atmosférico (Espalhamento de Rayleigh / Altitude: 45 km / Raio: 6.423) -->
+        <visual name="earth_atmosphere_halo">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <sphere><radius>6.423</radius></sphere>
+          </geometry>
+          <material>
+            <diffuse>0.2 0.65 1.0 0.85</diffuse>
+            <specular>0.4 0.7 1.0 1.0</specular>
+            <pbr>
+              <metal>
+                <albedo_map>package://brazilian_rps_sim/materials/textures/earth_atmosphere_halo_2k.png</albedo_map>
+                <emissive_map>package://brazilian_rps_sim/materials/textures/earth_atmosphere_emissive_2k.jpg</emissive_map>
                 <roughness>0.85</roughness>
+                <metalness>0.0</metalness>
               </metal>
             </pbr>
           </material>
@@ -102,11 +157,46 @@
       </plugin>
     </model>
 
-    <!-- 🌀 TRILHA 3D DA ÓRBITA DA LUA (glTF 2.0 com Ciano PBR Embutido) -->
+    <!-- ======================================================================= -->
+    <!-- ☁️ ATMOSFERA E NUVENS DINÂMICAS (Deriva Zonal dos Ventos a +3.5%)        -->
+    <!-- ======================================================================= -->
+    <model name="earth_clouds">
+      <pose>1200 0 0 0 0 0</pose>
+      <link name="clouds_link">
+        <visual name="v_clouds">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 1.57079632679 0 0</pose>
+          <geometry>
+            <sphere><radius>6.398</radius></sphere>
+          </geometry>
+          <material>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+            <pbr>
+              <metal>
+                <!-- Formato Autêntico de Satélites MODIS da NASA -->
+                <albedo_map>package://brazilian_rps_sim/materials/textures/earth_clouds_2k.png</albedo_map>
+                <roughness>0.9</roughness>
+                <metalness>0.0</metalness>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>earth_clouds</body_type>
+        <time_scale>86400.0</time_scale>
+      </plugin>
+    </model>
+
+    <!-- ======================================================================= -->
+    <!-- 🌀 TRILHA 3D DA ÓRBITA DA LUA                                           -->
+    <!-- ======================================================================= -->
     <model name="moon_orbit_trail">
       <pose>1200 0 0 0 0 0</pose>
       <link name="trail_link">
         <visual name="trail_vis">
+          <cast_shadows>false</cast_shadows>
           <geometry>
             <mesh>
               <uri>package://brazilian_rps_sim/meshes/moon_orbit_ring.gltf</uri>
@@ -120,7 +210,9 @@
       </plugin>
     </model>
 
-    <!-- 🌕 A LUA (Raio: 1.737 km | Distância: 384.400 km | Órbita a 5.145°) -->
+    <!-- ======================================================================= -->
+    <!-- 🌕 A LUA (Albedo Geométrico Físico do Regolito Lunar: ~12% difuso)      -->
+    <!-- ======================================================================= -->
     <model name="moon">
       <pose>1584.4 0 0 0 0 0</pose>
       <link name="moon_link">
@@ -128,11 +220,18 @@
           <geometry><sphere><radius>1.737</radius></sphere></geometry>
         </collision>
         <visual name="moon_surface">
+          <cast_shadows>false</cast_shadows>
           <geometry><sphere><radius>1.737</radius></sphere></geometry>
           <material>
-            <ambient>0.5 0.5 0.55 1.0</ambient>
-            <diffuse>0.7 0.7 0.75 1.0</diffuse>
-            <specular>0.1 0.1 0.1 1.0</specular>
+            <ambient>0.0 0.0 0.0 1.0</ambient>
+            <diffuse>0.65 0.65 0.68 1.0</diffuse>
+            <specular>0.05 0.05 0.05 1.0</specular>
+            <pbr>
+              <metal>
+                <metalness>0.0</metalness>
+                <roughness>0.95</roughness>
+              </metal>
+            </pbr>
           </material>
         </visual>
       </link>
@@ -142,29 +241,51 @@
       </plugin>
     </model>
 
-    <!-- 🛰️ SATÉLITE 1 DO RPS-BR: RPS-GEO (Âncora sobre Brasília - 50°W) -->
+    <!-- ======================================================================= -->
+    <!-- 🛰️ SATÉLITE 1 DO RPS-BR: RPS-GEO (Blindagem MLI Ouro + Painéis GaAs)    -->
+    <!-- ======================================================================= -->
     <model name="rps_geo_satellite">
       <pose>1227.1 -32.3 0.0 0 0 0</pose>
       <link name="bus_geo">
+        <!-- Corpo do Satélite em Folha de Ouro MLI -->
         <visual name="v_bus">
+          <cast_shadows>false</cast_shadows>
           <geometry><box><size>1.6 1.6 2.2</size></box></geometry>
           <material>
-            <ambient>0.85 0.65 0.1 1.0</ambient>
             <diffuse>0.95 0.75 0.15 1.0</diffuse>
-            <specular>0.8 0.7 0.3 1.0</specular>
+            <specular>0.9 0.8 0.3 1.0</specular>
+            <pbr>
+              <metal>
+                <metalness>0.85</metalness>
+                <roughness>0.2</roughness>
+              </metal>
+            </pbr>
           </material>
         </visual>
+        <!-- Painéis Solares GaAs -->
         <visual name="v_solar">
+          <cast_shadows>false</cast_shadows>
           <geometry><box><size>6.5 0.9 0.12</size></box></geometry>
           <material>
-            <ambient>0.05 0.15 0.7 1.0</ambient>
-            <diffuse>0.1 0.25 0.9 1.0</diffuse>
+            <diffuse>0.05 0.12 0.45 1.0</diffuse>
+            <specular>0.8 0.8 0.9 1.0</specular>
+            <pbr>
+              <metal>
+                <metalness>0.15</metalness>
+                <roughness>0.1</roughness>
+              </metal>
+            </pbr>
           </material>
         </visual>
+        <!-- Antena de Transmissão de Navegação -->
         <visual name="v_marker">
+          <cast_shadows>false</cast_shadows>
           <pose>0 0 1.2 0 0 0</pose>
           <geometry><sphere><radius>0.4</radius></sphere></geometry>
-          <material><ambient>0.9 0.1 0.1 1.0</ambient><diffuse>1.0 0.1 0.1 1.0</diffuse></material>
+          <material>
+            <diffuse>0.9 0.1 0.1 1.0</diffuse>
+            <pbr><metal><metalness>0.5</metalness><roughness>0.3</roughness></metal></pbr>
+          </material>
         </visual>
       </link>
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
@@ -179,29 +300,51 @@
       </plugin>
     </model>
 
-    <!-- 🛰️ SATÉLITE 2 DO RPS-BR: RPS-IGSO (Figura-8 sobre o Território Brasileiro) -->
+    <!-- ======================================================================= -->
+    <!-- 🛰️ SATÉLITE 2 DO RPS-BR: RPS-IGSO (Prata Térmica + Painéis GaAs)        -->
+    <!-- ======================================================================= -->
     <model name="rps_igso_satellite">
       <pose>1227.1 -32.3 0.0 0 0 0</pose>
       <link name="bus_igso">
+        <!-- Corpo Cilíndrico em Prata Térmica -->
         <visual name="v_bus">
+          <cast_shadows>false</cast_shadows>
           <geometry><cylinder><radius>1.0</radius><length>2.4</length></cylinder></geometry>
           <material>
-            <ambient>0.7 0.75 0.8 1.0</ambient>
             <diffuse>0.85 0.9 0.95 1.0</diffuse>
-            <specular>0.9 0.9 0.9 1.0</specular>
+            <specular>0.95 0.95 0.95 1.0</specular>
+            <pbr>
+              <metal>
+                <metalness>0.9</metalness>
+                <roughness>0.15</roughness>
+              </metal>
+            </pbr>
           </material>
         </visual>
+        <!-- Painéis Solares -->
         <visual name="v_solar">
+          <cast_shadows>false</cast_shadows>
           <geometry><box><size>0.9 6.5 0.12</size></box></geometry>
           <material>
-            <ambient>0.05 0.15 0.7 1.0</ambient>
-            <diffuse>0.1 0.25 0.9 1.0</diffuse>
+            <diffuse>0.05 0.12 0.45 1.0</diffuse>
+            <specular>0.8 0.8 0.9 1.0</specular>
+            <pbr>
+              <metal>
+                <metalness>0.15</metalness>
+                <roughness>0.1</roughness>
+              </metal>
+            </pbr>
           </material>
         </visual>
+        <!-- Transponder Ciano -->
         <visual name="v_marker">
+          <cast_shadows>false</cast_shadows>
           <pose>0 0 1.3 0 0 0</pose>
           <geometry><sphere><radius>0.5</radius></sphere></geometry>
-          <material><ambient>0.1 0.9 0.9 1.0</ambient><diffuse>0.2 1.0 1.0 1.0</diffuse></material>
+          <material>
+            <diffuse>0.1 0.9 0.9 1.0</diffuse>
+            <pbr><metal><metalness>0.5</metalness><roughness>0.3</roughness></metal></pbr>
+          </material>
         </visual>
       </link>
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
