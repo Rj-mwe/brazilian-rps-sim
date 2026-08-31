@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
 Arquivo de inicialização unificado do Sistema Solar e da Constelação RPS-BR.
-Executa a simulação multiescala completa: Sol, Terra realista da NASA, Lua e Satélites
-com sincronização total de relógio ROS 2 (use_sim_time: True), ponte ros_gz_bridge
-e carregamento declarativo do arquivo central de parâmetros config/simulation_parameters.yaml.
+Arquitetura Hexagonal (Hexágono Dourado): Nó central de domínio puro + adaptadores ROS 2
+com sincronização estrita de relógio (/clock) e carregamento declarativo de config/simulation_parameters.yaml.
 """
 
 import os
@@ -40,25 +39,19 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 3. Nó de Efemérides Astronômicas e Relógio Cósmico (sincronizado com YAML)
+        # 3. Nó de Domínio Hexagonal: Constelação RPS-BR (7 Satélites) e Sistema Celeste
         Node(
             package='brazilian_rps_sim',
-            executable='celestial_ephemeris_node.py',
-            name='celestial_ephemeris_node',
-            parameters=[config_file_path],
+            executable='rps_constellation_node',
+            name='rps_constellation_node',
+            parameters=[{
+                'use_sim_time': True,
+                'config_path': config_file_path
+            }],
             output='screen'
         ),
 
-        # 4. Nó de Telemetria Orbital da Constelação Brasileira RPS-BR (sincronizado com YAML)
-        Node(
-            package='brazilian_rps_sim',
-            executable='orbit_publisher_node.py',
-            name='rps_orbit_publisher',
-            parameters=[config_file_path],
-            output='screen'
-        ),
-
-        # 5. Ajuste automático da câmera do Gazebo com visão panorâmica sobre a Terra e satélites
+        # 4. Ajuste automático da câmera do Gazebo com visão panorâmica sobre a Terra e satélites
         ExecuteProcess(
             cmd=['python3', focus_script, 'earth'],
             output='screen'

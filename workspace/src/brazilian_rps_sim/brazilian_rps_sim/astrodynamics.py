@@ -69,9 +69,11 @@ def load_simulation_config(config_path: str = None) -> dict:
         with open(config_path, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
             # Suporta formato ROS 2 com /** / ros__parameters
-            if '/**' in data and 'ros__parameters' in data['/**']:
-                return data['/**']['ros__parameters']
-            return data
+            if isinstance(data, dict):
+                if '/**' in data and 'ros__parameters' in data['/**']:
+                    return data['/**']['ros__parameters']
+                return data
+            return {}
     return {}
 
 def get_brazilian_rps_constellation(config_path: str = None) -> list[OrbitalElements]:

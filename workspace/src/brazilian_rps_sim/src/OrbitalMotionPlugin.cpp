@@ -1,7 +1,7 @@
 /**
  * @file OrbitalMotionPlugin.cpp
  * @brief Plugin C++ do Gazebo Harmonic para simulação analítica dos satélites do RPS-BR
- *        com suporte total a avanço por passos discretos (Stepping) e reprodução contínua.
+ *        com leitura declarativa de parâmetros via config/simulation_parameters.yaml.
  */
 
 #include <gz/sim/System.hh>
@@ -14,6 +14,10 @@
 #include <gz/math/Quaternion.hh>
 #include <cmath>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace brazilian_rps
 {
@@ -22,6 +26,35 @@ namespace brazilian_rps
 constexpr double DIST_SUN_EARTH = 1200.0;                   // Distância representativa Sol-Terra
 constexpr double SECONDS_PER_YEAR = 365.256363 * 86400.0;   // Ano Sideral da Terra (s)
 constexpr double OMEGA_EARTH_ORBIT = 2.0 * M_PI / SECONDS_PER_YEAR;
+
+inline double load_time_multiplier_from_yaml()
+{
+    std::vector<std::string> paths = {
+        "/home/rjgamito/ros2_ws/install/brazilian_rps_sim/share/brazilian_rps_sim/config/simulation_parameters.yaml",
+        "/home/rjgamito/ros2_ws/src/brazilian_rps_sim/config/simulation_parameters.yaml",
+        "/home/rjgamito/Projetos/Engenharia/Aeroespacial/brazilian-rps-sim/workspace/src/brazilian_rps_sim/config/simulation_parameters.yaml"
+    };
+    for (const auto &p : paths)
+    {
+        std::ifstream file(p);
+        if (file.is_open())
+        {
+            std::string line;
+            while (std::getline(file, line))
+            {
+                auto pos = line.find("time_multiplier:");
+                if (pos != std::string::npos)
+                {
+                    std::stringstream ss(line.substr(pos + 16));
+                    double val = 1.0;
+                    if (ss >> val)
+                        return val;
+                }
+            }
+        }
+    }
+    return 1.0;
+}
 
 class OrbitalMotionPlugin : public gz::sim::System,
                             public gz::sim::ISystemConfigure,
@@ -37,7 +70,7 @@ private:
     double raan{310.0 * M_PI / 180.0};  // Longitude do Nó Ascendente - RAAN (rad)
     double argp{270.0 * M_PI / 180.0};  // Argumento do Perigeu (rad)
     double m0{0.0};                     // Anomalia Média inicial (rad)
-    double time_scale{1.0};         // Fator de aceleração temporal (1s = 1 dia simulado)
+    double time_scale{1.0};             // Fator de aceleração temporal
     bool heliocentric{false};           // Se true, translada junto com a Terra ao redor do Sol
 
     // Velocidades Angulares
@@ -66,8 +99,17 @@ public:
             this->argp = _sdf->Get<double>("arg_perigee_deg") * M_PI / 180.0;
         if (_sdf->HasElement("mean_anomaly_deg"))
             this->m0 = _sdf->Get<double>("mean_anomaly_deg") * M_PI / 180.0;
+        
+        // Lê do simulation_parameters.yaml
+        this->time_scale = load_time_multiplier_from_yaml();
+
         if (_sdf->HasElement("time_scale"))
-            this->time_scale = _sdf->Get<double>("time_scale");
+        {
+            double override_scale = _sdf->Get<double>("time_scale");
+            if (override_scale != 1.0)
+                this->time_scale = override_scale;
+        }
+
         if (_sdf->HasElement("heliocentric"))
             this->heliocentric = _sdf->Get<bool>("heliocentric");
 
@@ -80,76 +122,78 @@ public:
     void PreUpdate(const gz::sim::UpdateInfo &_info,
                    gz::sim::EntityComponentManager &_ecm) override
     {
-        // Executa sempre que o tempo de simulação avançar (seja em Play contínuo ou por botão Step!)
         if (_info.simTime == this->last_sim_time)
             return;
 
         this->last_sim_time = _info.simTime;
         double sim_sec = std::chrono::duration<double>(_info.simTime).count() * this->time_scale;
 
-        // 1. Cálculo da Anomalia Média M(t)
+        // 1. Resolução Transcendental de Kepler (Newton-Raphson)
         double M = std::fmod(this->m0 + this->mean_motion * sim_sec, 2.0 * M_PI);
-        if (M < 0) M += 2.0 * M_PI;
-
-        // 2. Resolução da Equação Transcendental de Kepler por Newton-Raphson
         double E = M;
-        for (int k = 0; k < 15; ++k)
+        for (int iter = 0; iter < 15; ++iter)
         {
             double f = E - this->e * std::sin(E) - M;
             double f_prime = 1.0 - this->e * std::cos(E);
-            double dE = -f / f_prime;
-            E += dE;
-            if (std::abs(dE) < 1e-8) break;
+            double delta = -f / f_prime;
+            E += delta;
+            if (std::abs(delta) < 1e-9) break;
         }
 
-        // 3. Anomalia Verdadeira nu e Raio Orbital r
+        // 2. Anomalia Verdadeira e Raio Polar PQW
         double sin_nu = (std::sqrt(1.0 - this->e * this->e) * std::sin(E)) / (1.0 - this->e * std::cos(E));
         double cos_nu = (std::cos(E) - this->e) / (1.0 - this->e * std::cos(E));
         double nu = std::atan2(sin_nu, cos_nu);
-        double r = this->a * (1.0 - this->e * std::cos(E));
 
-        // 4. Posição no Plano Orbital Perifocal (PQW)
+        double r = this->a * (1.0 - this->e * std::cos(E));
         double p_x = r * std::cos(nu);
         double p_y = r * std::sin(nu);
 
-        // 5. Rotação para o Referencial Inercial Celeste (ECI J2000)
-        double c_O = std::cos(this->raan), s_O = std::sin(this->raan);
-        double c_i = std::cos(this->inc),  s_i = std::sin(this->inc);
-        double c_w = std::cos(this->argp), s_w = std::sin(this->argp);
+        // 3. Matriz de Rotação Orbital (Perifocal -> ECI Inercial)
+        double cos_O = std::cos(this->raan), sin_O = std::sin(this->raan);
+        double cos_w = std::cos(this->argp), sin_w = std::sin(this->argp);
+        double cos_i = std::cos(this->inc),  sin_i = std::sin(this->inc);
 
-        double x_eci = (c_O * c_w - s_O * s_w * c_i) * p_x + (-c_O * s_w - s_O * c_w * c_i) * p_y;
-        double y_eci = (s_O * c_w + c_O * s_w * c_i) * p_x + (-s_O * s_w + c_O * c_w * c_i) * p_y;
-        double z_eci = (s_w * s_i) * p_x + (c_w * s_i) * p_y;
+        double P_x = cos_O * cos_w - sin_O * sin_w * cos_i;
+        double P_y = sin_O * cos_w + cos_O * sin_w * cos_i;
+        double P_z = sin_w * sin_i;
 
-        // 6. Rotação para o Referencial Terrestre Fixo (ECEF)
-        double theta = this->earth_rotation * sim_sec;
-        double c_th = std::cos(theta), s_th = std::sin(theta);
+        double Q_x = -cos_O * sin_w - sin_O * cos_w * cos_i;
+        double Q_y = -sin_O * sin_w + cos_O * cos_w * cos_i;
+        double Q_z = cos_w * sin_i;
 
-        double x_ecef =  c_th * x_eci + s_th * y_eci;
-        double y_ecef = -s_th * x_eci + c_th * y_eci;
-        double z_ecef = z_eci;
+        double eci_x = p_x * P_x + p_y * Q_x;
+        double eci_y = p_x * P_y + p_y * Q_y;
+        double eci_z = p_x * P_z + p_y * Q_z;
 
-        // 7. Apontamento de Atitude Nadir (Eixo Z apontado para o centro da Terra)
-        gz::math::Vector3d pos_rel(x_ecef, y_ecef, z_ecef);
-        gz::math::Vector3d dir_to_earth = (-pos_rel).Normalized();
-        gz::math::Quaterniond rot;
-        rot.SetFrom2Axes(gz::math::Vector3d::UnitZ, dir_to_earth);
-
-        // 8. Posição Absoluta no Universo (Suporte Heliocêntrico)
-        gz::math::Vector3d pos_abs = pos_rel;
+        // 4. Se for Heliocêntrico, translada com a Terra ao redor do Sol
         if (this->heliocentric)
         {
-            double theta_earth = OMEGA_EARTH_ORBIT * sim_sec;
-            double earth_x = DIST_SUN_EARTH * std::cos(theta_earth);
-            double earth_y = DIST_SUN_EARTH * std::sin(theta_earth);
-            pos_abs += gz::math::Vector3d(earth_x, earth_y, 0.0);
+            double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
+            eci_x += DIST_SUN_EARTH * std::cos(theta_earth_orbit);
+            eci_y += DIST_SUN_EARTH * std::sin(theta_earth_orbit);
         }
 
-        // 9. Atualização no ECM
+        // 5. Apontamento de Atitude Nadir (Eixo Z apontando para o centro da Terra)
+        gz::math::Vector3d earth_center(0, 0, 0);
+        if (this->heliocentric)
+        {
+            double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
+            earth_center.Set(DIST_SUN_EARTH * std::cos(theta_earth_orbit),
+                             DIST_SUN_EARTH * std::sin(theta_earth_orbit),
+                             0.0);
+        }
+        gz::math::Vector3d sat_pos(eci_x, eci_y, eci_z);
+        gz::math::Vector3d to_earth = (earth_center - sat_pos).Normalized();
+
+        gz::math::Quaterniond nadir_orientation;
+        nadir_orientation.SetFrom2Axes(gz::math::Vector3d(0, 0, 1), to_earth);
+
+        // 6. Atualização da Pose no ECS
         auto poseComp = _ecm.Component<gz::sim::components::Pose>(this->model.Entity());
         if (poseComp)
         {
-            *poseComp = gz::sim::components::Pose(gz::math::Pose3d(pos_abs, rot));
+            *poseComp = gz::sim::components::Pose(gz::math::Pose3d(sat_pos, nadir_orientation));
             _ecm.SetChanged(this->model.Entity(), gz::sim::components::Pose::typeId, gz::sim::ComponentState::PeriodicChange);
         }
     }
@@ -162,4 +206,5 @@ GZ_ADD_PLUGIN(brazilian_rps::OrbitalMotionPlugin,
               brazilian_rps::OrbitalMotionPlugin::ISystemConfigure,
               brazilian_rps::OrbitalMotionPlugin::ISystemPreUpdate)
 
-GZ_ADD_PLUGIN_ALIAS(brazilian_rps::OrbitalMotionPlugin, "brazilian_rps::OrbitalMotionPlugin")
+GZ_ADD_PLUGIN_ALIAS(brazilian_rps::OrbitalMotionPlugin,
+                    "brazilian_rps::OrbitalMotionPlugin")

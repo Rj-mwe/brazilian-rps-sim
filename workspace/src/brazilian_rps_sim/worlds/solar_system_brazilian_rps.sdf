@@ -35,7 +35,7 @@
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
-      <state_hertz>0</state_hertz>
+      <state_hertz>60</state_hertz>
     </plugin>
 
     <!-- ======================================================================= -->

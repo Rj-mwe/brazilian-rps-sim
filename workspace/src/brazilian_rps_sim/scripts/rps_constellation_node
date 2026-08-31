@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+from brazilian_rps_sim.adapters.inbound.Ros2ConstellationNode import main
+
+if __name__ == '__main__':
+    main()

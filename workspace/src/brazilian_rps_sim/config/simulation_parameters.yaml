@@ -5,112 +5,110 @@
 #            mecânica celeste e a constelação completa de 7 satélites do RPS-BR.
 # ==============================================================================
 
-/**:
-  ros__parameters:
-    # ⏱️ 1. Configurações Globais de Simulação e Tempo
-    simulation:
-      use_sim_time: true
-      time_multiplier: 1.0        # Proporção 1:1 de tempo real
-      render_scale: 0.001         # 1 unidade no Gazebo = 1.000 km reais
-      telemetry_rate_hz: 20.0     # Frequência de publicação ROS 2 (Hz)
-      physics_frequency_hz: 60.0  # Frequência do motor de física / quadros (Hz)
+# ⏱️ 1. Configurações Globais de Simulação e Tempo
+simulation:
+  use_sim_time: true
+  time_multiplier: 86400.0        # Proporção 1:1 de tempo real
+  render_scale: 0.001         # 1 unidade no Gazebo = 1.000 km reais
+  telemetry_rate_hz: 1.0     # Frequência de publicação ROS 2 (Hz)
+  physics_frequency_hz: 60.0  # Frequência do motor de física / quadros (Hz)
 
-    # 🌌 2. Mecânica Celeste e Corpos Astronômicos
-    celestial_mechanics:
-      sun:
-        radius_render: 45.0
-        radius_real_km: 696340.0
-      earth:
-        radius_km: 6378.137
-        obliquity_deg: 23.43928
-        dist_sun_render: 1200.0
-        clouds_drift_factor: 1.035
-        sidereal_day_sec: 86164.0905
-        sidereal_year_sec: 31558149.76 # 365.256363 dias
-      moon:
-        radius_km: 1737.4
-        inclination_deg: 5.145
-        dist_earth_render: 384.4
-        sidereal_month_sec: 2360591.51 # 27.321661 dias
-        synodic_month_sec: 2551442.89  # 29.530589 dias (fases da lua)
+# 🌌 2. Mecânica Celeste e Corpos Astronômicos
+celestial_mechanics:
+  sun:
+    radius_render: 45.0
+    radius_real_km: 696340.0
+  earth:
+    radius_km: 6378.137
+    obliquity_deg: 23.43928
+    dist_sun_render: 1200.0
+    clouds_drift_factor: 1.035
+    sidereal_day_sec: 86164.0905
+    sidereal_year_sec: 31558149.76 # 365.256363 dias
+  moon:
+    radius_km: 1737.4
+    inclination_deg: 5.145
+    dist_earth_render: 384.4
+    sidereal_month_sec: 2360591.51 # 27.321661 dias
+    synodic_month_sec: 2551442.89  # 29.530589 dias (fases da lua)
 
-    # 🛰️ 3. Constelação Completa do RPS-BR (3 GEO + 4 IGSO)
-    constellation:
-      mu_earth: 398600.4418       # km^3 / s^2
-      j2_perturbation: 1.08263e-3
-      flattening: 0.00335281      # 1 / 298.257223563
-      satellites:
-        # --- 3 SATÉLITES GEOESTACIONÁRIOS (GEO) ---
-        - id: 1
-          name: "RPS-GEO-1 (Oeste/Amazônia)"
-          type: "GEO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.0
-          inclination_deg: 0.0
-          raan_deg: 0.0
-          arg_perigee_deg: 0.0
-          mean_anomaly_deg: 290.0 # Posicionado sobre 70.0° W (Amazônia/Oeste)
-          station_longitude_deg: -70.0
+# 🛰️ 3. Constelação Completa do RPS-BR (3 GEO + 4 IGSO)
+constellation:
+  mu_earth: 398600.4418       # km^3 / s^2
+  j2_perturbation: 1.08263e-3
+  flattening: 0.00335281      # 1 / 298.257223563
+  satellites:
+    # --- 3 SATÉLITES GEOESTACIONÁRIOS (GEO) ---
+    - id: 1
+      name: "RPS-GEO-1 (Oeste/Amazônia)"
+      type: "GEO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.0
+      inclination_deg: 0.0
+      raan_deg: 0.0
+      arg_perigee_deg: 0.0
+      mean_anomaly_deg: 290.0 # Posicionado sobre 70.0° W (Amazônia/Oeste)
+      station_longitude_deg: -70.0
 
-        - id: 2
-          name: "RPS-GEO-2 (Centro/BSB)"
-          type: "GEO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.0
-          inclination_deg: 0.0
-          raan_deg: 0.0
-          arg_perigee_deg: 0.0
-          mean_anomaly_deg: 310.0 # Posicionado sobre 50.0° W (Brasília/Centro-Sul)
-          station_longitude_deg: -50.0
+    - id: 2
+      name: "RPS-GEO-2 (Centro/BSB)"
+      type: "GEO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.0
+      inclination_deg: 0.0
+      raan_deg: 0.0
+      arg_perigee_deg: 0.0
+      mean_anomaly_deg: 310.0 # Posicionado sobre 50.0° W (Brasília/Centro-Sul)
+      station_longitude_deg: -50.0
 
-        - id: 3
-          name: "RPS-GEO-3 (Leste/Atlântico)"
-          type: "GEO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.0
-          inclination_deg: 0.0
-          raan_deg: 0.0
-          arg_perigee_deg: 0.0
-          mean_anomaly_deg: 325.0 # Posicionado sobre 35.0° W (Costa Leste/Atlântico)
-          station_longitude_deg: -35.0
+    - id: 3
+      name: "RPS-GEO-3 (Leste/Atlântico)"
+      type: "GEO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.0
+      inclination_deg: 0.0
+      raan_deg: 0.0
+      arg_perigee_deg: 0.0
+      mean_anomaly_deg: 325.0 # Posicionado sobre 35.0° W (Costa Leste/Atlântico)
+      station_longitude_deg: -35.0
 
-        # --- 4 SATÉLITES GEOSSÍNCRONOS INCLINADOS (IGSO) COM FIGURA-8 ---
-        - id: 4
-          name: "RPS-IGSO-1"
-          type: "IGSO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.06
-          inclination_deg: 29.0
-          raan_deg: 310.0
-          arg_perigee_deg: 270.0
-          mean_anomaly_deg: 0.0
+    # --- 4 SATÉLITES GEOSSÍNCRONOS INCLINADOS (IGSO) COM FIGURA-8 ---
+    - id: 4
+      name: "RPS-IGSO-1"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.06
+      inclination_deg: 29.0
+      raan_deg: 310.0
+      arg_perigee_deg: 270.0
+      mean_anomaly_deg: 0.0
 
-        - id: 5
-          name: "RPS-IGSO-2"
-          type: "IGSO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.06
-          inclination_deg: 29.0
-          raan_deg: 40.0
-          arg_perigee_deg: 270.0
-          mean_anomaly_deg: 90.0
+    - id: 5
+      name: "RPS-IGSO-2"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.06
+      inclination_deg: 29.0
+      raan_deg: 40.0
+      arg_perigee_deg: 270.0
+      mean_anomaly_deg: 90.0
 
-        - id: 6
-          name: "RPS-IGSO-3"
-          type: "IGSO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.06
-          inclination_deg: 29.0
-          raan_deg: 130.0
-          arg_perigee_deg: 270.0
-          mean_anomaly_deg: 180.0
+    - id: 6
+      name: "RPS-IGSO-3"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.06
+      inclination_deg: 29.0
+      raan_deg: 130.0
+      arg_perigee_deg: 270.0
+      mean_anomaly_deg: 180.0
 
-        - id: 7
-          name: "RPS-IGSO-4"
-          type: "IGSO"
-          semi_major_axis_km: 42164.14
-          eccentricity: 0.06
-          inclination_deg: 29.0
-          raan_deg: 220.0
-          arg_perigee_deg: 270.0
-          mean_anomaly_deg: 270.0
+    - id: 7
+      name: "RPS-IGSO-4"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.06
+      inclination_deg: 29.0
+      raan_deg: 220.0
+      arg_perigee_deg: 270.0
+      mean_anomaly_deg: 270.0

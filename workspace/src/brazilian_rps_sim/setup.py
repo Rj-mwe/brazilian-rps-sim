@@ -24,8 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'orbit_publisher = brazilian_rps_sim.orbit_publisher_node:main',
-            'run_math_simulation = brazilian_rps_sim.constellation_simulator:run_simulation',
+            'rps_constellation_node = brazilian_rps_sim.adapters.inbound.Ros2ConstellationNode:main',
         ],
     },
 )

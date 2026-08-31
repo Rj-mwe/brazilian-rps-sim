@@ -1,7 +1,7 @@
 /**
  * @file CelestialMechanicsPlugin.cpp
  * @brief Plugin C++ do Gazebo Harmonic para simulação analítica da Mecânica Celeste Sol-Terra-Lua
- *        com suporte total a avanço por passos discretos (Stepping) e reprodução contínua.
+ *        com leitura declarativa de parâmetros via config/simulation_parameters.yaml.
  */
 
 #include <gz/sim/System.hh>
@@ -15,7 +15,10 @@
 #include <gz/math/Quaternion.hh>
 #include <cmath>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <string>
+#include <vector>
 
 namespace celestial_sim
 {
@@ -35,6 +38,35 @@ constexpr double OMEGA_EARTH_ORBIT = 2.0 * M_PI / SECONDS_PER_YEAR;
 
 constexpr double OBLIQUITY_EARTH_DEG = 23.43928; // 23.44°
 constexpr double INCLINATION_MOON_DEG = 5.145;   // 5.145°
+
+inline double load_time_multiplier_from_yaml()
+{
+    std::vector<std::string> paths = {
+        "/home/rjgamito/ros2_ws/install/brazilian_rps_sim/share/brazilian_rps_sim/config/simulation_parameters.yaml",
+        "/home/rjgamito/ros2_ws/src/brazilian_rps_sim/config/simulation_parameters.yaml",
+        "/home/rjgamito/Projetos/Engenharia/Aeroespacial/brazilian-rps-sim/workspace/src/brazilian_rps_sim/config/simulation_parameters.yaml"
+    };
+    for (const auto &p : paths)
+    {
+        std::ifstream file(p);
+        if (file.is_open())
+        {
+            std::string line;
+            while (std::getline(file, line))
+            {
+                auto pos = line.find("time_multiplier:");
+                if (pos != std::string::npos)
+                {
+                    std::stringstream ss(line.substr(pos + 16));
+                    double val = 1.0;
+                    if (ss >> val)
+                        return val;
+                }
+            }
+        }
+    }
+    return 1.0;
+}
 
 class CelestialMechanicsPlugin : public gz::sim::System,
                                 public gz::sim::ISystemConfigure,
@@ -56,8 +88,16 @@ public:
 
         if (_sdf->HasElement("body_type"))
             this->body_type = _sdf->Get<std::string>("body_type");
+
+        // Lê prioritariamente do simulation_parameters.yaml
+        this->time_scale = load_time_multiplier_from_yaml();
+
         if (_sdf->HasElement("time_scale"))
-            this->time_scale = _sdf->Get<double>("time_scale");
+        {
+            double override_scale = _sdf->Get<double>("time_scale");
+            if (override_scale != 1.0)
+                this->time_scale = override_scale;
+        }
 
         std::cout << "🌌 [CelestialPlugin] Entidade '" << this->model.Name(_ecm) 
                   << "' configurada como: " << this->body_type 
@@ -67,7 +107,6 @@ public:
     void PreUpdate(const gz::sim::UpdateInfo &_info,
                    gz::sim::EntityComponentManager &_ecm) override
     {
-        // Executa sempre que o tempo de simulação avançar (seja em Play contínuo ou por botão Step!)
         if (_info.simTime == this->last_sim_time)
             return;
 
@@ -83,61 +122,54 @@ public:
         double earth_z = 0.0;
 
         // 2. Rotação Própria da Terra (Eixo Inclinado a 23.44°)
-        double earth_spin_angle = std::fmod(OMEGA_EARTH_SPIN * sim_sec, 2.0 * M_PI);
+        double theta_earth_spin = std::fmod(OMEGA_EARTH_SPIN * sim_sec, 2.0 * M_PI);
         double eps = OBLIQUITY_EARTH_DEG * M_PI / 180.0;
-        gz::math::Quaterniond q_tilt(eps, 0.0, 0.0);
-        gz::math::Quaterniond q_spin(0.0, 0.0, earth_spin_angle);
-        gz::math::Quaterniond q_earth = q_tilt * q_spin;
+        gz::math::Quaterniond q_earth_axial(eps, 0.0, theta_earth_spin);
 
-        // 3. Rotação Zonal das Nuvens (+3.5% Super-rotação)
-        double clouds_spin_angle = std::fmod(OMEGA_CLOUDS_SPIN * sim_sec, 2.0 * M_PI);
-        gz::math::Quaterniond q_cloud_spin(0.0, 0.0, clouds_spin_angle);
-        gz::math::Quaterniond q_clouds = q_tilt * q_cloud_spin;
+        // 3. Rotação das Nuvens (+3.5% Super-rotação)
+        double theta_clouds_spin = std::fmod(OMEGA_CLOUDS_SPIN * sim_sec, 2.0 * M_PI);
+        gz::math::Quaterniond q_clouds_axial(eps, 0.0, theta_clouds_spin);
 
-        // 4. Órbita Geocêntrica da Lua
-        double theta_moon_orbit = OMEGA_MOON_ORBIT * sim_sec;
-        double inc_moon = INCLINATION_MOON_DEG * M_PI / 180.0;
+        // 4. Órbita Lunar ao redor da Terra (Inclinada a 5.145°)
+        double theta_moon = OMEGA_MOON_ORBIT * sim_sec;
+        double i_moon = INCLINATION_MOON_DEG * M_PI / 180.0;
+        double moon_rel_x = DIST_EARTH_MOON * std::cos(theta_moon);
+        double moon_rel_y = DIST_EARTH_MOON * std::sin(theta_moon) * std::cos(i_moon);
+        double moon_rel_z = DIST_EARTH_MOON * std::sin(theta_moon) * std::sin(i_moon);
 
-        double moon_rel_x = DIST_EARTH_MOON * std::cos(theta_moon_orbit);
-        double moon_rel_y = DIST_EARTH_MOON * std::sin(theta_moon_orbit) * std::cos(inc_moon);
-        double moon_rel_z = DIST_EARTH_MOON * std::sin(theta_moon_orbit) * std::sin(inc_moon);
-
-        double moon_x = earth_x + moon_rel_x;
-        double moon_y = earth_y + moon_rel_y;
-        double moon_z = earth_z + moon_rel_z;
-
-        // 5. Travamento de Maré da Lua
-        double moon_yaw = std::atan2(-moon_rel_y, -moon_rel_x);
-        gz::math::Quaterniond q_moon(0.0, inc_moon, moon_yaw);
-
-        // 6. Determinação da Pose Alvo
-        gz::math::Pose3d target_pose;
+        // 5. Aplicação da Pose no ECS
+        gz::math::Pose3d pose;
         if (this->body_type == "earth")
         {
-            target_pose = gz::math::Pose3d(gz::math::Vector3d(earth_x, earth_y, earth_z), q_earth);
+            pose.Set(gz::math::Vector3d(earth_x, earth_y, earth_z), q_earth_axial);
         }
         else if (this->body_type == "earth_clouds")
         {
-            target_pose = gz::math::Pose3d(gz::math::Vector3d(earth_x, earth_y, earth_z), q_clouds);
+            pose.Set(gz::math::Vector3d(earth_x, earth_y, earth_z), q_clouds_axial);
+        }
+        else if (this->body_type == "earth_trail")
+        {
+            pose.Set(gz::math::Vector3d(0.0, 0.0, 0.0), gz::math::Quaterniond::Identity);
         }
         else if (this->body_type == "moon")
         {
-            target_pose = gz::math::Pose3d(gz::math::Vector3d(moon_x, moon_y, moon_z), q_moon);
+            pose.Set(gz::math::Vector3d(earth_x + moon_rel_x, earth_y + moon_rel_y, earth_z + moon_rel_z),
+                     gz::math::Quaterniond::Identity);
         }
         else if (this->body_type == "moon_trail")
         {
-            target_pose = gz::math::Pose3d(gz::math::Vector3d(earth_x, earth_y, earth_z), gz::math::Quaterniond::Identity);
+            pose.Set(gz::math::Vector3d(earth_x, earth_y, earth_z),
+                     gz::math::Quaterniond(i_moon, 0.0, 0.0));
         }
-        else if (this->body_type == "earth_trail" || this->body_type == "sun")
+        else if (this->body_type == "sun")
         {
-            target_pose = gz::math::Pose3d(gz::math::Vector3d(0.0, 0.0, 0.0), gz::math::Quaterniond::Identity);
+            pose.Set(gz::math::Vector3d(0.0, 0.0, 0.0), gz::math::Quaterniond::Identity);
         }
 
-        // 7. Atualização no ECM
         auto poseComp = _ecm.Component<gz::sim::components::Pose>(this->model.Entity());
         if (poseComp)
         {
-            *poseComp = gz::sim::components::Pose(target_pose);
+            *poseComp = gz::sim::components::Pose(pose);
             _ecm.SetChanged(this->model.Entity(), gz::sim::components::Pose::typeId, gz::sim::ComponentState::PeriodicChange);
         }
     }
@@ -150,4 +182,5 @@ GZ_ADD_PLUGIN(celestial_sim::CelestialMechanicsPlugin,
               celestial_sim::CelestialMechanicsPlugin::ISystemConfigure,
               celestial_sim::CelestialMechanicsPlugin::ISystemPreUpdate)
 
-GZ_ADD_PLUGIN_ALIAS(celestial_sim::CelestialMechanicsPlugin, "celestial_sim::CelestialMechanicsPlugin")
+GZ_ADD_PLUGIN_ALIAS(celestial_sim::CelestialMechanicsPlugin,
+                    "celestial_sim::CelestialMechanicsPlugin")

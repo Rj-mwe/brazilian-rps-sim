@@ -61,10 +61,8 @@ install(DIRECTORY worlds launch meshes materials config
 ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
-    ${PROJECT_NAME}/orbit_publisher_node.py
-    ${PROJECT_NAME}/constellation_simulator.py
+    scripts/rps_constellation_node
     ${PROJECT_NAME}/ground_track_plotter.py
-    ${PROJECT_NAME}/celestial_ephemeris_node.py
     ${PROJECT_NAME}/camera_auto_focus.py
     DESTINATION lib/${PROJECT_NAME}
 )
