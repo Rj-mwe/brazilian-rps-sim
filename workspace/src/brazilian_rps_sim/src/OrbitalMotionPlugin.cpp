@@ -1,12 +1,7 @@
 /**
  * @file OrbitalMotionPlugin.cpp
- * @brief Plugin C++ do Gazebo Harmonic para simulação analítica dos satélites do RPS-BR.
- * 
- * Funcionalidades:
- * - Resolução da Equação de Kepler por Newton-Raphson para satélites GEO e IGSO.
- * - Transformação analítica de coordenadas: Perifocal (PQW) -> Inercial (ECI J2000) -> Terrestre (ECEF).
- * - Suporte a sistemas Heliocêntricos Unificados (satélites orbitam a Terra enquanto ela translada ao redor do Sol).
- * - Apontamento Nadir contínuo (antenas do satélite apontadas para o centro da Terra).
+ * @brief Plugin C++ do Gazebo Harmonic para simulação analítica dos satélites do RPS-BR
+ *        com suporte total a avanço por passos discretos (Stepping) e reprodução contínua.
  */
 
 #include <gz/sim/System.hh>
@@ -42,12 +37,14 @@ private:
     double raan{310.0 * M_PI / 180.0};  // Longitude do Nó Ascendente - RAAN (rad)
     double argp{270.0 * M_PI / 180.0};  // Argumento do Perigeu (rad)
     double m0{0.0};                     // Anomalia Média inicial (rad)
-    double time_scale{86400.0};         // Fator de aceleração temporal (1s = 1 dia simulado)
+    double time_scale{1.0};         // Fator de aceleração temporal (1s = 1 dia simulado)
     bool heliocentric{false};           // Se true, translada junto com a Terra ao redor do Sol
 
     // Velocidades Angulares
     double mean_motion{7.292115e-5};    // Velocidade angular orbital média (rad/s)
     double earth_rotation{7.292115e-5};  // Rotação sidérea da Terra (rad/s)
+
+    std::chrono::steady_clock::duration last_sim_time{std::chrono::steady_clock::duration::min()};
 
 public:
     void Configure(const gz::sim::Entity &_entity,
@@ -83,10 +80,11 @@ public:
     void PreUpdate(const gz::sim::UpdateInfo &_info,
                    gz::sim::EntityComponentManager &_ecm) override
     {
-        if (_info.paused)
+        // Executa sempre que o tempo de simulação avançar (seja em Play contínuo ou por botão Step!)
+        if (_info.simTime == this->last_sim_time)
             return;
 
-        // Tempo de simulação acelerado acumulado
+        this->last_sim_time = _info.simTime;
         double sim_sec = std::chrono::duration<double>(_info.simTime).count() * this->time_scale;
 
         // 1. Cálculo da Anomalia Média M(t)
@@ -138,17 +136,16 @@ public:
         rot.SetFrom2Axes(gz::math::Vector3d::UnitZ, dir_to_earth);
 
         // 8. Posição Absoluta no Universo (Suporte Heliocêntrico)
-        double earth_x = 0.0, earth_y = 0.0, earth_z = 0.0;
+        gz::math::Vector3d pos_abs = pos_rel;
         if (this->heliocentric)
         {
-            double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
-            earth_x = DIST_SUN_EARTH * std::cos(theta_earth_orbit);
-            earth_y = DIST_SUN_EARTH * std::sin(theta_earth_orbit);
+            double theta_earth = OMEGA_EARTH_ORBIT * sim_sec;
+            double earth_x = DIST_SUN_EARTH * std::cos(theta_earth);
+            double earth_y = DIST_SUN_EARTH * std::sin(theta_earth);
+            pos_abs += gz::math::Vector3d(earth_x, earth_y, 0.0);
         }
 
-        gz::math::Vector3d pos_abs(earth_x + x_ecef, earth_y + y_ecef, earth_z + z_ecef);
-
-        // 9. Aplicação da Pose no Gazebo
+        // 9. Atualização no ECM
         auto poseComp = _ecm.Component<gz::sim::components::Pose>(this->model.Entity());
         if (poseComp)
         {

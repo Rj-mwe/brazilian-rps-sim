@@ -1,22 +1,17 @@
 #!/usr/bin/env python3
 """
-Nó ROS 2: Efemérides e Mecânica Celeste do Sistema Sol-Terra-Lua
-Transmite poses 3D, fases da Lua e estado de rotação terrestre em tempo real.
+Nó ROS 2 para cálculo e publicação analítica de efemérides astronômicas (Sol, Terra, Lua)
+100% sincronizado com o relógio de simulação do Gazebo (use_sim_time: True).
 """
 
+import math
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, TransformStamped
-from std_msgs.msg import String, Float64
 from tf2_ros import TransformBroadcaster
-
-import math
-import time
-import json
+from std_msgs.msg import String
 
 # Constantes Astronômicas
-DIST_EARTH_MOON_KM = 384400.0
-DIST_SUN_EARTH_KM = 149597870.7
 R_EARTH_KM = 6378.137
 R_MOON_KM = 1737.4
 R_SUN_KM = 696340.0
@@ -36,7 +31,7 @@ class CelestialEphemerisNode(Node):
     def __init__(self):
         super().__init__('celestial_ephemeris_node')
 
-        self.declare_parameter('time_multiplier', 86400.0) # 1s real = 1 dia simulado (86400x)
+        self.declare_parameter('time_multiplier', 1.0) # Base 1:1 sincronizada com o simulador
         self.time_mult = self.get_parameter('time_multiplier').get_parameter_value().double_value
 
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -48,23 +43,18 @@ class CelestialEphemerisNode(Node):
         self.moon_phase_pub = self.create_publisher(String, '/celestial/moon/phase', 10)
         self.summary_pub = self.create_publisher(String, '/celestial/summary', 10)
 
-        self.sim_time_sec = 0.0
-        self.last_wall_time = time.time()
-        self.last_log_day = -1
-        self.timer = self.create_timer(0.05, self.ephemeris_step) # 20 Hz
+        self.last_log_sec = -1.0
+        self.timer = self.create_timer(0.05, self.ephemeris_step) # 20 Hz sincronizado
 
-        self.get_logger().info(f"🌌 [Mecânica Celeste] Sol-Terra-Lua ativo! (1s real = 1 dia simulado)")
+        self.get_logger().info("🌌 [Mecânica Celeste] Sol-Terra-Lua ativo e sincronizado com o Gazebo (Tempo Real 1:1)")
 
     def ephemeris_step(self):
-        now_wall = time.time()
-        dt_wall = now_wall - self.last_wall_time
-        self.last_wall_time = now_wall
-
-        self.sim_time_sec += dt_wall * self.time_mult
-        now_stamp = self.get_clock().now().to_msg()
+        now_time = self.get_clock().now()
+        sim_time_sec = now_time.nanoseconds * 1e-9 * self.time_mult
+        now_stamp = now_time.to_msg()
 
         # 1. Posição da Terra ao redor do Sol (Heliocêntrico)
-        theta_earth = OMEGA_EARTH_ORBIT * self.sim_time_sec
+        theta_earth = OMEGA_EARTH_ORBIT * sim_time_sec
         dist_sun_earth_render = 1200.0
 
         earth_x = dist_sun_earth_render * math.cos(theta_earth)
@@ -72,98 +62,93 @@ class CelestialEphemerisNode(Node):
         earth_z = 0.0
 
         # Rotação e inclinação da Terra
-        earth_spin_deg = math.degrees((OMEGA_EARTH_SPIN * self.sim_time_sec) % (2.0 * math.pi))
+        earth_spin_deg = math.degrees((OMEGA_EARTH_SPIN * sim_time_sec) % (2.0 * math.pi))
+        earth_spin_rad = math.radians(earth_spin_deg)
 
-        # 2. Posição da Lua ao redor da Terra
-        theta_moon = OMEGA_MOON_ORBIT * self.sim_time_sec
-        dist_moon_render = 384.4
+        qx = math.sin(OBLIQUITY_EARTH_RAD / 2.0) * math.cos(earth_spin_rad / 2.0)
+        qy = -math.sin(OBLIQUITY_EARTH_RAD / 2.0) * math.sin(earth_spin_rad / 2.0)
+        qz = math.cos(OBLIQUITY_EARTH_RAD / 2.0) * math.sin(earth_spin_rad / 2.0)
+        qw = math.cos(OBLIQUITY_EARTH_RAD / 2.0) * math.cos(earth_spin_rad / 2.0)
 
-        moon_rel_x = dist_moon_render * math.cos(theta_moon)
-        moon_rel_y = dist_moon_render * math.sin(theta_moon) * math.cos(INCLINATION_MOON_RAD)
-        moon_rel_z = dist_moon_render * math.sin(theta_moon) * math.sin(INCLINATION_MOON_RAD)
+        # 2. Posição da Lua (Geocêntrica + Heliocêntrica)
+        theta_moon = OMEGA_MOON_ORBIT * sim_time_sec
+        dist_earth_moon_render = 384.4
 
-        # 3. Fase da Lua (Ângulo de elongação Sol-Terra-Lua)
-        synodic_phase_angle = ((self.sim_time_sec % SYNODIC_MONTH) / SYNODIC_MONTH) * 360.0
-        phase_name = self.get_moon_phase_name(synodic_phase_angle)
-        illumination_pct = 0.5 * (1.0 - math.cos(math.radians(synodic_phase_angle))) * 100.0
+        moon_rel_x = dist_earth_moon_render * math.cos(theta_moon)
+        moon_rel_y = dist_earth_moon_render * math.sin(theta_moon) * math.cos(INCLINATION_MOON_RAD)
+        moon_rel_z = dist_earth_moon_render * math.sin(theta_moon) * math.sin(INCLINATION_MOON_RAD)
 
-        # 4. Publicação das Poses
-        earth_pose = PoseStamped()
-        earth_pose.header.stamp = now_stamp
-        earth_pose.header.frame_id = "sun_center"
-        earth_pose.pose.position.x = earth_x
-        earth_pose.pose.position.y = earth_y
-        earth_pose.pose.position.z = earth_z
-        earth_pose.pose.orientation.w = 1.0
-        self.earth_pose_pub.publish(earth_pose)
+        moon_abs_x = earth_x + moon_rel_x
+        moon_abs_y = earth_y + moon_rel_y
+        moon_abs_z = earth_z + moon_rel_z
 
-        moon_pose = PoseStamped()
-        moon_pose.header.stamp = now_stamp
-        moon_pose.header.frame_id = "earth_center"
-        moon_pose.pose.position.x = moon_rel_x
-        moon_pose.pose.position.y = moon_rel_y
-        moon_pose.pose.position.z = moon_rel_z
-        moon_pose.pose.orientation.w = 1.0
-        self.moon_pose_pub.publish(moon_pose)
+        # 3. Fase da Lua
+        moon_elongation = (theta_moon - theta_earth) % (2.0 * math.pi)
+        illumination_frac = (1.0 - math.cos(moon_elongation)) / 2.0 * 100.0
 
-        # 5. Resumo e Calendário Astronômico
-        days_sim = self.sim_time_sec / 86400.0
-        years_sim = days_sim / 365.25
-        
-        summary_data = {
-            "calendario_simulado": {
-                "dias_decorridos": round(days_sim, 2),
-                "anos_decorridos": round(years_sim, 3),
-                "voltas_terra_spin": round(days_sim, 1),
-                "rotacao_graus": round(earth_spin_deg, 1)
-            },
-            "lua": {
-                "fase": phase_name,
-                "iluminacao_pct": round(illumination_pct, 1),
-                "distancia_km": DIST_EARTH_MOON_KM
-            }
-        }
-        sum_msg = String()
-        sum_msg.data = json.dumps(summary_data)
-        self.summary_pub.publish(sum_msg)
-
-        # Log periódico a cada 5 dias simulados
-        curr_int_day = int(days_sim)
-        if curr_int_day > self.last_log_day and curr_int_day % 5 == 0:
-            self.last_log_day = curr_int_day
-            self.get_logger().info(
-                f"⏱️ [Tempo Astronômico] Dia {days_sim:.1f} ({years_sim:.2f} anos) | "
-                f"Terra: {days_sim:.1f} rotações diárias | Lua: {phase_name} ({illumination_pct:.0f}%)"
-            )
-
-    def get_moon_phase_name(self, angle_deg: float) -> str:
-        if angle_deg < 22.5 or angle_deg >= 337.5:
-            return "Lua Nova"
-        elif 22.5 <= angle_deg < 67.5:
-            return "Lua Crescente"
-        elif 67.5 <= angle_deg < 112.5:
-            return "Quarto Crescente"
-        elif 112.5 <= angle_deg < 157.5:
-            return "Gibosa Crescente"
-        elif 157.5 <= angle_deg < 202.5:
-            return "Lua Cheia"
-        elif 202.5 <= angle_deg < 247.5:
-            return "Gibosa Minguante"
-        elif 247.5 <= angle_deg < 292.5:
-            return "Quarto Minguante"
+        elong_deg = math.degrees(moon_elongation)
+        if elong_deg < 22.5 or elong_deg >= 337.5:
+            phase_name = "Lua Nova"
+        elif 22.5 <= elong_deg < 67.5:
+            phase_name = "Lua Crescente Inicial"
+        elif 67.5 <= elong_deg < 112.5:
+            phase_name = "Quarto Crescente"
+        elif 112.5 <= elong_deg < 157.5:
+            phase_name = "Gibosa Crescente"
+        elif 157.5 <= elong_deg < 202.5:
+            phase_name = "Lua Cheia"
+        elif 202.5 <= elong_deg < 247.5:
+            phase_name = "Gibosa Minguante"
+        elif 247.5 <= elong_deg < 292.5:
+            phase_name = "Quarto Minguante"
         else:
-            return "Lua Minguante"
+            phase_name = "Lua Minguante"
+
+        # Publicações ROS 2
+        msg_earth = PoseStamped()
+        msg_earth.header.stamp = now_stamp
+        msg_earth.header.frame_id = 'sun_frame'
+        msg_earth.pose.position.x = earth_x
+        msg_earth.pose.position.y = earth_y
+        msg_earth.pose.position.z = earth_z
+        msg_earth.pose.orientation.x = qx
+        msg_earth.pose.orientation.y = qy
+        msg_earth.pose.orientation.z = qz
+        msg_earth.pose.orientation.w = qw
+        self.earth_pose_pub.publish(msg_earth)
+
+        msg_moon = PoseStamped()
+        msg_moon.header.stamp = now_stamp
+        msg_moon.header.frame_id = 'earth_frame'
+        msg_moon.pose.position.x = moon_rel_x
+        msg_moon.pose.position.y = moon_rel_y
+        msg_moon.pose.position.z = moon_rel_z
+        msg_moon.pose.orientation.w = 1.0
+        self.moon_pose_pub.publish(msg_moon)
+
+        msg_phase = String()
+        msg_phase.data = f"{phase_name} ({illumination_frac:.1f}%)"
+        self.moon_phase_pub.publish(msg_phase)
+
+        # Log periódico a cada 5 segundos de simTime
+        if sim_time_sec - self.last_log_sec >= 5.0 or self.last_log_sec < 0:
+            self.last_log_sec = sim_time_sec
+            days = sim_time_sec / 86400.0
+            self.get_logger().info(
+                f"⏱️ [Tempo Simulado] {sim_time_sec:.1f}s (Dia {days:.3f}) | Terra: {earth_spin_deg:.1f}° | Lua: {phase_name} ({illumination_frac:.0f}%)"
+            )
 
 def main(args=None):
     rclpy.init(args=args)
     node = CelestialEphemerisNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            node.destroy_node()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

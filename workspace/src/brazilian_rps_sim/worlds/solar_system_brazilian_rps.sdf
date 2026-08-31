@@ -14,8 +14,11 @@
 <sdf version="1.8">
   <world name="solar_system_rps_world">
     <!-- Configurações de Física Analítica -->
-    <physics name="1ms" type="ignored">
-      <max_step_size>0.001</max_step_size>
+    <!-- Física Orbital Calibrada: 1 Step = Exatamente 1 Hora Orbital (3600s) em escala 86400x -->
+    <!-- Física em Tempo Real (1:1): 1 Passo = 1 Segundo (3600 Passos = 1 Hora) -->
+    <!-- Física a 60 Hz (60 FPS suaves) com suporte total à Barra de Aceleração do Gazebo -->
+    <physics name="physics_60hz" type="ignored">
+      <max_step_size>0.016666667</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
     <gravity>0 0 0</gravity>
@@ -31,7 +34,9 @@
     <!-- Plugins Fundamentais do Gazebo Sim -->
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
-    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
+      <state_hertz>0</state_hertz>
+    </plugin>
 
     <!-- ======================================================================= -->
     <!-- 🌌 CAMPO ESTRELADO DO ESPAÇO PROFUNDO E VIA LÁCTEA (NASA/ESA Gaia GLB)  -->
@@ -96,7 +101,7 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>sun</body_type>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
       </plugin>
     </model>
 
@@ -117,7 +122,7 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth_trail</body_type>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
       </plugin>
     </model>
 
@@ -181,7 +186,7 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth</body_type>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
       </plugin>
     </model>
 
@@ -213,7 +218,7 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth_clouds</body_type>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
       </plugin>
     </model>
 
@@ -234,7 +239,7 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>moon_trail</body_type>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
       </plugin>
     </model>
 
@@ -268,7 +273,7 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>moon</body_type>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
       </plugin>
     </model>
 
@@ -326,7 +331,7 @@
         <raan_deg>0.0</raan_deg>
         <arg_perigee_deg>0.0</arg_perigee_deg>
         <mean_anomaly_deg>310.0</mean_anomaly_deg>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
         <heliocentric>true</heliocentric>
       </plugin>
     </model>
@@ -385,7 +390,7 @@
         <raan_deg>310.0</raan_deg>
         <arg_perigee_deg>270.0</arg_perigee_deg>
         <mean_anomaly_deg>0.0</mean_anomaly_deg>
-        <time_scale>86400.0</time_scale>
+        <time_scale>1.0</time_scale>
         <heliocentric>true</heliocentric>
       </plugin>
     </model>

@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """
-Nó ROS 2: Publicador de Telemetria Orbital para o Satélite GEO e o Satélite IGSO (Figura-8)
+Nó ROS 2 para propagação e publicação da telemetria da Constelação RPS-BR
+100% sincronizado com o relógio de simulação do Gazebo (use_sim_time: True).
 """
 
+import math
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, TransformStamped
-from std_msgs.msg import String
 from tf2_ros import TransformBroadcaster
-
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from std_msgs.msg import String
 
 try:
     from brazilian_rps_sim.astrodynamics import (
@@ -32,14 +30,13 @@ except ImportError:
         R_EARTH
     )
 
-import time
 import json
 
 class RPSOrbitPublisherNode(Node):
     def __init__(self):
         super().__init__('rps_orbit_publisher_node')
 
-        self.declare_parameter('time_multiplier', 300.0)
+        self.declare_parameter('time_multiplier', 1.0) # Base 1:1 sincronizada com o simulador
         self.declare_parameter('render_scale', 1.0 / 1000.0)
 
         self.time_mult = self.get_parameter('time_multiplier').get_parameter_value().double_value
@@ -57,61 +54,58 @@ class RPSOrbitPublisherNode(Node):
             self.pose_pubs.append(pose_pub)
             self.geo_pubs.append(geo_pub)
 
-        self.sim_time_sec = 0.0
-        self.last_wall_time = time.time()
-        self.timer = self.create_timer(0.05, self.orbital_step) # 20 Hz
+        self.timer = self.create_timer(0.05, self.orbit_step) # 20 Hz sincronizado
 
-        self.get_logger().info(f"🛰️ [RPS-BR] Telemetria Ativa: Sat 1 (GEO) + Sat 2 (IGSO Figura-8) - {self.time_mult:.0f}x")
+        self.get_logger().info(f"🛰️ [Constelação RPS-BR] {len(self.constellation)} satélites ativos e sincronizados (Tempo Real 1:1)")
 
-    def orbital_step(self):
-        now_wall = time.time()
-        dt_wall = now_wall - self.last_wall_time
-        self.last_wall_time = now_wall
-
-        self.sim_time_sec += dt_wall * self.time_mult
-        now_msg_time = self.get_clock().now().to_msg()
+    def orbit_step(self):
+        now_time = self.get_clock().now()
+        sim_time_sec = now_time.nanoseconds * 1e-9 * self.time_mult
+        now_stamp = now_time.to_msg()
 
         for idx, sat in enumerate(self.constellation):
             sat_id = idx + 1
 
-            r_eci = propagate_orbit_eci(sat, self.sim_time_sec)
-            r_ecef = eci_to_ecef(r_eci, self.sim_time_sec)
+            # Propagação analítica orbital
+            r_eci, v_eci = propagate_orbit_eci(sat['elements'], sim_time_sec)
+            r_ecef = eci_to_ecef(r_eci, sim_time_sec)
             lat, lon, alt = ecef_to_lat_lon_alt(r_ecef)
 
-            # PoseStamped
-            pose_msg = PoseStamped()
-            pose_msg.header.stamp = now_msg_time
-            pose_msg.header.frame_id = "earth_center"
-            pose_msg.pose.position.x = float(r_ecef[0] * self.scale)
-            pose_msg.pose.position.y = float(r_ecef[1] * self.scale)
-            pose_msg.pose.position.z = float(r_ecef[2] * self.scale)
-            pose_msg.pose.orientation.w = 1.0
-            self.pose_pubs[idx].publish(pose_msg)
+            # Publicação da Pose em coordenadas do mundo renderizado
+            msg_pose = PoseStamped()
+            msg_pose.header.stamp = now_stamp
+            msg_pose.header.frame_id = 'earth_frame'
+            msg_pose.pose.position.x = float(r_ecef[0] * self.scale)
+            msg_pose.pose.position.y = float(r_ecef[1] * self.scale)
+            msg_pose.pose.position.z = float(r_ecef[2] * self.scale)
+            msg_pose.pose.orientation.w = 1.0
+            self.pose_pubs[idx].publish(msg_pose)
 
-            # String Geodésica
-            geo_info = {
+            # Publicação dos dados geodésicos em JSON
+            geo_data = {
                 "id": sat_id,
-                "name": sat.name,
-                "type": sat.sat_type,
-                "lat_deg": round(lat, 2),
-                "lon_deg": round(lon, 2),
-                "alt_km": round(alt, 1),
-                "orbit_hour": round((self.sim_time_sec / 3600.0) % 24.0, 2)
+                "name": sat["name"],
+                "type": sat["type"],
+                "latitude_deg": round(lat, 4),
+                "longitude_deg": round(lon, 4),
+                "altitude_km": round(alt, 2),
+                "sim_time_sec": round(sim_time_sec, 2)
             }
-            geo_msg = String()
-            geo_msg.data = json.dumps(geo_info)
-            self.geo_pubs[idx].publish(geo_msg)
+            msg_geo = String()
+            msg_geo.data = json.dumps(geo_data)
+            self.geo_pubs[idx].publish(msg_geo)
 
 def main(args=None):
     rclpy.init(args=args)
     node = RPSOrbitPublisherNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            node.destroy_node()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 """
 Módulo de Astrodinâmica e Mecânica Orbital para o Sistema de Posicionamento Regional Brasileiro (RPS-BR)
+com suporte à leitura declarativa de parâmetros via arquivo YAML.
 """
 
+import os
 import math
+import yaml
 import numpy as np
 
+try:
+    from ament_index_python.packages import get_package_share_directory
+except ImportError:
+    get_package_share_directory = None
+
+# Constantes Gravitacionais e Geodésicas Padrão (WGS-84)
 MU_EARTH = 398600.4418          # km^3 / s^2
 R_EARTH = 6378.137             # km
 FLATTENING = 1.0 / 298.257223563
@@ -16,29 +25,90 @@ A_GEO = (MU_EARTH / (OMEGA_EARTH**2))**(1.0 / 3.0) # ~42164.14 km
 
 class OrbitalElements:
     def __init__(self, name: str, sat_type: str, a: float, e: float, i_deg: float,
-                 raan_deg: float, argp_deg: float, m0_deg: float):
+                 raan_deg: float, argp_deg: float, m0_deg: float, station_lon_deg: float = 0.0):
         self.name = name
         self.sat_type = sat_type # "GEO" ou "IGSO"
-        self.a = a
-        self.e = e
-        self.i = math.radians(i_deg)
-        self.raan = math.radians(raan_deg % 360.0)
-        self.argp = math.radians(argp_deg % 360.0)
-        self.m0 = math.radians(m0_deg % 360.0)
+        self.a = float(a)
+        self.e = float(e)
+        self.i = math.radians(float(i_deg))
+        self.raan = math.radians(float(raan_deg) % 360.0)
+        self.argp = math.radians(float(argp_deg) % 360.0)
+        self.m0 = math.radians(float(m0_deg) % 360.0)
+        self.station_lon_deg = float(station_lon_deg)
         self.n = math.sqrt(MU_EARTH / (self.a**3))
 
-def get_brazilian_rps_constellation() -> list[OrbitalElements]:
-    """
-    Retorna os satélites de referência:
-    - Sat 1: GEO Central (Geoestacionário fixo sobre Brasília, 50°W)
-    - Sat 2: IGSO-1 (Geossíncrono Inclinado a 29°, descreve a Figura-8 em 24h)
-    """
-    return [
-        # Satélite 1: GEO Âncora
-        OrbitalElements("RPS-GEO (Centro/BSB)", "GEO", A_GEO, 0.0, 0.0, 0.0, 0.0, 310.0), # 50.0° W
+    def __repr__(self):
+        return f"<OrbitalElements {self.name} [{self.sat_type}] a={self.a:.1f}km e={self.e:.3f} i={math.degrees(self.i):.1f}°>"
 
-        # Satélite 2: IGSO Figura-8
-        OrbitalElements("RPS-IGSO (Figura-8)", "IGSO", A_GEO, 0.06, 29.0, 310.0, 270.0, 0.0), # 50.0° W
+def find_config_file(filename: str = 'simulation_parameters.yaml') -> str:
+    """Busca o arquivo de configuração YAML no pacote ROS 2 ou no caminho local."""
+    paths_to_check = []
+    if get_package_share_directory:
+        try:
+            pkg_share = get_package_share_directory('brazilian_rps_sim')
+            paths_to_check.append(os.path.join(pkg_share, 'config', filename))
+        except Exception:
+            pass
+
+    # Caminhos relativos de desenvolvimento
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    paths_to_check.append(os.path.join(current_dir, '..', 'config', filename))
+    paths_to_check.append(os.path.join('/home/rjgamito/Projetos/Engenharia/Aeroespacial/brazilian-rps-sim/workspace/src/brazilian_rps_sim/config', filename))
+
+    for p in paths_to_check:
+        if os.path.exists(p):
+            return os.path.abspath(p)
+    return ""
+
+def load_simulation_config(config_path: str = None) -> dict:
+    """Carrega o dicionário de configurações do arquivo YAML."""
+    if not config_path:
+        config_path = find_config_file()
+    
+    if config_path and os.path.exists(config_path):
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+            # Suporta formato ROS 2 com /** / ros__parameters
+            if '/**' in data and 'ros__parameters' in data['/**']:
+                return data['/**']['ros__parameters']
+            return data
+    return {}
+
+def get_brazilian_rps_constellation(config_path: str = None) -> list[OrbitalElements]:
+    """
+    Retorna a lista completa de satélites da constelação do RPS-BR carregada do YAML:
+    - 3 GEO (Oeste 70°W, Centro 50°W, Leste 35°W)
+    - 4 IGSO (Figura-8 inclinados em 4 planos de RAAN)
+    """
+    cfg = load_simulation_config(config_path)
+    sats_cfg = cfg.get('constellation', {}).get('satellites', [])
+
+    if sats_cfg:
+        constellation = []
+        for s in sats_cfg:
+            elem = OrbitalElements(
+                name=s.get('name', f"SAT-{s.get('id', 1)}"),
+                sat_type=s.get('type', 'GEO'),
+                a=s.get('semi_major_axis_km', A_GEO),
+                e=s.get('eccentricity', 0.0),
+                i_deg=s.get('inclination_deg', 0.0),
+                raan_deg=s.get('raan_deg', 0.0),
+                argp_deg=s.get('arg_perigee_deg', 0.0),
+                m0_deg=s.get('mean_anomaly_deg', 0.0),
+                station_lon_deg=s.get('station_longitude_deg', 0.0)
+            )
+            constellation.append(elem)
+        return constellation
+
+    # Fallback padrão caso o YAML não seja localizado
+    return [
+        OrbitalElements("RPS-GEO-1 (Oeste/Amazônia)", "GEO", A_GEO, 0.0, 0.0, 0.0, 0.0, 290.0, -70.0),
+        OrbitalElements("RPS-GEO-2 (Centro/BSB)", "GEO", A_GEO, 0.0, 0.0, 0.0, 0.0, 310.0, -50.0),
+        OrbitalElements("RPS-GEO-3 (Leste/Atlântico)", "GEO", A_GEO, 0.0, 0.0, 0.0, 0.0, 325.0, -35.0),
+        OrbitalElements("RPS-IGSO-1", "IGSO", A_GEO, 0.06, 29.0, 310.0, 270.0, 0.0),
+        OrbitalElements("RPS-IGSO-2", "IGSO", A_GEO, 0.06, 29.0, 40.0, 270.0, 90.0),
+        OrbitalElements("RPS-IGSO-3", "IGSO", A_GEO, 0.06, 29.0, 130.0, 270.0, 180.0),
+        OrbitalElements("RPS-IGSO-4", "IGSO", A_GEO, 0.06, 29.0, 220.0, 270.0, 270.0),
     ]
 
 def solve_kepler(M: float, e: float, tol: float = 1e-10) -> float:
@@ -58,95 +128,102 @@ def true_anomaly_from_eccentric(E: float, e: float) -> float:
     cos_nu = (math.cos(E) - e) / (1.0 - e * math.cos(E))
     return math.atan2(sin_nu, cos_nu)
 
-def propagate_orbit_eci(coe: OrbitalElements, t_sec: float) -> np.ndarray:
-    p = coe.a * (1.0 - coe.e**2)
-    j2_factor = 1.5 * J2 * (R_EARTH / p)**2 * coe.n
-    draan_dt = -j2_factor * math.cos(coe.i)
-    dargp_dt = j2_factor * (2.0 - 2.5 * (math.sin(coe.i)**2))
+def propagate_orbit_eci(elem: OrbitalElements, t_sec: float) -> tuple[np.ndarray, np.ndarray]:
+    """Propaga a órbita no referencial inercial ECI J2000."""
+    M = (elem.m0 + elem.n * t_sec) % (2.0 * math.pi)
+    E = solve_kepler(M, elem.e)
+    nu = true_anomaly_from_eccentric(E, elem.e)
 
-    raan_t = coe.raan + draan_dt * t_sec
-    argp_t = coe.argp + dargp_dt * t_sec
-    M_t = coe.m0 + coe.n * t_sec
+    r_mag = elem.a * (1.0 - elem.e * math.cos(E))
+    p_x = r_mag * math.cos(nu)
+    p_y = r_mag * math.sin(nu)
+    r_pqw = np.array([p_x, p_y, 0.0])
 
-    E_t = solve_kepler(M_t, coe.e)
-    nu_t = true_anomaly_from_eccentric(E_t, coe.e)
-    r_mag = coe.a * (1.0 - coe.e * math.cos(E_t))
+    p = elem.a * (1.0 - elem.e**2)
+    v_mag_factor = math.sqrt(MU_EARTH / p)
+    v_x = -v_mag_factor * math.sin(nu)
+    v_y = v_mag_factor * (elem.e + math.cos(nu))
+    v_pqw = np.array([v_x, v_y, 0.0])
 
-    r_pqw = np.array([
-        r_mag * math.cos(nu_t),
-        r_mag * math.sin(nu_t),
-        0.0
+    O, w, i = elem.raan, elem.argp, elem.i
+    R_z_O = np.array([
+        [math.cos(O), -math.sin(O), 0],
+        [math.sin(O),  math.cos(O), 0],
+        [0, 0, 1]
+    ])
+    R_x_i = np.array([
+        [1, 0, 0],
+        [0, math.cos(i), -math.sin(i)],
+        [0, math.sin(i),  math.cos(i)]
+    ])
+    R_z_w = np.array([
+        [math.cos(w), -math.sin(w), 0],
+        [math.sin(w),  math.cos(w), 0],
+        [0, 0, 1]
     ])
 
-    c_O, s_O = math.cos(raan_t), math.sin(raan_t)
-    c_i, s_i = math.cos(coe.i), math.sin(coe.i)
-    c_w, s_w = math.cos(argp_t), math.sin(argp_t)
+    R_pqw_to_eci = R_z_O @ R_x_i @ R_z_w
+    r_eci = R_pqw_to_eci @ r_pqw
+    v_eci = R_pqw_to_eci @ v_pqw
 
-    R_pqw2eci = np.array([
-        [c_O * c_w - s_O * s_w * c_i, -c_O * s_w - s_O * c_w * c_i,  s_O * s_i],
-        [s_O * c_w + c_O * s_w * c_i, -s_O * s_w + c_O * c_w * c_i, -c_O * s_i],
-        [s_w * s_i,                    c_w * s_i,                    c_i       ]
+    return r_eci, v_eci
+
+def eci_to_ecef(r_eci: np.ndarray, t_sec: float) -> np.ndarray:
+    """Converte vetor ECI para o referencial fixo na Terra (ECEF)."""
+    theta = (OMEGA_EARTH * t_sec) % (2.0 * math.pi)
+    R_z = np.array([
+        [math.cos(theta),  math.sin(theta), 0],
+        [-math.sin(theta), math.cos(theta), 0],
+        [0, 0, 1]
     ])
-
-    return R_pqw2eci @ r_pqw
-
-def eci_to_ecef(r_eci: np.ndarray, t_sec: float, theta0: float = 0.0) -> np.ndarray:
-    theta = theta0 + OMEGA_EARTH * t_sec
-    c_th, s_th = math.cos(theta), math.sin(theta)
-    R_eci2ecef = np.array([
-        [ c_th,  s_th, 0.0],
-        [-s_th,  c_th, 0.0],
-        [  0.0,   0.0, 1.0]
-    ])
-    return R_eci2ecef @ r_eci
+    return R_z @ r_eci
 
 def ecef_to_lat_lon_alt(r_ecef: np.ndarray) -> tuple[float, float, float]:
-    x, y, z = r_ecef
+    """Converte vetor ECEF em Latitude Geodésica, Longitude e Altitude elipsoidal WGS-84."""
+    x, y, z = r_ecef[0], r_ecef[1], r_ecef[2]
     lon_rad = math.atan2(y, x)
-    p = math.hypot(x, y)
-    lat_rad = math.atan2(z, p * (1.0 - (2.0 * FLATTENING - FLATTENING**2)))
-    for _ in range(5):
-        N = R_EARTH / math.sqrt(1.0 - (2.0 * FLATTENING - FLATTENING**2) * math.sin(lat_rad)**2)
-        alt = p / math.cos(lat_rad) - N
-        lat_rad = math.atan2(z, p * (1.0 - (2.0 * FLATTENING - FLATTENING**2) * (N / (N + alt))))
-
-    lat_deg = math.degrees(lat_rad)
     lon_deg = math.degrees(lon_rad)
-    lon_deg = ((lon_deg + 180.0) % 360.0) - 180.0
-    return lat_deg, lon_deg, alt
 
-def geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_km: float = 0.0) -> np.ndarray:
-    lat_rad = math.radians(lat_deg)
-    lon_rad = math.radians(lon_deg)
+    p = math.sqrt(x**2 + y**2)
+    e2 = 2.0 * FLATTENING - FLATTENING**2
+    lat_rad = math.atan2(z, p * (1.0 - e2))
+
+    for _ in range(10):
+        N = R_EARTH / math.sqrt(1.0 - e2 * math.sin(lat_rad)**2)
+        lat_rad = math.atan2(z + e2 * N * math.sin(lat_rad), p)
+
+    N = R_EARTH / math.sqrt(1.0 - e2 * math.sin(lat_rad)**2)
+    alt_km = p / math.cos(lat_rad) - N
+    lat_deg = math.degrees(lat_rad)
+
+    return lat_deg, lon_deg, alt_km
+
+def compute_elevation_azimuth(r_sat_ecef: np.ndarray, lat_gs_deg: float, lon_gs_deg: float) -> tuple[float, float, float]:
+    """Calcula Elevação, Azimute e Alcance (Range) de um satélite a partir de uma estação de solo."""
+    lat_rad = math.radians(lat_gs_deg)
+    lon_rad = math.radians(lon_gs_deg)
+
     e2 = 2.0 * FLATTENING - FLATTENING**2
     N = R_EARTH / math.sqrt(1.0 - e2 * math.sin(lat_rad)**2)
-    x = (N + alt_km) * math.cos(lat_rad) * math.cos(lon_rad)
-    y = (N + alt_km) * math.cos(lat_rad) * math.sin(lon_rad)
-    z = (N * (1.0 - e2) + alt_km) * math.sin(lat_rad)
-    return np.array([x, y, z])
-
-def compute_elevation_azimuth(user_lat_deg: float, user_lon_deg: float, sat_r_ecef: np.ndarray) -> tuple[float, float, float]:
-    user_ecef = geodetic_to_ecef(user_lat_deg, user_lon_deg, 0.0)
-    rho_ecef = sat_r_ecef - user_ecef
-    dist = np.linalg.norm(rho_ecef)
-
-    lat_rad = math.radians(user_lat_deg)
-    lon_rad = math.radians(user_lon_deg)
-
-    s_lat, c_lat = math.sin(lat_rad), math.cos(lat_rad)
-    s_lon, c_lon = math.sin(lon_rad), math.cos(lon_rad)
-
-    R_ecef2enu = np.array([
-        [-s_lon,          c_lon,         0.0  ],
-        [-s_lat * c_lon, -s_lat * s_lon, c_lat],
-        [ c_lat * c_lon,  c_lat * s_lon, s_lat]
+    r_gs = np.array([
+        N * math.cos(lat_rad) * math.cos(lon_rad),
+        N * math.cos(lat_rad) * math.sin(lon_rad),
+        N * (1.0 - e2) * math.sin(lat_rad)
     ])
 
-    rho_enu = R_ecef2enu @ rho_ecef
-    e, n, u = rho_enu
+    rho_ecef = r_sat_ecef - r_gs
+    range_km = float(np.linalg.norm(rho_ecef))
 
-    elevation_rad = math.asin(u / dist)
-    azimuth_rad = math.atan2(e, n)
-    azimuth_deg = (math.degrees(azimuth_rad) + 360.0) % 360.0
+    R_enu = np.array([
+        [-math.sin(lon_rad), math.cos(lon_rad), 0],
+        [-math.sin(lat_rad) * math.cos(lon_rad), -math.sin(lat_rad) * math.sin(lon_rad), math.cos(lat_rad)],
+        [math.cos(lat_rad) * math.cos(lon_rad), math.cos(lat_rad) * math.sin(lon_rad), math.sin(lat_rad)]
+    ])
 
-    return math.degrees(elevation_rad), azimuth_deg, dist
+    rho_enu = R_enu @ rho_ecef
+    e, n, u = rho_enu[0], rho_enu[1], rho_enu[2]
+
+    elevation_deg = math.degrees(math.atan2(u, math.sqrt(e**2 + n**2)))
+    azimuth_deg = math.degrees(math.atan2(e, n)) % 360.0
+
+    return elevation_deg, azimuth_deg, range_km

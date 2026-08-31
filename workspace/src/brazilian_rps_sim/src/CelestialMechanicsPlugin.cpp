@@ -1,6 +1,7 @@
 /**
  * @file CelestialMechanicsPlugin.cpp
- * @brief Plugin C++ do Gazebo Harmonic para simulação da Mecânica Celeste e Umbra da Terra.
+ * @brief Plugin C++ do Gazebo Harmonic para simulação analítica da Mecânica Celeste Sol-Terra-Lua
+ *        com suporte total a avanço por passos discretos (Stepping) e reprodução contínua.
  */
 
 #include <gz/sim/System.hh>
@@ -19,10 +20,9 @@
 namespace celestial_sim
 {
 
-// Constantes Astronômicas Heliocêntricas
+// Constantes Astronômicas Heliocêntricas (Escala: 1 unidade = 1.000 km)
 constexpr double DIST_EARTH_MOON = 384.4;        // Semieixo maior da órbita lunar (384.400 km)
 constexpr double DIST_SUN_EARTH = 1200.0;        // Distância representativa Sol-Terra
-constexpr double SHADOW_LENGTH = 400.0;          // Comprimento do cone de sombra (400.000 km)
 
 constexpr double SECONDS_PER_DAY = 86164.0905;   // Dia Sidéreo da Terra (s)
 constexpr double SECONDS_PER_MONTH = 27.321661 * 86400.0; // Mês Sidéreo Lunar (s)
@@ -43,7 +43,8 @@ class CelestialMechanicsPlugin : public gz::sim::System,
 private:
     gz::sim::Model model{gz::sim::kNullEntity};
     std::string body_type{"earth"};
-    double time_scale{86400.0};
+    double time_scale{1.0};
+    std::chrono::steady_clock::duration last_sim_time{std::chrono::steady_clock::duration::min()};
 
 public:
     void Configure(const gz::sim::Entity &_entity,
@@ -66,9 +67,11 @@ public:
     void PreUpdate(const gz::sim::UpdateInfo &_info,
                    gz::sim::EntityComponentManager &_ecm) override
     {
-        if (_info.paused)
+        // Executa sempre que o tempo de simulação avançar (seja em Play contínuo ou por botão Step!)
+        if (_info.simTime == this->last_sim_time)
             return;
 
+        this->last_sim_time = _info.simTime;
         double sim_sec = std::chrono::duration<double>(_info.simTime).count() * this->time_scale;
 
         // 1. Órbita Heliocêntrica da Terra (Plano Z = 0)
@@ -86,21 +89,12 @@ public:
         gz::math::Quaterniond q_spin(0.0, 0.0, earth_spin_angle);
         gz::math::Quaterniond q_earth = q_tilt * q_spin;
 
-        // 3. Rotação Zonal das Nuvens
+        // 3. Rotação Zonal das Nuvens (+3.5% Super-rotação)
         double clouds_spin_angle = std::fmod(OMEGA_CLOUDS_SPIN * sim_sec, 2.0 * M_PI);
         gz::math::Quaterniond q_cloud_spin(0.0, 0.0, clouds_spin_angle);
         gz::math::Quaterniond q_clouds = q_tilt * q_cloud_spin;
 
-        // 4. Orientação e Posição do Cone de Umbra da Terra (Aponta rigorosamente para o lado oposto ao Sol)
-        gz::math::Vector3d dir_shadow(cos_orbit, sin_orbit, 0.0);
-        gz::math::Quaterniond q_shadow;
-        q_shadow.SetFrom2Axes(gz::math::Vector3d::UnitZ, dir_shadow);
-        // O cilindro de comprimento L é centrado a L/2 a partir da Terra na direção oposta ao Sol
-        double shadow_center_x = earth_x + dir_shadow.X() * (SHADOW_LENGTH * 0.5);
-        double shadow_center_y = earth_y + dir_shadow.Y() * (SHADOW_LENGTH * 0.5);
-        double shadow_center_z = 0.0;
-
-        // 5. Órbita Geocêntrica da Lua
+        // 4. Órbita Geocêntrica da Lua
         double theta_moon_orbit = OMEGA_MOON_ORBIT * sim_sec;
         double inc_moon = INCLINATION_MOON_DEG * M_PI / 180.0;
 
@@ -112,11 +106,11 @@ public:
         double moon_y = earth_y + moon_rel_y;
         double moon_z = earth_z + moon_rel_z;
 
-        // 6. Travamento de Maré da Lua
+        // 5. Travamento de Maré da Lua
         double moon_yaw = std::atan2(-moon_rel_y, -moon_rel_x);
         gz::math::Quaterniond q_moon(0.0, inc_moon, moon_yaw);
 
-        // 7. Determinação da Pose Alvo
+        // 6. Determinação da Pose Alvo
         gz::math::Pose3d target_pose;
         if (this->body_type == "earth")
         {
@@ -125,10 +119,6 @@ public:
         else if (this->body_type == "earth_clouds")
         {
             target_pose = gz::math::Pose3d(gz::math::Vector3d(earth_x, earth_y, earth_z), q_clouds);
-        }
-        else if (this->body_type == "earth_shadow")
-        {
-            target_pose = gz::math::Pose3d(gz::math::Vector3d(shadow_center_x, shadow_center_y, shadow_center_z), q_shadow);
         }
         else if (this->body_type == "moon")
         {
@@ -143,7 +133,7 @@ public:
             target_pose = gz::math::Pose3d(gz::math::Vector3d(0.0, 0.0, 0.0), gz::math::Quaterniond::Identity);
         }
 
-        // 8. Atualização no ECM
+        // 7. Atualização no ECM
         auto poseComp = _ecm.Component<gz::sim::components::Pose>(this->model.Entity());
         if (poseComp)
         {
