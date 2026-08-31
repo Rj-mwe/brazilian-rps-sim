@@ -47,12 +47,6 @@
               <uri>package://brazilian_rps_sim/meshes/celestial_skydome.glb</uri>
             </mesh>
           </geometry>
-          <material>
-            <double_sided>true</double_sided>
-            <ambient>1.0 1.0 1.0 1.0</ambient>
-            <diffuse>1.0 1.0 1.0 1.0</diffuse>
-            <emissive>1.0 1.0 1.0 1.0</emissive>
-          </material>
         </visual>
       </link>
     </model>
