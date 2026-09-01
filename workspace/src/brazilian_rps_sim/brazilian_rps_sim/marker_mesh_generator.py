@@ -98,15 +98,18 @@ def generate_holographic_nadir_cage_glb(
     height: float,
     color_rgb: Tuple[float, float, float],
     emissive_intensity: float = 0.90,
-    num_rays: int = 8,
+    show_generatrix_rays: bool = True,
+    num_rays: int = 4,
     tube_radius: float = 0.018,
-    show_mid_ring: bool = True,
+    show_top_ring: bool = True,
+    show_footprint_ring: bool = True,
+    show_mid_ring: bool = False,
     show_boresight: bool = True,
     show_crosshair: bool = True
 ) -> None:
     """
     Gera a Gaiola Holográfica Radar Nadir (Padrão Aeroespacial STK/NASA).
-    Elimina 100% dos conflitos visuais de oclusão e Z-buffer através de wireframe PBR emissivo.
+    Permite exibição/ocultação granular e independente de cada componente.
     """
     all_verts: List[List[float]] = []
     all_norms: List[List[float]] = []
@@ -119,11 +122,12 @@ def generate_holographic_nadir_cage_glb(
         all_indices.extend([int(i) + base_idx for i in idx])
 
     # 1. Anel da Pegada no Solo (Surface Footprint Boundary Ring)
-    v, n, idx = _create_circular_ring(r_bottom, height, tube_radius=tube_radius * 1.3, num_pts=64)
-    append_submesh(v, n, idx)
+    if show_footprint_ring and r_bottom > 0.01:
+        v, n, idx = _create_circular_ring(r_bottom, height, tube_radius=tube_radius * 1.3, num_pts=64)
+        append_submesh(v, n, idx)
 
     # 2. Anel do Topo (Antena do Satélite)
-    if r_top > 0.01:
+    if show_top_ring and r_top > 0.01:
         v, n, idx = _create_circular_ring(r_top, 0.0, tube_radius=tube_radius * 1.0, num_pts=32)
         append_submesh(v, n, idx)
 
@@ -134,25 +138,33 @@ def generate_holographic_nadir_cage_glb(
         v, n, idx = _create_circular_ring(r_mid, h_mid, tube_radius=tube_radius * 0.85, num_pts=48)
         append_submesh(v, n, idx)
 
-    # 4. Feixes Laser Geratrizes (Generatrix Rays)
-    ray_angles = np.linspace(0, 2 * math.pi, num_rays, endpoint=False)
-    for phi in ray_angles:
-        p_top = [r_top * math.cos(phi), r_top * math.sin(phi), 0.0]
-        p_bottom = [r_bottom * math.cos(phi), r_bottom * math.sin(phi), height]
-        v, n, idx = _create_cylinder_segment(p_top, p_bottom, radius=tube_radius, radial_segs=8)
-        append_submesh(v, n, idx)
+    # 4. Feixes Laser Geratrizes Externos (Generatrix Rays)
+    if show_generatrix_rays and num_rays > 0:
+        # Clampeia num_rays no intervalo razoável [0, 16]
+        clamped_rays = max(1, min(16, num_rays))
+        ray_angles = np.linspace(0, 2 * math.pi, clamped_rays, endpoint=False)
+        for phi in ray_angles:
+            p_top = [r_top * math.cos(phi), r_top * math.sin(phi), 0.0]
+            p_bottom = [r_bottom * math.cos(phi), r_bottom * math.sin(phi), height]
+            v, n, idx = _create_cylinder_segment(p_top, p_bottom, radius=tube_radius, radial_segs=8)
+            append_submesh(v, n, idx)
 
-    # 5. Eixo Central Boresight (Nadir Line apontada para o centro da Terra)
+    # 5. Eixo Central Boresight Interno (Raio central sub-satélite apontado para o solo)
     if show_boresight:
-        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 0.9, radial_segs=8)
+        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 1.0, radial_segs=8)
         append_submesh(v, n, idx)
 
     # 6. Mira de Alvo no Solo (Sub-satellite Footprint Crosshair)
-    if show_crosshair:
+    if show_crosshair and r_bottom > 0.01:
         ch_len = r_bottom * 0.25
         v, n, idx = _create_cylinder_segment([-ch_len, 0.0, height], [ch_len, 0.0, height], radius=tube_radius * 0.8, radial_segs=6)
         append_submesh(v, n, idx)
         v, n, idx = _create_cylinder_segment([0.0, -ch_len, height], [0.0, ch_len, height], radius=tube_radius * 0.8, radial_segs=6)
+        append_submesh(v, n, idx)
+
+    # Se nenhum elemento estiver ativo, gera ao menos um ponto central neutro
+    if not all_verts:
+        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, 0.01], radius=tube_radius, radial_segs=4)
         append_submesh(v, n, idx)
 
     r, g, b = color_rgb
@@ -294,7 +306,7 @@ def generate_locator_ring_glb(
 
 
 def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
-    """Gera todos os marcadores espaciais (retículos de mira e feixes nadir) a partir do YAML."""
+    """Gera todos os marcadores espaciais a partir do YAML com controle granular GEO vs IGSO."""
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not config_path:
         config_path = os.path.join(pkg_dir, 'config', 'simulation_parameters.yaml')
@@ -307,47 +319,52 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
     vis = cfg.get('visualization', {})
     markers_cfg = vis.get('satellite_markers', vis.get('markers', {}))
 
+    geo_cfg = markers_cfg.get('geo_markers', {})
+    igso_cfg = markers_cfg.get('igso_markers', {})
+
     r_beacon = float(markers_cfg.get('beacon_radius', 0.35))
     t_beacon = float(markers_cfg.get('beacon_tube_thickness', 0.015))
-    e_beacon_geo = float(markers_cfg.get('beacon_emissive_geo', 0.80))
-    e_beacon_igso = float(markers_cfg.get('beacon_emissive_igso', 0.85))
-
-    color_beacon_geo = resolve_color(markers_cfg.get('color_beacon_geo', 'cyan'), default=(0.0, 0.90, 1.0))
-    color_beacon_igso = resolve_color(markers_cfg.get('color_beacon_igso', 'amber'), default=(1.0, 0.80, 0.10))
-
-    color_cone_geo = resolve_color(markers_cfg.get('color_nadir_cone_geo', 'cyan'), default=(0.0, 0.90, 1.0))
-    color_cone_igso = resolve_color(markers_cfg.get('color_nadir_cone_igso', 'amber'), default=(1.0, 0.80, 0.10))
-
     r_top = float(markers_cfg.get('nadir_cone_top_radius', 0.08))
-    r_bottom_geo = float(markers_cfg.get('nadir_cone_bottom_radius_geo', 4.80))
-    r_bottom_igso = float(markers_cfg.get('nadir_cone_bottom_radius_igso', 1.15))
-    
     style = markers_cfg.get('nadir_beam_style', 'holographic_cage')
-    ray_thickness = float(markers_cfg.get('nadir_ray_thickness', 0.018))
-    num_rays_geo = int(markers_cfg.get('num_generatrix_rays_geo', 8))
-    num_rays_igso = int(markers_cfg.get('num_generatrix_rays_igso', 6))
-    show_mid_ring = bool(markers_cfg.get('show_mid_altitude_ring', True))
-    show_boresight = bool(markers_cfg.get('show_boresight_axis', True))
-    show_crosshair = bool(markers_cfg.get('show_footprint_crosshair', True))
-
-    e_cone_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.85))
-    e_cone_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.95))
-    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.05))
-    op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
-    
     height = 45.0
+
+    # Extrai configurações do GEO
+    color_geo = resolve_color(geo_cfg.get('color', markers_cfg.get('color_nadir_cone_geo', 'cyan')), default=(0.0, 0.90, 1.0))
+    e_beacon_geo = float(geo_cfg.get('beacon_emissive', markers_cfg.get('beacon_emissive_geo', 0.80)))
+    e_cone_geo = float(geo_cfg.get('emissive_intensity', markers_cfg.get('nadir_cone_emissive_geo', 0.85)))
+    r_bottom_geo = float(geo_cfg.get('footprint_radius_km', 4800.0)) / 1000.0
+    ray_thickness_geo = float(geo_cfg.get('ray_thickness', markers_cfg.get('nadir_ray_thickness', 0.016)))
+    num_rays_geo = int(geo_cfg.get('num_generatrix_rays', markers_cfg.get('num_generatrix_rays_geo', 4)))
+    show_gen_geo = bool(geo_cfg.get('show_generatrix_rays', True))
+    show_boresight_geo = bool(geo_cfg.get('show_boresight_ray', markers_cfg.get('show_boresight_axis', True)))
+    show_footprint_geo = bool(geo_cfg.get('show_footprint_ring', True))
+    show_mid_geo = bool(geo_cfg.get('show_mid_altitude_ring', markers_cfg.get('show_mid_altitude_ring', False)))
+    show_crosshair_geo = bool(geo_cfg.get('show_footprint_crosshair', markers_cfg.get('show_footprint_crosshair', True)))
+
+    # Extrai configurações do IGSO
+    color_igso = resolve_color(igso_cfg.get('color', markers_cfg.get('color_nadir_cone_igso', 'amber')), default=(1.0, 0.80, 0.10))
+    e_beacon_igso = float(igso_cfg.get('beacon_emissive', markers_cfg.get('beacon_emissive_igso', 0.85)))
+    e_cone_igso = float(igso_cfg.get('emissive_intensity', markers_cfg.get('nadir_cone_emissive_igso', 0.95)))
+    r_bottom_igso = float(igso_cfg.get('footprint_radius_km', 1150.0)) / 1000.0
+    ray_thickness_igso = float(igso_cfg.get('ray_thickness', markers_cfg.get('nadir_ray_thickness', 0.018)))
+    num_rays_igso = int(igso_cfg.get('num_generatrix_rays', markers_cfg.get('num_generatrix_rays_igso', 4)))
+    show_gen_igso = bool(igso_cfg.get('show_generatrix_rays', True))
+    show_boresight_igso = bool(igso_cfg.get('show_boresight_ray', markers_cfg.get('show_boresight_axis', True)))
+    show_footprint_igso = bool(igso_cfg.get('show_footprint_ring', True))
+    show_mid_igso = bool(igso_cfg.get('show_mid_altitude_ring', markers_cfg.get('show_mid_altitude_ring', False)))
+    show_crosshair_igso = bool(igso_cfg.get('show_footprint_crosshair', markers_cfg.get('show_footprint_crosshair', True)))
 
     # 1. Halos/Retículos de Mira Neon
     generate_locator_ring_glb(
         output_path=os.path.join(mesh_dir, 'locator_ring_geo.glb'),
         r_major=r_beacon, r_minor=t_beacon,
-        color_rgb=color_beacon_geo,
+        color_rgb=color_geo,
         emissive_intensity=e_beacon_geo
     )
     generate_locator_ring_glb(
         output_path=os.path.join(mesh_dir, 'locator_ring_igso.glb'),
         r_major=r_beacon, r_minor=t_beacon,
-        color_rgb=color_beacon_igso,
+        color_rgb=color_igso,
         emissive_intensity=e_beacon_igso
     )
 
@@ -356,40 +373,46 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
         generate_holographic_nadir_cage_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
             r_top=r_top, r_bottom=r_bottom_geo, height=height,
-            color_rgb=color_cone_geo,
+            color_rgb=color_geo,
             emissive_intensity=e_cone_geo,
+            show_generatrix_rays=show_gen_geo,
             num_rays=num_rays_geo,
-            tube_radius=ray_thickness,
-            show_mid_ring=show_mid_ring,
-            show_boresight=show_boresight,
-            show_crosshair=show_crosshair
+            tube_radius=ray_thickness_geo,
+            show_footprint_ring=show_footprint_geo,
+            show_mid_ring=show_mid_geo,
+            show_boresight=show_boresight_geo,
+            show_crosshair=show_crosshair_geo
         )
         generate_holographic_nadir_cage_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
             r_top=r_top, r_bottom=r_bottom_igso, height=height,
-            color_rgb=color_cone_igso,
+            color_rgb=color_igso,
             emissive_intensity=e_cone_igso,
+            show_generatrix_rays=show_gen_igso,
             num_rays=num_rays_igso,
-            tube_radius=ray_thickness * 1.1,
-            show_mid_ring=show_mid_ring,
-            show_boresight=show_boresight,
-            show_crosshair=show_crosshair
+            tube_radius=ray_thickness_igso,
+            show_footprint_ring=show_footprint_igso,
+            show_mid_ring=show_mid_igso,
+            show_boresight=show_boresight_igso,
+            show_crosshair=show_crosshair_igso
         )
     else:
+        op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.05))
+        op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
         generate_nadir_beam_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
             r_top=r_top, r_bottom=r_bottom_geo, height=height,
-            color_rgba=(color_cone_geo[0], color_cone_geo[1], color_cone_geo[2], op_geo),
+            color_rgba=(color_geo[0], color_geo[1], color_geo[2], op_geo),
             emissive_intensity=e_cone_geo
         )
         generate_nadir_beam_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
             r_top=r_top, r_bottom=r_bottom_igso, height=height,
-            color_rgba=(color_cone_igso[0], color_cone_igso[1], color_cone_igso[2], op_igso),
+            color_rgba=(color_igso[0], color_igso[1], color_igso[2], op_igso),
             emissive_intensity=e_cone_igso
         )
 
-    print(f"✨ [MarkerGenerator] Marcadores holográficos gerados ({style}) via GltfMeshBuilder com sucesso!")
+    print(f"✨ [MarkerGenerator] Marcadores holográficos gerados ({style}) com configurações granulares GEO/IGSO!")
 
 
 if __name__ == '__main__':

@@ -42,44 +42,48 @@ visualization:
   # 🛰️ B) Marcadores de Satélite (Halos Holográficos e Feixes de Cobertura Nadir)
   # ============================================================================
   satellite_markers:
-    # --- Retículos / Halos Holográficos de Mira (Beacons Neon) ---
-    show_beacon_halo_geo: true    # Halo dos satélites GEO
-    show_beacon_halo_igso: true   # Halo dos satélites IGSO
-    color_beacon_geo: "cyan"      # Cor do halo GEO
-    color_beacon_igso: "amber"    # Cor do halo IGSO
-    beacon_radius: 0.35           # Raio do anel holográfico
-    beacon_tube_thickness: 0.015  # Espessura do anel holográfico
-    beacon_emissive_geo: 0.80     # Brilho emissivo do halo GEO (0.0 a 1.0)
-    beacon_emissive_igso: 0.85    # Brilho emissivo do halo IGSO (0.0 a 1.0)
-    
-    # --- Feixes / Cones Nadir (Gaiola Holográfica Espacial / Radar Cage & Footprint) ---
-    show_nadir_cone_geo: true     # Feixe Nadir dos satélites GEO
-    show_nadir_cone_igso: true    # Feixe Nadir dos satélites IGSO
+    # --- Configurações Gerais dos Marcadores ---
     nadir_beam_style: "holographic_cage" # Opções: "holographic_cage" (Padrão STK/NASA), "solid_cone"
-    nadir_cone_top_radius: 0.08   # Diâmetro no topo (escala da antena do satélite)
-    nadir_ray_thickness: 0.018    # Espessura dos tubos laser holográficos
-    num_generatrix_rays_geo: 8    # Número de raios geratrizes do GEO (Gaiola Octogonal)
-    num_generatrix_rays_igso: 6   # Número de raios geratrizes do IGSO (Gaiola Hexagonal)
-    show_mid_altitude_ring: true  # Anel intermediário de alcance radar
-    show_boresight_axis: true     # Eixo central laser apontado para o zênite/nadir
-    show_footprint_crosshair: true # Mira central no ponto sub-satélite na Terra
-    
-    # Cores dos Feixes Nadir
-    color_nadir_cone_geo: "cyan"  # Cor dos feixes GEO (Ciano Espacial)
-    color_nadir_cone_igso: "amber" # Cor dos feixes IGSO (Âmbar/Dourado)
-    
-    # GEO (Gaiola Holográfica Continental Ampla):
-    nadir_cone_bottom_radius_geo: 4.80   # Raio de cobertura no solo de ~4.800 km
-    nadir_cone_opacity_geo: 0.05         # Usado em solid_cone
-    nadir_cone_emissive_geo: 0.85        # Brilho emissivo neon vibrante
-    
-    # IGSO (Gaiola Holográfica Focada no Brasil):
-    nadir_cone_bottom_radius_igso: 1.15  # Raio de cobertura no solo (~1.150 km)
-    nadir_cone_opacity_igso: 0.35        # Usado em solid_cone
-    nadir_cone_emissive_igso: 0.95       # Brilho emissivo neon de alta intensidade
-    
-    # Escala Visual do Satélite 3D
-    satellite_visual_scale: 0.08  # Escala do modelo 3D do satélite (1.0 = real)
+    nadir_cone_top_radius: 0.08          # Diâmetro no topo (escala da antena do satélite)
+    beacon_radius: 0.35                  # Raio do anel holográfico de mira
+    beacon_tube_thickness: 0.015         # Espessura do anel holográfico de mira
+    satellite_visual_scale: 0.08         # Escala visual do satélite 3D (1.0 = real)
+
+    # --------------------------------------------------------------------------
+    # 📡 1. Marcadores dos Satélites Geoestacionários (GEO)
+    # --------------------------------------------------------------------------
+    geo_markers:
+      show_beacon_halo: true             # Halo holográfico ao redor do satélite
+      show_nadir_beam: true              # Projeção Nadir geral
+      show_boresight_ray: true           # Raio laser central interno (sub-satélite)
+      show_generatrix_rays: true         # Feixes de borda / gaiola externa
+      num_generatrix_rays: 4             # Quantidade de raios geratrizes (0 a 16; 0 = apenas raio central)
+      show_footprint_ring: true          # Anel de pegada no solo (~4.800 km)
+      show_mid_altitude_ring: false      # Anel intermediário de altitude
+      show_footprint_crosshair: true     # Mira de alvo no ponto sub-satélite
+      footprint_radius_km: 4800.0        # Raio no solo em km (4.80 unidades)
+      ray_thickness: 0.016               # Espessura dos tubos laser
+      color: "cyan"                      # Cor do feixe GEO (Ciano Espacial)
+      emissive_intensity: 0.85           # Brilho neon emissivo (0.0 a 1.0)
+      beacon_emissive: 0.80              # Brilho do halo GEO
+
+    # --------------------------------------------------------------------------
+    # 🛰️ 2. Marcadores dos Satélites Geossíncronos Inclinados (IGSO)
+    # --------------------------------------------------------------------------
+    igso_markers:
+      show_beacon_halo: true             # Halo holográfico ao redor do satélite
+      show_nadir_beam: true              # Projeção Nadir geral
+      show_boresight_ray: true           # Raio laser central interno (sub-satélite)
+      show_generatrix_rays: true         # Feixes de borda / gaiola externa
+      num_generatrix_rays: 4             # Quantidade de raios geratrizes (0 a 16; 0 = apenas raio central)
+      show_footprint_ring: true          # Anel de pegada no solo (~1.150 km)
+      show_mid_altitude_ring: false      # Anel intermediário de altitude
+      show_footprint_crosshair: true     # Mira de alvo no ponto sub-satélite
+      footprint_radius_km: 1150.0        # Raio no solo em km (1.15 unidades)
+      ray_thickness: 0.018               # Espessura dos tubos laser
+      color: "amber"                     # Cor do feixe IGSO (Âmbar/Dourado Neon)
+      emissive_intensity: 0.95           # Brilho neon emissivo (0.0 a 1.0)
+      beacon_emissive: 0.85              # Brilho do halo IGSO
 
 # 🌌 3. Mecânica Celeste e Corpos Astronômicos
 celestial_mechanics:
