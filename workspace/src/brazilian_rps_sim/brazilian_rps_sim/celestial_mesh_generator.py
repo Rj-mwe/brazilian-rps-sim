@@ -49,6 +49,16 @@ def generate_orbit_gltf(output_path: str, radius: float, inclination_deg: float,
 
 def generate_all_celestial_assets(mesh_dir: str = None):
     if not mesh_dir:
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_share = get_package_share_directory('brazilian_rps_sim')
+            candidate = os.path.join(pkg_share, "meshes")
+            if os.path.exists(candidate):
+                mesh_dir = candidate
+        except Exception:
+            pass
+
+    if not mesh_dir:
         pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         mesh_dir = os.path.join(pkg_dir, "meshes")
 

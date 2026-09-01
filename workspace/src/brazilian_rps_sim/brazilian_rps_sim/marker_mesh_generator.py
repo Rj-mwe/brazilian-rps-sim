@@ -14,7 +14,7 @@ Refatorado com o Design Pattern BUILDER (GltfMeshBuilder) e RMF Tubes.
 
 import os
 import math
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
 import yaml
 
@@ -337,11 +337,39 @@ def generate_locator_ring_glb(
 
 def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
     """Gera todos os marcadores espaciais a partir do YAML com controle granular GEO vs IGSO."""
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if not config_path:
-        config_path = os.path.join(pkg_dir, 'config', 'simulation_parameters.yaml')
+    if not config_path or not os.path.exists(config_path):
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_share = get_package_share_directory('brazilian_rps_sim')
+            candidate = os.path.join(pkg_share, 'config', 'simulation_parameters.yaml')
+            if os.path.exists(candidate):
+                config_path = candidate
+        except Exception:
+            pass
+
+    if not config_path or not os.path.exists(config_path):
+        pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        candidate = os.path.join(pkg_dir, 'config', 'simulation_parameters.yaml')
+        if os.path.exists(candidate):
+            config_path = candidate
+        else:
+            config_path = '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/config/simulation_parameters.yaml'
+
     if not mesh_dir:
-        mesh_dir = os.path.join(pkg_dir, 'meshes')
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_share = get_package_share_directory('brazilian_rps_sim')
+            candidate = os.path.join(pkg_share, 'meshes')
+            if os.path.exists(candidate):
+                mesh_dir = candidate
+        except Exception:
+            pass
+
+    if not mesh_dir:
+        if config_path and os.path.exists(config_path):
+            mesh_dir = os.path.join(os.path.dirname(os.path.dirname(config_path)), 'meshes')
+        else:
+            mesh_dir = '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/meshes'
 
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f)

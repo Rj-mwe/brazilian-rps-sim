@@ -17,11 +17,38 @@ except ImportError:
     from color_palette import resolve_color
 
 def generate_world_sdf(config_path: str = None, output_path: str = None):
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if not config_path:
-        config_path = os.path.join(pkg_dir, 'config', 'simulation_parameters.yaml')
+    if not config_path or not os.path.exists(config_path):
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_share = get_package_share_directory('brazilian_rps_sim')
+            candidate = os.path.join(pkg_share, 'config', 'simulation_parameters.yaml')
+            if os.path.exists(candidate):
+                config_path = candidate
+        except Exception:
+            pass
+
+    if not config_path or not os.path.exists(config_path):
+        pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        candidate = os.path.join(pkg_dir, 'config', 'simulation_parameters.yaml')
+        if os.path.exists(candidate):
+            config_path = candidate
+        else:
+            config_path = '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/config/simulation_parameters.yaml'
+
     if not output_path:
-        output_path = os.path.join(pkg_dir, 'worlds', 'solar_system_brazilian_rps.sdf')
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_share = get_package_share_directory('brazilian_rps_sim')
+            candidate = os.path.join(pkg_share, 'worlds', 'solar_system_brazilian_rps.sdf')
+            output_path = candidate
+        except Exception:
+            pass
+
+    if not output_path:
+        if config_path and os.path.exists(config_path):
+            output_path = os.path.join(os.path.dirname(os.path.dirname(config_path)), 'worlds', 'solar_system_brazilian_rps.sdf')
+        else:
+            output_path = '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/worlds/solar_system_brazilian_rps.sdf'
 
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
