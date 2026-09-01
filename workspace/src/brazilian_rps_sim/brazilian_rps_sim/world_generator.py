@@ -2,8 +2,10 @@
 """
 Gerador Dinâmico e Desacoplado do Mundo SDFormat (solar_system_brazilian_rps.sdf)
 para o Sistema Solar e a Constelação de N Satélites do RPS-BR.
-Aplica ordem de renderização (render_order) explícita no Gazebo/OGRE 2 para garantir
-que os cones e marcadores dos IGSOs se sobreponham aos feixes de fundo dos GEOs sem oclusão.
+Implementa o Design Pattern de INJEÇÃO DE DEPENDÊNCIAS VIA SDF:
+Lê a configuração central (simulation_parameters.yaml) e injeta todos os parâmetros
+orbitais, temporais e mecânicos diretamente nas tags <plugin> do XML, eliminando
+qualquer acoplamento ou leitura direta de arquivos dentro do C++.
 """
 
 import os
@@ -24,16 +26,33 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
 
+    # 1. Configurações Globais e Temporais
+    sim_cfg = cfg.get('simulation', {})
+    time_multiplier = float(sim_cfg.get('time_multiplier', 3600.0))
+    render_scale = float(sim_cfg.get('render_scale', 0.001))
+
+    # 2. Mecânica Celeste e Parâmetros Físicos
+    celestial_cfg = cfg.get('celestial_mechanics', {})
+    earth_cfg = celestial_cfg.get('earth', {})
+    moon_cfg = celestial_cfg.get('moon', {})
+
+    dist_sun_earth = float(earth_cfg.get('dist_sun_render', 1200.0))
+    dist_earth_moon = float(moon_cfg.get('dist_earth_render', 384.4))
+    obliquity_deg = float(earth_cfg.get('obliquity_deg', 23.43928))
+    clouds_drift = float(earth_cfg.get('clouds_drift_factor', 1.035))
+    sidereal_day_sec = float(earth_cfg.get('sidereal_day_sec', 86164.0905))
+    sidereal_year_sec = float(earth_cfg.get('sidereal_year_sec', 31558149.76))
+    sidereal_month_sec = float(moon_cfg.get('sidereal_month_sec', 2360591.51))
+    moon_inc_deg = float(moon_cfg.get('inclination_deg', 5.145))
+
+    # 3. Visualização e Marcadores
     vis_cfg = cfg.get('visualization', {})
-    
-    # 1. Linhas e Trilhas Orbitais (Orbit Trails)
     trails_cfg = vis_cfg.get('orbit_trails', {})
     show_earth_orbit = trails_cfg.get('show_earth_orbit', True)
     show_moon_orbit = trails_cfg.get('show_moon_orbit', True)
     show_geo_orbit = trails_cfg.get('show_geo_orbit', True)
     show_igso_orbit = trails_cfg.get('show_igso_orbit', True)
 
-    # 2. Marcadores dos Satélites (Satellite Markers)
     markers_cfg = vis_cfg.get('satellite_markers', vis_cfg.get('markers', {}))
     show_beacon_geo = markers_cfg.get('show_beacon_halo_geo', True)
     show_beacon_halo_igso = markers_cfg.get('show_beacon_halo_igso', True)
@@ -41,26 +60,39 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     show_cone_igso = markers_cfg.get('show_nadir_cone_igso', True)
     sat_scale = float(markers_cfg.get('satellite_visual_scale', 0.08))
 
-    # Cores
     color_cone_geo = resolve_color(markers_cfg.get('color_nadir_cone_geo', 'cyan'), default=(0.0, 0.90, 1.0))
     color_cone_igso = resolve_color(markers_cfg.get('color_nadir_cone_igso', 'amber'), default=(1.0, 0.80, 0.10))
-    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.06))
+    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.05))
     op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
-    e_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.10))
-    e_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.85))
+    e_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.08))
+    e_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.90))
 
-    # 3. Satélites
+    # 4. Satélites
     satellites = cfg.get('constellation', {}).get('satellites', [])
 
-    # 4. Construção do SDFormat
+    # Helper para injeção de tags comuns no CelestialMechanicsPlugin
+    def make_celestial_plugin_tag(body_type: str) -> str:
+        return f"""<plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>{body_type}</body_type>
+        <time_scale>{time_multiplier}</time_scale>
+        <dist_sun_earth>{dist_sun_earth}</dist_sun_earth>
+        <dist_earth_moon>{dist_earth_moon}</dist_earth_moon>
+        <obliquity_deg>{obliquity_deg}</obliquity_deg>
+        <clouds_drift_factor>{clouds_drift}</clouds_drift_factor>
+        <sidereal_day_sec>{sidereal_day_sec}</sidereal_day_sec>
+        <sidereal_year_sec>{sidereal_year_sec}</sidereal_year_sec>
+        <sidereal_month_sec>{sidereal_month_sec}</sidereal_month_sec>
+        <moon_inclination_deg>{moon_inc_deg}</moon_inclination_deg>
+      </plugin>"""
+
+    # 5. Construção do SDFormat
     sdf_content = f"""<?xml version="1.0" ?>
 <!--
   ==============================================================================
   Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
   Arquivo: solar_system_brazilian_rps.sdf
   Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
-             Contém Sol, Terra NASA PBR 5 camadas, Lua LRO, Cúpula Gaia GLB,
-             Linhas de Trajetória sob demanda e {len(satellites)} Satélites com render_order diferenciado.
+             Implementa Injeção de Dependências via SDFormat para todos os Plugins C++.
   ==============================================================================
 -->
 <sdf version="1.8">
@@ -139,15 +171,13 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </material>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>sun</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("sun")}
     </model>
 """
 
     # 1. Trilha da Órbita da Terra ao redor do Sol
     if show_earth_orbit:
-        sdf_content += """
+        sdf_content += f"""
     <!-- Trilha Visual da Órbita da Terra ao redor do Sol -->
     <model name="earth_orbit_trail">
       <static>true</static>
@@ -160,19 +190,17 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </geometry>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>earth_trail</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("earth_trail")}
     </model>
 """
 
     # 2. A Terra
-    sdf_content += """
+    sdf_content += f"""
     <!-- ======================================================================= -->
     <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z POLAR)           -->
     <!-- ======================================================================= -->
     <model name="earth">
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth} 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
           <geometry><sphere><radius>6.378</radius></sphere></geometry>
@@ -222,14 +250,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         </visual>
       </link>
 
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>earth</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("earth")}
     </model>
 
     <!-- Nuvens da Terra -->
     <model name="earth_clouds">
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth} 0 0 0 0 0</pose>
       <link name="clouds_link">
         <visual name="clouds_surface">
           <cast_shadows>false</cast_shadows>
@@ -252,16 +278,14 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </material>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>earth_clouds</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("earth_clouds")}
     </model>
 
     <!-- ======================================================================= -->
     <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO                                         -->
     <!-- ======================================================================= -->
     <model name="moon">
-      <pose>1584.4 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth + dist_earth_moon} 0 0 0 0 0</pose>
       <link name="moon_link">
         <collision name="moon_col">
           <geometry><sphere><radius>1.7374</radius></sphere></geometry>
@@ -285,19 +309,17 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </material>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>moon</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("moon")}
     </model>
 """
 
     # 3. Trilha da Órbita da Lua ao redor da Terra
     if show_moon_orbit:
-        sdf_content += """
+        sdf_content += f"""
     <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
     <model name="moon_orbit_trail">
       <static>true</static>
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth} 0 0 0 0 0</pose>
       <link name="moon_trail_link">
         <visual name="v_moon_orbit_ring">
           <cast_shadows>false</cast_shadows>
@@ -306,19 +328,17 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </geometry>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>moon_trail</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("moon_trail")}
     </model>
 """
 
     # 4. Inserção dos Anéis Orbitais dos Satélites (GEO e IGSO)
     if show_geo_orbit:
-        sdf_content += """
+        sdf_content += f"""
     <!-- Anel Orbital Equatorial GEO -->
     <model name="constellation_orbit_geo">
       <static>true</static>
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth} 0 0 0 0 0</pose>
       <link name="geo_ring_link">
         <visual name="v_orbit_geo">
           <cast_shadows>false</cast_shadows>
@@ -327,18 +347,16 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </geometry>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>constellation_geo_ring</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("constellation_geo_ring")}
     </model>
 """
 
     if show_igso_orbit:
-        sdf_content += """
+        sdf_content += f"""
     <!-- Trajetória 3D da Figura-8 dos IGSOs (Fixa sobre o Brasil) -->
     <model name="constellation_orbit_igso">
       <static>true</static>
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth} 0 0 0 0 0</pose>
       <link name="igso_ring_link">
         <visual name="v_orbit_igso">
           <cast_shadows>false</cast_shadows>
@@ -347,16 +365,14 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </geometry>
         </visual>
       </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>constellation_igso_trail</body_type>
-      </plugin>
+      {make_celestial_plugin_tag("constellation_igso_trail")}
     </model>
 """
 
-    # 5. Inserção dos Modelos 3D dos Satélites com Render Order
+    # 5. Inserção dos Modelos 3D dos Satélites com Injeção de Parâmetros
     sdf_content += """
     <!-- ======================================================================= -->
-    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES SOBREPOSTOS)-->
+    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (INJEÇÃO DE DEPENDÊNCIAS VIA SDF)     -->
     <!-- ======================================================================= -->
 """
 
@@ -380,7 +396,6 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         show_beacon = show_beacon_geo if is_geo else show_beacon_halo_igso
         show_cone = show_cone_geo if is_geo else show_cone_igso
 
-        # Render Order no OGRE 2: GEO = 0 (fundo), IGSO = 10 (frente / sobreposto)
         cone_render_order = 0 if is_geo else 10
         cone_color = color_cone_geo if is_geo else color_cone_igso
         cone_op = op_geo if is_geo else op_igso
@@ -389,7 +404,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         sdf_content += f"""
     <!-- Satélite {sat_id}: {name} [{sat_type}] -->
     <model name="{model_name}">
-      <pose>1242.164 0 0 0 0 0</pose>
+      <pose>{dist_sun_earth + 42.164} 0 0 0 0 0</pose>
       <link name="{model_name}_link">
         <collision name="col">
           <geometry><sphere><radius>0.2</radius></sphere></geometry>
@@ -426,7 +441,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         </visual>
 """
 
-        # Marcador: Cone Nadir (Com Render Order Explícito para Sobreposição)
+        # Marcador: Cone Nadir
         if show_cone:
             sdf_content += f"""
         <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: {cone_render_order}) -->
@@ -448,9 +463,10 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         </visual>
 """
 
+        # Plugin C++ com Injeção Explícita de Parâmetros
         sdf_content += f"""      </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>{a_scale:.6f}</semi_major_axis>
         <eccentricity>{e:.6f}</eccentricity>
@@ -458,7 +474,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         <raan_deg>{raan_deg:.6f}</raan_deg>
         <arg_perigee_deg>{argp_deg:.6f}</arg_perigee_deg>
         <mean_anomaly_deg>{m0_deg:.6f}</mean_anomaly_deg>
+        <time_scale>{time_multiplier}</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>{dist_sun_earth}</dist_sun_earth>
+        <obliquity_deg>{obliquity_deg}</obliquity_deg>
+        <sidereal_year_sec>{sidereal_year_sec}</sidereal_year_sec>
+        <sidereal_day_sec>{sidereal_day_sec}</sidereal_day_sec>
       </plugin>
     </model>
 """
@@ -471,7 +492,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(sdf_content)
 
-    print(f"🌍 [WorldGenerator] Mundo SDF gerado com sucesso com render_order diferenciado e {len(satellites)} satélites: {output_path}")
+    print(f"🌍 [WorldGenerator] Mundo SDF gerado com sucesso com Injeção de Dependências e {len(satellites)} satélites: {output_path}")
 
 if __name__ == '__main__':
     generate_world_sdf()

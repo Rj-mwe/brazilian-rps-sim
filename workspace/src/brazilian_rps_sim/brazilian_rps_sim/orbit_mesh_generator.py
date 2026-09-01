@@ -3,27 +3,27 @@
 Gerador procedural das trajetórias e anéis orbitais 3D em glTF 2.0 PBR:
 1. Anel Equatorial dos GEOs (orbit_geo.gltf)
 2. Trajetória 3D da Figura-8 dos IGSOs (orbit_igso.gltf)
-Suporta paleta de cores configurável via simulation_parameters.yaml.
+
+Refatorado com o Design Pattern BUILDER (GltfMeshBuilder).
 """
 
 import os
-import json
-import struct
-import base64
 import math
 import numpy as np
 import yaml
 
 try:
     from brazilian_rps_sim.color_palette import resolve_color
+    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder
 except ImportError:
     from color_palette import resolve_color
+    from gltf_builder import GltfMeshBuilder
+
 
 def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.10,
                         color_rgb: tuple = (1.0, 0.8, 0.2), emissive_intensity: float = 0.95):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    """Gera um tubo 3D contínuo ao longo de uma trajetória tridimensional usando GltfMeshBuilder."""
     num_pts = len(pts)
-
     vertices = []
     normals = []
     indices = []
@@ -40,11 +40,10 @@ def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.
         normal = normal / np.linalg.norm(normal)
         binormal = np.cross(tangent, normal)
 
-        for angle in [0, math.pi/2, math.pi, 3*math.pi/2]:
+        for angle in [0, math.pi / 2, math.pi, 3 * math.pi / 2]:
             offset = thickness * (math.cos(angle) * normal + math.sin(angle) * binormal)
-            v = p + offset
-            vertices.append(v)
-            normals.append(offset / thickness)
+            vertices.append((p + offset).tolist())
+            normals.append((offset / thickness).tolist())
 
     for i in range(num_pts):
         i_next = (i + 1) % num_pts
@@ -58,73 +57,24 @@ def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.
             v4 = base_next + j
             indices.extend([v1, v2, v3, v1, v3, v4])
 
-    v_arr = np.array(vertices, dtype=np.float32)
-    n_arr = np.array(normals, dtype=np.float32)
-    idx_arr = np.array(indices, dtype=np.uint32)
-
-    v_bytes = v_arr.tobytes()
-    n_bytes = n_arr.tobytes()
-    idx_bytes = idx_arr.tobytes()
-
-    while len(v_bytes) % 4 != 0: v_bytes += b'\x00'
-    while len(n_bytes) % 4 != 0: n_bytes += b'\x00'
-    while len(idx_bytes) % 4 != 0: idx_bytes += b'\x00'
-
-    buffer_bytes = v_bytes + n_bytes + idx_bytes
-
-    b64_str = base64.b64encode(buffer_bytes).decode('ascii')
-    uri = f"data:application/octet-stream;base64,{b64_str}"
-
     r, g, b = color_rgb
-    gltf_doc = {
-        "asset": {"version": "2.0", "generator": "RPS-BR Precise Orbital Trajectory Generator"},
-        "scenes": [{"nodes": [0]}],
-        "nodes": [{"mesh": 0, "name": "OrbitTrajectoryNode"}],
-        "meshes": [{
-            "name": "OrbitTrajectoryMesh",
-            "primitives": [{
-                "attributes": {"POSITION": 0, "NORMAL": 1},
-                "indices": 2,
-                "material": 0
-            }]
-        }],
-        "materials": [{
-            "name": "OrbitGlowMaterial",
-            "pbrMetallicRoughness": {
-                "baseColorFactor": [float(r), float(g), float(b), 1.0],
-                "metallicFactor": 0.0,
-                "roughnessFactor": 0.1
-            },
-            "emissiveFactor": [float(r * emissive_intensity), float(g * emissive_intensity), float(b * emissive_intensity)],
-            "alphaMode": "OPAQUE",
-            "doubleSided": True
-        }],
-        "accessors": [
-            {
-                "bufferView": 0, "byteOffset": 0, "componentType": 5126, "count": len(v_arr), "type": "VEC3",
-                "min": v_arr.min(axis=0).tolist(), "max": v_arr.max(axis=0).tolist()
-            },
-            {
-                "bufferView": 1, "byteOffset": 0, "componentType": 5126, "count": len(n_arr), "type": "VEC3",
-                "min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]
-            },
-            {
-                "bufferView": 2, "byteOffset": 0, "componentType": 5125, "count": len(idx_arr), "type": "SCALAR",
-                "min": [int(idx_arr.min())], "max": [int(idx_arr.max())]
-            }
-        ],
-        "bufferViews": [
-            {"buffer": 0, "byteOffset": 0, "byteLength": len(v_bytes), "target": 34962},
-            {"buffer": 0, "byteOffset": len(v_bytes), "byteLength": len(n_bytes), "target": 34962},
-            {"buffer": 0, "byteOffset": len(v_bytes) + len(n_bytes), "byteLength": len(idx_bytes), "target": 34963}
-        ],
-        "buffers": [{"byteLength": len(buffer_bytes), "uri": uri}]
-    }
+    builder = GltfMeshBuilder(name="OrbitTrajectory", generator_tag="RPS-BR Orbital Trajectory Generator")
+    builder.set_positions(vertices)\
+           .set_normals(normals)\
+           .set_indices(indices)\
+           .set_pbr_material(
+               name="OrbitGlowMaterial",
+               base_color_rgba=(r, g, b, 1.0),
+               metallic=0.0,
+               roughness=0.1,
+               emissive_intensity=emissive_intensity,
+               alpha_mode="OPAQUE",
+               double_sided=True
+           )\
+           .save_gltf(output_path, embedded_base64=True)
 
-    with open(output_path, 'w') as f:
-        json.dump(gltf_doc, f, indent=2)
+    print(f"✨ [OrbitGenerator] Trilha orbital salva via GltfMeshBuilder: {output_path} (Cor: {color_rgb})")
 
-    print(f"✨ [OrbitGenerator] Trilha orbital salva: {output_path} (Cor: {color_rgb})")
 
 def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -147,7 +97,7 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
 
     # 1. Anel Equatorial dos GEOs
     num_pts = 360
-    theta = np.linspace(0, 2*np.pi, num_pts, endpoint=False)
+    theta = np.linspace(0, 2 * np.pi, num_pts, endpoint=False)
     r_geo = 42.16414
     pts_geo = [[r_geo * math.cos(th), r_geo * math.sin(th), 0.0] for th in theta]
 
@@ -178,23 +128,33 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
             M = m0 + omega_earth * t
             E = M
             for _ in range(10):
-                E = E - (E - e*math.sin(E) - M) / (1 - e*math.cos(E))
-            nu = 2 * math.atan2(math.sqrt(1+e)*math.sin(E/2), math.sqrt(1-e)*math.cos(E/2))
+                E = E - (E - e * math.sin(E) - M) / (1 - e * math.cos(E))
+            nu = 2 * math.atan2(math.sqrt(1 + e) * math.sin(E / 2), math.sqrt(1 - e) * math.cos(E / 2))
             r = a * (1 - e * math.cos(E))
-            u = argp + nu
 
-            x_orb = r * math.cos(u)
-            y_orb = r * math.sin(u) * math.cos(inc)
-            z_orb = r * math.sin(u) * math.sin(inc)
+            p_x = r * math.cos(nu)
+            p_y = r * math.sin(nu)
 
-            x_eci = x_orb * math.cos(raan) - y_orb * math.sin(raan)
-            y_eci = x_orb * math.sin(raan) + y_orb * math.cos(raan)
-            z_eci = z_orb
+            cos_O, sin_O = math.cos(raan), math.sin(raan)
+            cos_w, sin_w = math.cos(argp), math.sin(argp)
+            cos_i, sin_i = math.cos(inc), math.sin(inc)
+
+            P_x = cos_O * cos_w - sin_O * sin_w * cos_i
+            P_y = sin_O * cos_w + cos_O * sin_w * cos_i
+            P_z = sin_w * sin_i
+
+            Q_x = -cos_O * sin_w - sin_O * cos_w * cos_i
+            Q_y = -sin_O * sin_w + cos_O * sin_w * cos_i
+            Q_z = cos_w * sin_i
+
+            eci_x = p_x * P_x + p_y * Q_x
+            eci_y = p_x * P_y + p_y * Q_y
+            eci_z = p_x * P_z + p_y * Q_z
 
             theta_spin = omega_earth * t
-            x_body = x_eci * math.cos(theta_spin) + y_eci * math.sin(theta_spin)
-            y_body = -x_eci * math.sin(theta_spin) + y_eci * math.cos(theta_spin)
-            z_body = z_eci
+            x_body = eci_x * math.cos(theta_spin) + eci_y * math.sin(theta_spin)
+            y_body = -eci_x * math.sin(theta_spin) + eci_y * math.cos(theta_spin)
+            z_body = eci_z
 
             pts_figure8.append([x_body, y_body, z_body])
 

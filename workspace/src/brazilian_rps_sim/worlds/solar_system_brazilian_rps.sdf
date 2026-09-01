@@ -4,8 +4,7 @@
   Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
   Arquivo: solar_system_brazilian_rps.sdf
   Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
-             Contém Sol, Terra NASA PBR 5 camadas, Lua LRO, Cúpula Gaia GLB,
-             Linhas de Trajetória sob demanda e 7 Satélites com render_order diferenciado.
+             Implementa Injeção de Dependências via SDFormat para todos os Plugins C++.
   ==============================================================================
 -->
 <sdf version="1.8">
@@ -86,6 +85,15 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>sun</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
@@ -103,6 +111,15 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth_trail</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
@@ -110,7 +127,7 @@
     <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z POLAR)           -->
     <!-- ======================================================================= -->
     <model name="earth">
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>1200.0 0 0 0 0 0</pose>
       <link name="earth_link">
         <collision name="earth_col">
           <geometry><sphere><radius>6.378</radius></sphere></geometry>
@@ -162,12 +179,21 @@
 
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
     <!-- Nuvens da Terra -->
     <model name="earth_clouds">
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>1200.0 0 0 0 0 0</pose>
       <link name="clouds_link">
         <visual name="clouds_surface">
           <cast_shadows>false</cast_shadows>
@@ -192,6 +218,15 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth_clouds</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
@@ -225,13 +260,22 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>moon</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
     <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
     <model name="moon_orbit_trail">
       <static>true</static>
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>1200.0 0 0 0 0 0</pose>
       <link name="moon_trail_link">
         <visual name="v_moon_orbit_ring">
           <cast_shadows>false</cast_shadows>
@@ -242,13 +286,22 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>moon_trail</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
     <!-- Anel Orbital Equatorial GEO -->
     <model name="constellation_orbit_geo">
       <static>true</static>
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>1200.0 0 0 0 0 0</pose>
       <link name="geo_ring_link">
         <visual name="v_orbit_geo">
           <cast_shadows>false</cast_shadows>
@@ -259,13 +312,22 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>constellation_geo_ring</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
     <!-- Trajetória 3D da Figura-8 dos IGSOs (Fixa sobre o Brasil) -->
     <model name="constellation_orbit_igso">
       <static>true</static>
-      <pose>1200 0 0 0 0 0</pose>
+      <pose>1200.0 0 0 0 0 0</pose>
       <link name="igso_ring_link">
         <visual name="v_orbit_igso">
           <cast_shadows>false</cast_shadows>
@@ -276,11 +338,20 @@
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>constellation_igso_trail</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
       </plugin>
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES SOBREPOSTOS)-->
+    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (INJEÇÃO DE DEPENDÊNCIAS VIA SDF)     -->
     <!-- ======================================================================= -->
 
     <!-- Satélite 1: RPS-GEO-1 (Norte/Manaus) [GEO] -->
@@ -327,16 +398,16 @@
             </mesh>
           </geometry>
           <material>
-            <diffuse>0.0 0.9 1.0 0.01</diffuse>
-            <ambient>0.0 0.9 1.0 0.01</ambient>
-            <emissive>0.0 0.009000000000000001 0.01 1.0</emissive>
+            <diffuse>0.0 0.9 1.0 0.05</diffuse>
+            <ambient>0.0 0.9 1.0 0.05</ambient>
+            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>0</render_order>
           </material>
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.000000</eccentricity>
@@ -344,7 +415,12 @@
         <raan_deg>0.000000</raan_deg>
         <arg_perigee_deg>0.000000</arg_perigee_deg>
         <mean_anomaly_deg>300.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 
@@ -392,16 +468,16 @@
             </mesh>
           </geometry>
           <material>
-            <diffuse>0.0 0.9 1.0 0.01</diffuse>
-            <ambient>0.0 0.9 1.0 0.01</ambient>
-            <emissive>0.0 0.009000000000000001 0.01 1.0</emissive>
+            <diffuse>0.0 0.9 1.0 0.05</diffuse>
+            <ambient>0.0 0.9 1.0 0.05</ambient>
+            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>0</render_order>
           </material>
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.000000</eccentricity>
@@ -409,7 +485,12 @@
         <raan_deg>0.000000</raan_deg>
         <arg_perigee_deg>0.000000</arg_perigee_deg>
         <mean_anomaly_deg>312.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 
@@ -457,16 +538,16 @@
             </mesh>
           </geometry>
           <material>
-            <diffuse>0.0 0.9 1.0 0.01</diffuse>
-            <ambient>0.0 0.9 1.0 0.01</ambient>
-            <emissive>0.0 0.009000000000000001 0.01 1.0</emissive>
+            <diffuse>0.0 0.9 1.0 0.05</diffuse>
+            <ambient>0.0 0.9 1.0 0.05</ambient>
+            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>0</render_order>
           </material>
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.000000</eccentricity>
@@ -474,7 +555,12 @@
         <raan_deg>0.000000</raan_deg>
         <arg_perigee_deg>0.000000</arg_perigee_deg>
         <mean_anomaly_deg>324.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 
@@ -531,7 +617,7 @@
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.040000</eccentricity>
@@ -539,7 +625,12 @@
         <raan_deg>42.000000</raan_deg>
         <arg_perigee_deg>90.000000</arg_perigee_deg>
         <mean_anomaly_deg>180.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 
@@ -596,7 +687,7 @@
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.040000</eccentricity>
@@ -604,7 +695,12 @@
         <raan_deg>312.000000</raan_deg>
         <arg_perigee_deg>90.000000</arg_perigee_deg>
         <mean_anomaly_deg>270.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 
@@ -661,7 +757,7 @@
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.040000</eccentricity>
@@ -669,7 +765,12 @@
         <raan_deg>222.000000</raan_deg>
         <arg_perigee_deg>90.000000</arg_perigee_deg>
         <mean_anomaly_deg>0.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 
@@ -726,7 +827,7 @@
         </visual>
       </link>
 
-      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
       <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
         <semi_major_axis>42.164140</semi_major_axis>
         <eccentricity>0.040000</eccentricity>
@@ -734,7 +835,12 @@
         <raan_deg>132.000000</raan_deg>
         <arg_perigee_deg>90.000000</arg_perigee_deg>
         <mean_anomaly_deg>90.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
         <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
       </plugin>
     </model>
 

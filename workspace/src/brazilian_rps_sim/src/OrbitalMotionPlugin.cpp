@@ -1,7 +1,7 @@
 /**
  * @file OrbitalMotionPlugin.cpp
  * @brief Plugin C++ do Gazebo Harmonic para simulação analítica dos satélites do RPS-BR
- *        com leitura declarativa de parâmetros via config/simulation_parameters.yaml.
+ *        com Injeção de Dependências via SDFormat e alinhamento geométrico perfeito (Rx(eps)).
  */
 
 #include <gz/sim/System.hh>
@@ -14,47 +14,10 @@
 #include <gz/math/Quaternion.hh>
 #include <cmath>
 #include <iostream>
-#include <fstream>
-#include <sstream>
 #include <string>
-#include <vector>
 
 namespace brazilian_rps
 {
-
-// Constantes Astronômicas Heliocêntricas
-constexpr double DIST_SUN_EARTH = 1200.0;                   // Distância representativa Sol-Terra
-constexpr double SECONDS_PER_YEAR = 365.256363 * 86400.0;   // Ano Sideral da Terra (s)
-constexpr double OMEGA_EARTH_ORBIT = 2.0 * M_PI / SECONDS_PER_YEAR;
-
-inline double load_time_multiplier_from_yaml()
-{
-    std::vector<std::string> paths = {
-        "/home/rjgamito/ros2_ws/install/brazilian_rps_sim/share/brazilian_rps_sim/config/simulation_parameters.yaml",
-        "/home/rjgamito/ros2_ws/src/brazilian_rps_sim/config/simulation_parameters.yaml",
-        "/home/rjgamito/Projetos/Engenharia/Aeroespacial/brazilian-rps-sim/workspace/src/brazilian_rps_sim/config/simulation_parameters.yaml"
-    };
-    for (const auto &p : paths)
-    {
-        std::ifstream file(p);
-        if (file.is_open())
-        {
-            std::string line;
-            while (std::getline(file, line))
-            {
-                auto pos = line.find("time_multiplier:");
-                if (pos != std::string::npos)
-                {
-                    std::stringstream ss(line.substr(pos + 16));
-                    double val = 1.0;
-                    if (ss >> val)
-                        return val;
-                }
-            }
-        }
-    }
-    return 1.0;
-}
 
 class OrbitalMotionPlugin : public gz::sim::System,
                             public gz::sim::ISystemConfigure,
@@ -63,19 +26,23 @@ class OrbitalMotionPlugin : public gz::sim::System,
 private:
     gz::sim::Model model{gz::sim::kNullEntity};
     
-    // Parâmetros Orbitais Keplerianos
-    double a{42.164};                   // Semieixo maior em escala (42.164 unidades = 42.164 km)
-    double e{0.05};                     // Excentricidade orbital
-    double inc{29.0 * M_PI / 180.0};    // Inclinação orbital (rad)
-    double raan{310.0 * M_PI / 180.0};  // Longitude do Nó Ascendente - RAAN (rad)
-    double argp{270.0 * M_PI / 180.0};  // Argumento do Perigeu (rad)
-    double m0{0.0};                     // Anomalia Média inicial (rad)
-    double time_scale{1.0};             // Fator de aceleração temporal
-    bool heliocentric{false};           // Se true, translada junto com a Terra ao redor do Sol
+    // 💉 Parâmetros Orbitais e Astronômicos Injetados via SDFormat (Dependency Injection)
+    double a{42.16414};                 // Semieixo maior em escala (1 unid = 1.000 km)
+    double e{0.04};                     // Excentricidade orbital
+    double inc{25.0 * M_PI / 180.0};    // Inclinação orbital (rad)
+    double raan{42.0 * M_PI / 180.0};   // Longitude do Nó Ascendente - RAAN (rad)
+    double argp{90.0 * M_PI / 180.0};   // Argumento do Perigeu (rad)
+    double m0{180.0 * M_PI / 180.0};    // Anomalia Média inicial (rad)
+    double time_scale{3600.0};          // Fator de aceleração temporal
+    bool heliocentric{true};            // Translação heliocêntrica com a Terra
+    double dist_sun_earth{1200.0};      // Distância Sol-Terra no mundo
+    double obliquity_earth_deg{23.43928}; // Obliquidade da Terra (23.44°)
+    double sidereal_year_sec{31558149.76};
+    double sidereal_day_sec{86164.0905};
 
-    // Velocidades Angulares
+    // Velocidades Angulares Derivadas
     double mean_motion{7.292115e-5};    // Velocidade angular orbital média (rad/s)
-    double earth_rotation{7.292115e-5};  // Rotação sidérea da Terra (rad/s)
+    double omega_earth_orbit{0.0};      // Velocidade angular de translação heliocêntrica
 
     std::chrono::steady_clock::duration last_sim_time{std::chrono::steady_clock::duration::min()};
 
@@ -87,6 +54,7 @@ public:
     {
         this->model = gz::sim::Model(_entity);
 
+        // Leitura limpa das dependências injetadas pelo SDFormat
         if (_sdf->HasElement("semi_major_axis"))
             this->a = _sdf->Get<double>("semi_major_axis");
         if (_sdf->HasElement("eccentricity"))
@@ -99,19 +67,22 @@ public:
             this->argp = _sdf->Get<double>("arg_perigee_deg") * M_PI / 180.0;
         if (_sdf->HasElement("mean_anomaly_deg"))
             this->m0 = _sdf->Get<double>("mean_anomaly_deg") * M_PI / 180.0;
-        
-        // Lê do simulation_parameters.yaml
-        this->time_scale = load_time_multiplier_from_yaml();
-
         if (_sdf->HasElement("time_scale"))
-        {
-            double override_scale = _sdf->Get<double>("time_scale");
-            if (override_scale != 1.0)
-                this->time_scale = override_scale;
-        }
-
+            this->time_scale = _sdf->Get<double>("time_scale");
         if (_sdf->HasElement("heliocentric"))
             this->heliocentric = _sdf->Get<bool>("heliocentric");
+        if (_sdf->HasElement("dist_sun_earth"))
+            this->dist_sun_earth = _sdf->Get<double>("dist_sun_earth");
+        if (_sdf->HasElement("obliquity_deg"))
+            this->obliquity_earth_deg = _sdf->Get<double>("obliquity_deg");
+        if (_sdf->HasElement("sidereal_year_sec"))
+            this->sidereal_year_sec = _sdf->Get<double>("sidereal_year_sec");
+        if (_sdf->HasElement("sidereal_day_sec"))
+            this->sidereal_day_sec = _sdf->Get<double>("sidereal_day_sec");
+
+        // Cálculo determinístico das velocidades com base nos parâmetros injetados
+        this->mean_motion = 2.0 * M_PI / this->sidereal_day_sec;
+        this->omega_earth_orbit = 2.0 * M_PI / this->sidereal_year_sec;
 
         std::cout << "🛰️ [OrbitalPlugin] Satélite " << this->model.Name(_ecm) 
                   << " ativo: a=" << this->a << " e=" << this->e 
@@ -140,65 +111,52 @@ public:
             if (std::abs(delta) < 1e-9) break;
         }
 
-        // 2. Anomalia Verdadeira e Raio Polar PQW
-        double sin_nu = (std::sqrt(1.0 - this->e * this->e) * std::sin(E)) / (1.0 - this->e * std::cos(E));
-        double cos_nu = (std::cos(E) - this->e) / (1.0 - this->e * std::cos(E));
-        double nu = std::atan2(sin_nu, cos_nu);
-
+        // 2. Anomalia Verdadeira (nu) e Raio Orbital (r)
+        double nu = 2.0 * std::atan2(std::sqrt(1.0 + this->e) * std::sin(E / 2.0),
+                                     std::sqrt(1.0 - this->e) * std::cos(E / 2.0));
         double r = this->a * (1.0 - this->e * std::cos(E));
-        double p_x = r * std::cos(nu);
-        double p_y = r * std::sin(nu);
 
-        // 3. Matriz de Rotação Orbital (Perifocal -> ECI Inercial)
-        double cos_O = std::cos(this->raan), sin_O = std::sin(this->raan);
-        double cos_w = std::cos(this->argp), sin_w = std::sin(this->argp);
-        double cos_i = std::cos(this->inc),  sin_i = std::sin(this->inc);
+        // 3. Posição no Plano Orbital (Perifocal P-Q-W)
+        double u = this->argp + nu; // Argumento de latitude
+        double x_orb = r * std::cos(u);
+        double y_orb = r * std::sin(u) * std::cos(this->inc);
+        double z_orb = r * std::sin(u) * std::sin(this->inc);
 
-        double P_x = cos_O * cos_w - sin_O * sin_w * cos_i;
-        double P_y = sin_O * cos_w + cos_O * sin_w * cos_i;
-        double P_z = sin_w * sin_i;
+        // 4. Rotação pelo Nó Ascendente (RAAN) -> Referencial Inercial Equatorial (ECI)
+        double x_eci = x_orb * std::cos(this->raan) - y_orb * std::sin(this->raan);
+        double y_eci = x_orb * std::sin(this->raan) + y_orb * std::cos(this->raan);
+        double z_eci = z_orb;
 
-        double Q_x = -cos_O * sin_w - sin_O * cos_w * cos_i;
-        double Q_y = -sin_O * sin_w + cos_O * cos_w * cos_i;
-        double Q_z = cos_w * sin_i;
-
-        double eci_x = p_x * P_x + p_y * Q_x;
-        double eci_y = p_x * P_y + p_y * Q_y;
-        double eci_z = p_x * P_z + p_y * Q_z;
-
-        // 4. Rotação Equatorial Terrestre -> Eclíptica do Gazebo (Obliquidade eps = 23.43928°)
-        constexpr double OBLIQUITY_EARTH_DEG = 23.43928;
-        double eps = OBLIQUITY_EARTH_DEG * M_PI / 180.0;
+        // 5. Rotação Equatorial -> Eclíptica do Gazebo (Obliquidade eps = 23.43928°)
+        double eps = this->obliquity_earth_deg * M_PI / 180.0;
         double cos_eps = std::cos(eps), sin_eps = std::sin(eps);
 
-        double rot_x = eci_x;
-        double rot_y = eci_y * cos_eps - eci_z * sin_eps;
-        double rot_z = eci_y * sin_eps + eci_z * cos_eps;
+        double rot_x = x_eci;
+        double rot_y = y_eci * cos_eps - z_eci * sin_eps;
+        double rot_z = y_eci * sin_eps + z_eci * cos_eps;
 
-        // 5. Se for Heliocêntrico, translada com a Terra ao redor do Sol
+        // 6. Translação Heliocêntrica (Centro na Terra orbitando o Sol a 1.200 unidades)
+        double earth_x = 0.0;
+        double earth_y = 0.0;
         if (this->heliocentric)
         {
-            double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
-            rot_x += DIST_SUN_EARTH * std::cos(theta_earth_orbit);
-            rot_y += DIST_SUN_EARTH * std::sin(theta_earth_orbit);
+            double theta_earth_orbit = this->omega_earth_orbit * sim_sec;
+            earth_x = this->dist_sun_earth * std::cos(theta_earth_orbit);
+            earth_y = this->dist_sun_earth * std::sin(theta_earth_orbit);
+            rot_x += earth_x;
+            rot_y += earth_y;
         }
 
-        // 6. Apontamento de Atitude Nadir (Eixo Z apontando para o centro da Terra)
-        gz::math::Vector3d earth_center(0, 0, 0);
-        if (this->heliocentric)
-        {
-            double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
-            earth_center.Set(DIST_SUN_EARTH * std::cos(theta_earth_orbit),
-                             DIST_SUN_EARTH * std::sin(theta_earth_orbit),
-                             0.0);
-        }
         gz::math::Vector3d sat_pos(rot_x, rot_y, rot_z);
+
+        // 7. Apontamento de Atitude Nadir (Eixo Z apontando para o centro da Terra)
+        gz::math::Vector3d earth_center(earth_x, earth_y, 0.0);
         gz::math::Vector3d to_earth = (earth_center - sat_pos).Normalized();
 
         gz::math::Quaterniond nadir_orientation;
         nadir_orientation.SetFrom2Axes(gz::math::Vector3d(0, 0, 1), to_earth);
 
-        // 6. Atualização da Pose no ECS
+        // 8. Atualização da Pose no ECS
         auto poseComp = _ecm.Component<gz::sim::components::Pose>(this->model.Entity());
         if (poseComp)
         {
