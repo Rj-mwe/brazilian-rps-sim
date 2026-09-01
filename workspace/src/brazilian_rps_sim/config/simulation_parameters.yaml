@@ -52,24 +52,31 @@ visualization:
     beacon_emissive_geo: 0.80     # Brilho emissivo do halo GEO (0.0 a 1.0)
     beacon_emissive_igso: 0.85    # Brilho emissivo do halo IGSO (0.0 a 1.0)
     
-    # --- Feixes / Cones Nadir (GEO: Fundo Translúcido | IGSO: Dourado Sobreposto) ---
+    # --- Feixes / Cones Nadir (Gaiola Holográfica Espacial / Radar Cage & Footprint) ---
     show_nadir_cone_geo: true     # Feixe Nadir dos satélites GEO
     show_nadir_cone_igso: true    # Feixe Nadir dos satélites IGSO
-    nadir_cone_top_radius: 0.08   # Diâmetro no topo (escala exata da antena do satélite)
+    nadir_beam_style: "holographic_cage" # Opções: "holographic_cage" (Padrão STK/NASA), "solid_cone"
+    nadir_cone_top_radius: 0.08   # Diâmetro no topo (escala da antena do satélite)
+    nadir_ray_thickness: 0.018    # Espessura dos tubos laser holográficos
+    num_generatrix_rays_geo: 8    # Número de raios geratrizes do GEO (Gaiola Octogonal)
+    num_generatrix_rays_igso: 6   # Número de raios geratrizes do IGSO (Gaiola Hexagonal)
+    show_mid_altitude_ring: true  # Anel intermediário de alcance radar
+    show_boresight_axis: true     # Eixo central laser apontado para o zênite/nadir
+    show_footprint_crosshair: true # Mira central no ponto sub-satélite na Terra
     
     # Cores dos Feixes Nadir
-    color_nadir_cone_geo: "cyan"  # Cor dos feixes GEO
-    color_nadir_cone_igso: "amber" # Cor dos feixes IGSO
+    color_nadir_cone_geo: "cyan"  # Cor dos feixes GEO (Ciano Espacial)
+    color_nadir_cone_igso: "amber" # Cor dos feixes IGSO (Âmbar/Dourado)
     
-    # GEO (Fundo Translúcido Suave de Cobertura Continental Ampla):
+    # GEO (Gaiola Holográfica Continental Ampla):
     nadir_cone_bottom_radius_geo: 4.80   # Raio de cobertura no solo de ~4.800 km
-    nadir_cone_opacity_geo: 0.05         # Opacidade ultracristalina (não ofusca a sobreposição)
-    nadir_cone_emissive_geo: 0.08        # Brilho suave sem ofuscamento
+    nadir_cone_opacity_geo: 0.05         # Usado em solid_cone
+    nadir_cone_emissive_geo: 0.85        # Brilho emissivo neon vibrante
     
-    # IGSO (Feixe Dourado Neon Vibrante com Prioridade de Render_Order 10):
+    # IGSO (Gaiola Holográfica Focada no Brasil):
     nadir_cone_bottom_radius_igso: 1.15  # Raio de cobertura no solo (~1.150 km)
-    nadir_cone_opacity_igso: 0.35        # Opacidade encorpada
-    nadir_cone_emissive_igso: 0.90       # Brilho emissivo neon vibrante (brilha sobreposto aos GEOs)
+    nadir_cone_opacity_igso: 0.35        # Usado em solid_cone
+    nadir_cone_emissive_igso: 0.95       # Brilho emissivo neon de alta intensidade
     
     # Escala Visual do Satélite 3D
     satellite_visual_scale: 0.08  # Escala do modelo 3D do satélite (1.0 = real)

@@ -2,27 +2,187 @@
 """
 Gerador de Malhas 3D Procedurais PBR (glTF 2.0 / .glb) para Marcadores Espaciais:
 1. Retículo/Anel Holográfico de Mira (Torus Neon Emissivo)
-2. Feixes Nadir com parâmetros independentes de cor, opacidade, brilho e raio.
+2. Gaiolas Holográficas Radar Nadir (STK / NASA WorldWind Standard):
+   - Anel de Pegada 2D na Superfície (Footprint Ring)
+   - Feixes Laser Geratrizes (Generatrix Rays / Ribs)
+   - Eixo Central de Apontamento Boresight (Nadir Line)
+   - Anel de Alcance de Meia-Altitude (Mid Range Ring)
+   - Mira de Centro Sub-satélite (Target Crosshairs)
 
-Refatorado com o Design Pattern BUILDER (GltfMeshBuilder).
+Refatorado com o Design Pattern BUILDER (GltfMeshBuilder) e RMF Tubes.
 """
 
 import os
 import math
+from typing import List, Tuple
 import numpy as np
 import yaml
 
 try:
     from brazilian_rps_sim.color_palette import resolve_color
-    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder
+    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
 except ImportError:
     from color_palette import resolve_color
-    from gltf_builder import GltfMeshBuilder
+    from gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
 
 
-def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, height: float,
-                            color_rgba: tuple, emissive_intensity: float = 0.5, segs: int = 48):
-    """Gera o feixe cônico Nadir procedural usando o GltfMeshBuilder."""
+def _create_cylinder_segment(
+    p1: List[float],
+    p2: List[float],
+    radius: float,
+    radial_segs: int = 8
+) -> Tuple[List[List[float]], List[List[float]], List[int]]:
+    """Gera a geometria tubular 3D (vértices, normais, índices) conectando p1 a p2."""
+    p1_arr = np.array(p1, dtype=np.float64)
+    p2_arr = np.array(p2, dtype=np.float64)
+    v = p2_arr - p1_arr
+    length = np.linalg.norm(v)
+    if length < 1e-6:
+        return [], [], []
+
+    tangent = v / length
+    if abs(tangent[2]) < 0.9:
+        normal = np.array([-tangent[1], tangent[0], 0.0])
+    else:
+        normal = np.array([0.0, -tangent[2], tangent[1]])
+    normal = normal / np.linalg.norm(normal)
+    binormal = np.cross(tangent, normal)
+    binormal = binormal / np.linalg.norm(binormal)
+
+    verts = []
+    norms = []
+    indices = []
+
+    theta = np.linspace(0, 2 * math.pi, radial_segs, endpoint=False)
+    for t in theta:
+        radial_dir = math.cos(t) * normal + math.sin(t) * binormal
+        verts.append((p1_arr + radius * radial_dir).tolist())
+        norms.append(radial_dir.tolist())
+    for t in theta:
+        radial_dir = math.cos(t) * normal + math.sin(t) * binormal
+        verts.append((p2_arr + radius * radial_dir).tolist())
+        norms.append(radial_dir.tolist())
+
+    for i in range(radial_segs):
+        i_next = (i + 1) % radial_segs
+        p00 = i
+        p01 = i_next
+        p10 = radial_segs + i
+        p11 = radial_segs + i_next
+        indices.extend([p00, p01, p11, p00, p11, p10])
+
+    return verts, norms, indices
+
+
+def _create_circular_ring(
+    radius: float,
+    height: float,
+    tube_radius: float = 0.015,
+    num_pts: int = 64,
+    radial_segs: int = 8
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Gera um anel circular fechado 3D em torno do eixo Z na altura especificada."""
+    theta = np.linspace(0, 2 * math.pi, num_pts, endpoint=False)
+    pts = np.column_stack([
+        radius * np.cos(theta),
+        radius * np.sin(theta),
+        np.full(num_pts, height)
+    ])
+    return build_smooth_rmf_tube(pts, radius=tube_radius, radial_segs=radial_segs)
+
+
+def generate_holographic_nadir_cage_glb(
+    output_path: str,
+    r_top: float,
+    r_bottom: float,
+    height: float,
+    color_rgb: Tuple[float, float, float],
+    emissive_intensity: float = 0.90,
+    num_rays: int = 8,
+    tube_radius: float = 0.018,
+    show_mid_ring: bool = True,
+    show_boresight: bool = True,
+    show_crosshair: bool = True
+) -> None:
+    """
+    Gera a Gaiola Holográfica Radar Nadir (Padrão Aeroespacial STK/NASA).
+    Elimina 100% dos conflitos visuais de oclusão e Z-buffer através de wireframe PBR emissivo.
+    """
+    all_verts: List[List[float]] = []
+    all_norms: List[List[float]] = []
+    all_indices: List[int] = []
+
+    def append_submesh(v, n, idx):
+        base_idx = len(all_verts)
+        all_verts.extend(v if isinstance(v, list) else v.tolist())
+        all_norms.extend(n if isinstance(n, list) else n.tolist())
+        all_indices.extend([int(i) + base_idx for i in idx])
+
+    # 1. Anel da Pegada no Solo (Surface Footprint Boundary Ring)
+    v, n, idx = _create_circular_ring(r_bottom, height, tube_radius=tube_radius * 1.3, num_pts=64)
+    append_submesh(v, n, idx)
+
+    # 2. Anel do Topo (Antena do Satélite)
+    if r_top > 0.01:
+        v, n, idx = _create_circular_ring(r_top, 0.0, tube_radius=tube_radius * 1.0, num_pts=32)
+        append_submesh(v, n, idx)
+
+    # 3. Anel Intermediário de Altitude (Range Altitude Ring)
+    if show_mid_ring:
+        r_mid = (r_top + r_bottom) * 0.5
+        h_mid = height * 0.5
+        v, n, idx = _create_circular_ring(r_mid, h_mid, tube_radius=tube_radius * 0.85, num_pts=48)
+        append_submesh(v, n, idx)
+
+    # 4. Feixes Laser Geratrizes (Generatrix Rays)
+    ray_angles = np.linspace(0, 2 * math.pi, num_rays, endpoint=False)
+    for phi in ray_angles:
+        p_top = [r_top * math.cos(phi), r_top * math.sin(phi), 0.0]
+        p_bottom = [r_bottom * math.cos(phi), r_bottom * math.sin(phi), height]
+        v, n, idx = _create_cylinder_segment(p_top, p_bottom, radius=tube_radius, radial_segs=8)
+        append_submesh(v, n, idx)
+
+    # 5. Eixo Central Boresight (Nadir Line apontada para o centro da Terra)
+    if show_boresight:
+        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 0.9, radial_segs=8)
+        append_submesh(v, n, idx)
+
+    # 6. Mira de Alvo no Solo (Sub-satellite Footprint Crosshair)
+    if show_crosshair:
+        ch_len = r_bottom * 0.25
+        v, n, idx = _create_cylinder_segment([-ch_len, 0.0, height], [ch_len, 0.0, height], radius=tube_radius * 0.8, radial_segs=6)
+        append_submesh(v, n, idx)
+        v, n, idx = _create_cylinder_segment([0.0, -ch_len, height], [0.0, ch_len, height], radius=tube_radius * 0.8, radial_segs=6)
+        append_submesh(v, n, idx)
+
+    r, g, b = color_rgb
+    builder = GltfMeshBuilder(name="HolographicNadirCage", generator_tag="RPS-BR Holographic Nadir Cage Generator")
+    builder.set_positions(all_verts)\
+           .set_normals(all_norms)\
+           .set_indices(all_indices)\
+           .set_pbr_material(
+               name="HolographicLaserMaterial",
+               base_color_rgba=(r, g, b, 1.0),
+               metallic=0.0,
+               roughness=0.2,
+               emissive_rgb=(r, g, b),
+               emissive_intensity=emissive_intensity,
+               alpha_mode="OPAQUE",
+               double_sided=True
+           )\
+           .save_glb(output_path)
+
+
+def generate_nadir_beam_glb(
+    output_path: str,
+    r_top: float,
+    r_bottom: float,
+    height: float,
+    color_rgba: Tuple[float, float, float, float],
+    emissive_intensity: float = 0.5,
+    segs: int = 48
+) -> None:
+    """Gera o cone translúcido sólido clássico via GltfMeshBuilder (Modo Legado)."""
     theta = np.linspace(0, 2 * math.pi, segs, endpoint=False)
     cos_t = np.cos(theta)
     sin_t = np.sin(theta)
@@ -68,9 +228,15 @@ def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, hei
            .save_glb(output_path)
 
 
-def generate_locator_ring_glb(output_path: str, r_major: float, r_minor: float,
-                             color_rgb: tuple, emissive_intensity: float = 1.0,
-                             segs_major: int = 36, segs_minor: int = 12):
+def generate_locator_ring_glb(
+    output_path: str,
+    r_major: float,
+    r_minor: float,
+    color_rgb: Tuple[float, float, float],
+    emissive_intensity: float = 1.0,
+    segs_major: int = 36,
+    segs_minor: int = 12
+) -> None:
     """Gera o anel holográfico (Torus) usando o GltfMeshBuilder."""
     vertices = []
     normals = []
@@ -87,9 +253,11 @@ def generate_locator_ring_glb(output_path: str, r_major: float, r_minor: float,
             cos_theta = math.cos(theta)
             sin_theta = math.sin(theta)
 
-            offset = np.array([r_minor * cos_theta * cos_phi,
-                               r_minor * cos_theta * sin_phi,
-                               r_minor * sin_theta])
+            offset = np.array([
+                r_minor * cos_theta * cos_phi,
+                r_minor * cos_theta * sin_phi,
+                r_minor * sin_theta
+            ])
             pos = center + offset
             normal = offset / r_minor
 
@@ -117,6 +285,7 @@ def generate_locator_ring_glb(output_path: str, r_major: float, r_minor: float,
                base_color_rgba=(r, g, b, 1.0),
                metallic=0.0,
                roughness=0.2,
+               emissive_rgb=(r, g, b),
                emissive_intensity=emissive_intensity,
                alpha_mode="OPAQUE",
                double_sided=True
@@ -125,6 +294,7 @@ def generate_locator_ring_glb(output_path: str, r_major: float, r_minor: float,
 
 
 def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
+    """Gera todos os marcadores espaciais (retículos de mira e feixes nadir) a partir do YAML."""
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not config_path:
         config_path = os.path.join(pkg_dir, 'config', 'simulation_parameters.yaml')
@@ -152,10 +322,18 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
     r_bottom_geo = float(markers_cfg.get('nadir_cone_bottom_radius_geo', 4.80))
     r_bottom_igso = float(markers_cfg.get('nadir_cone_bottom_radius_igso', 1.15))
     
+    style = markers_cfg.get('nadir_beam_style', 'holographic_cage')
+    ray_thickness = float(markers_cfg.get('nadir_ray_thickness', 0.018))
+    num_rays_geo = int(markers_cfg.get('num_generatrix_rays_geo', 8))
+    num_rays_igso = int(markers_cfg.get('num_generatrix_rays_igso', 6))
+    show_mid_ring = bool(markers_cfg.get('show_mid_altitude_ring', True))
+    show_boresight = bool(markers_cfg.get('show_boresight_axis', True))
+    show_crosshair = bool(markers_cfg.get('show_footprint_crosshair', True))
+
+    e_cone_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.85))
+    e_cone_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.95))
     op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.05))
     op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
-    e_cone_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.08))
-    e_cone_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.90))
     
     height = 45.0
 
@@ -173,21 +351,46 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
         emissive_intensity=e_beacon_igso
     )
 
-    # 2. Cones Nadir
-    generate_nadir_beam_glb(
-        output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
-        r_top=r_top, r_bottom=r_bottom_geo, height=height,
-        color_rgba=(color_cone_geo[0], color_cone_geo[1], color_cone_geo[2], op_geo),
-        emissive_intensity=e_cone_geo
-    )
-    generate_nadir_beam_glb(
-        output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
-        r_top=r_top, r_bottom=r_bottom_igso, height=height,
-        color_rgba=(color_cone_igso[0], color_cone_igso[1], color_cone_igso[2], op_igso),
-        emissive_intensity=e_cone_igso
-    )
+    # 2. Feixes / Gaiolas Nadir (Holográfico vs Sólido)
+    if style == 'holographic_cage':
+        generate_holographic_nadir_cage_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
+            r_top=r_top, r_bottom=r_bottom_geo, height=height,
+            color_rgb=color_cone_geo,
+            emissive_intensity=e_cone_geo,
+            num_rays=num_rays_geo,
+            tube_radius=ray_thickness,
+            show_mid_ring=show_mid_ring,
+            show_boresight=show_boresight,
+            show_crosshair=show_crosshair
+        )
+        generate_holographic_nadir_cage_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
+            r_top=r_top, r_bottom=r_bottom_igso, height=height,
+            color_rgb=color_cone_igso,
+            emissive_intensity=e_cone_igso,
+            num_rays=num_rays_igso,
+            tube_radius=ray_thickness * 1.1,
+            show_mid_ring=show_mid_ring,
+            show_boresight=show_boresight,
+            show_crosshair=show_crosshair
+        )
+    else:
+        generate_nadir_beam_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
+            r_top=r_top, r_bottom=r_bottom_geo, height=height,
+            color_rgba=(color_cone_geo[0], color_cone_geo[1], color_cone_geo[2], op_geo),
+            emissive_intensity=e_cone_geo
+        )
+        generate_nadir_beam_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
+            r_top=r_top, r_bottom=r_bottom_igso, height=height,
+            color_rgba=(color_cone_igso[0], color_cone_igso[1], color_cone_igso[2], op_igso),
+            emissive_intensity=e_cone_igso
+        )
 
-    print(f"✨ [MarkerGenerator] Marcadores gerados com GltfMeshBuilder com sucesso!")
+    print(f"✨ [MarkerGenerator] Marcadores holográficos gerados ({style}) via GltfMeshBuilder com sucesso!")
+
 
 if __name__ == '__main__':
     generate_all_marker_assets()
