@@ -166,15 +166,24 @@ public:
         double eci_y = p_x * P_y + p_y * Q_y;
         double eci_z = p_x * P_z + p_y * Q_z;
 
-        // 4. Se for Heliocêntrico, translada com a Terra ao redor do Sol
+        // 4. Rotação Equatorial Terrestre -> Eclíptica do Gazebo (Obliquidade eps = 23.43928°)
+        constexpr double OBLIQUITY_EARTH_DEG = 23.43928;
+        double eps = OBLIQUITY_EARTH_DEG * M_PI / 180.0;
+        double cos_eps = std::cos(eps), sin_eps = std::sin(eps);
+
+        double rot_x = eci_x;
+        double rot_y = eci_y * cos_eps - eci_z * sin_eps;
+        double rot_z = eci_y * sin_eps + eci_z * cos_eps;
+
+        // 5. Se for Heliocêntrico, translada com a Terra ao redor do Sol
         if (this->heliocentric)
         {
             double theta_earth_orbit = OMEGA_EARTH_ORBIT * sim_sec;
-            eci_x += DIST_SUN_EARTH * std::cos(theta_earth_orbit);
-            eci_y += DIST_SUN_EARTH * std::sin(theta_earth_orbit);
+            rot_x += DIST_SUN_EARTH * std::cos(theta_earth_orbit);
+            rot_y += DIST_SUN_EARTH * std::sin(theta_earth_orbit);
         }
 
-        // 5. Apontamento de Atitude Nadir (Eixo Z apontando para o centro da Terra)
+        // 6. Apontamento de Atitude Nadir (Eixo Z apontando para o centro da Terra)
         gz::math::Vector3d earth_center(0, 0, 0);
         if (this->heliocentric)
         {
@@ -183,7 +192,7 @@ public:
                              DIST_SUN_EARTH * std::sin(theta_earth_orbit),
                              0.0);
         }
-        gz::math::Vector3d sat_pos(eci_x, eci_y, eci_z);
+        gz::math::Vector3d sat_pos(rot_x, rot_y, rot_z);
         gz::math::Vector3d to_earth = (earth_center - sat_pos).Normalized();
 
         gz::math::Quaterniond nadir_orientation;

@@ -1,7 +1,7 @@
 /**
  * @file CelestialMechanicsPlugin.cpp
  * @brief Plugin C++ do Gazebo Harmonic para simulação analítica da Mecânica Celeste Sol-Terra-Lua
- *        com leitura declarativa de parâmetros via config/simulation_parameters.yaml.
+ *        com rotação polar acoplada (q_tilt * q_spin) e leitura declarativa de parâmetros via YAML.
  */
 
 #include <gz/sim/System.hh>
@@ -89,7 +89,7 @@ public:
         if (_sdf->HasElement("body_type"))
             this->body_type = _sdf->Get<std::string>("body_type");
 
-        // Lê prioritariamente do simulation_parameters.yaml
+        // Lê do simulation_parameters.yaml
         this->time_scale = load_time_multiplier_from_yaml();
 
         if (_sdf->HasElement("time_scale"))
@@ -121,14 +121,17 @@ public:
         double earth_y = DIST_SUN_EARTH * sin_orbit;
         double earth_z = 0.0;
 
-        // 2. Rotação Própria da Terra (Eixo Inclinado a 23.44°)
+        // 2. Rotação Própria da Terra em torno do Polo Inclinado a 23.44° (q_tilt * q_spin)
         double theta_earth_spin = std::fmod(OMEGA_EARTH_SPIN * sim_sec, 2.0 * M_PI);
         double eps = OBLIQUITY_EARTH_DEG * M_PI / 180.0;
-        gz::math::Quaterniond q_earth_axial(eps, 0.0, theta_earth_spin);
+        gz::math::Quaterniond q_tilt(eps, 0.0, 0.0);
+        gz::math::Quaterniond q_spin(0.0, 0.0, theta_earth_spin);
+        gz::math::Quaterniond q_earth_axial = q_tilt * q_spin;
 
         // 3. Rotação das Nuvens (+3.5% Super-rotação)
         double theta_clouds_spin = std::fmod(OMEGA_CLOUDS_SPIN * sim_sec, 2.0 * M_PI);
-        gz::math::Quaterniond q_clouds_axial(eps, 0.0, theta_clouds_spin);
+        gz::math::Quaterniond q_clouds_spin(0.0, 0.0, theta_clouds_spin);
+        gz::math::Quaterniond q_clouds_axial = q_tilt * q_clouds_spin;
 
         // 4. Órbita Lunar ao redor da Terra (Inclinada a 5.145°)
         double theta_moon = OMEGA_MOON_ORBIT * sim_sec;

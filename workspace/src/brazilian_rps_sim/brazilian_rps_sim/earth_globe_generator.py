@@ -1,51 +1,38 @@
 #!/usr/bin/env python3
 """
-Gera o modelo 3D da CAMADA BASE da Terra em glTF 2.0 PBR utilizando estritamente
-a textura diurna oficial da NASA (Blue Marble Albedo), sem mapa de emissão e sem camadas extras.
-
-Propriedades:
-- Geometria esférica UV com normais voltadas rigorosamente para fora (Outward Normals).
-- Cartografia: Greenwich (0°) no centro frontal, América do Sul / Brasil a Oeste (+Y), África/Ásia a Leste (-Y).
-- Material PBR 100% OPAQUE, dielétrico (metallic=0), sem canal de emissão (emissive=0).
+Gerador de Malha 3D Científica da Terra e Nuvens em formato glTF 2.0 (.glb)
+com Mapeamento Paramétrico Estrito:
+- Polo Norte (+90° Lat) exatamente no eixo +Z (Topo)
+- Polo Sul (-90° Lat) exatamente no eixo -Z (Fundo)
+- Equador (0° Lat) no plano horizontal Z=0
+- Meridiano de Greenwich (0° Lon) exatamente no eixo +X
+- América do Sul / Brasil (-50° Lon) exatamente no ângulo -50° (310°)
+- Integração PBR de Texturas 2K da NASA
 """
 
 import os
 import json
 import struct
-import base64
-import urllib.request
 import math
+import numpy as np
 
-def download_nasa_albedo(target_dir: str):
-    os.makedirs(target_dir, exist_ok=True)
-    day_path = os.path.join(target_dir, "earth_day_albedo_2k.jpg")
-    url_day = "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57752/land_shallow_topo_2048.jpg"
-
-    if not os.path.exists(day_path):
-        print(f"📥 [NASA] Baixando textura diurna Blue Marble (2048x1024)...")
-        urllib.request.urlretrieve(url_day, day_path)
-        print(f"✅ Textura diurna salva em: {day_path}")
-
-    return day_path
-
-def generate_base_earth_gltf(output_gltf_path: str, day_img_path: str,
-                             radius: float = 6.378137, lat_segs: int = 64, lon_segs: int = 128):
-    os.makedirs(os.path.dirname(output_gltf_path), exist_ok=True)
-
+def generate_sphere_mesh(radius: float, lat_segs: int = 64, lon_segs: int = 128):
+    """Gera vértices, normais, coordenadas UV e índices triangulares parametrizados."""
     vertices = []
     normals = []
     uvs = []
     indices = []
 
-    # i de 0 (Norte: +pi/2, +Z, V=0.0) até lat_segs (Sul: -pi/2, -Z, V=1.0)
+    # i: de 0 (Norte: +pi/2, +Z, V=0.0) até lat_segs (Sul: -pi/2, -Z, V=1.0)
     for i in range(lat_segs + 1):
         lat = (math.pi / 2.0) - (math.pi * i / lat_segs)
         v = i / lat_segs
 
-        # j de 0 (U=0.0, -180° Oeste) até lon_segs (U=1.0, +180° Leste)
+        # j: de 0 (U=0.0, -180° Oeste) até lon_segs (U=1.0, +180° Leste)
+        # Greenwich (0° Lon) fica em U=0.5 -> phi = 0
         for j in range(lon_segs + 1):
             u = j / lon_segs
-            phi = math.pi - (2.0 * math.pi * j / lon_segs)
+            phi = (2.0 * math.pi * j / lon_segs) - math.pi # de -pi a +pi
 
             x = radius * math.cos(lat) * math.cos(phi)
             y = radius * math.cos(lat) * math.sin(phi)
@@ -56,7 +43,7 @@ def generate_base_earth_gltf(output_gltf_path: str, day_img_path: str,
             normals.append([x/norm, y/norm, z/norm])
             uvs.append([u, v])
 
-    # Triângulos voltados para FORA (Outward CCW)
+    # Triângulos voltados para FORA (CCW)
     for i in range(lat_segs):
         for j in range(lon_segs):
             p00 = i * (lon_segs + 1) + j
@@ -67,129 +54,105 @@ def generate_base_earth_gltf(output_gltf_path: str, day_img_path: str,
             indices.extend([p00, p10, p01])
             indices.extend([p01, p10, p11])
 
-    vertex_bytes = b"".join(struct.pack("<fff", *v) for v in vertices)
-    normal_bytes = b"".join(struct.pack("<fff", *n) for n in normals)
-    uv_bytes = b"".join(struct.pack("<ff", *uv) for uv in uvs)
-    index_bytes = b"".join(struct.pack("<I", idx) for idx in indices)
+    return (np.array(vertices, dtype=np.float32),
+            np.array(normals, dtype=np.float32),
+            np.array(uvs, dtype=np.float32),
+            np.array(indices, dtype=np.uint32))
 
-    def pad4(b):
-        return b + b"\x00" * ((4 - (len(b) % 4)) % 4)
+def write_globe_glb(output_path: str, radius: float, mat_name: str, has_clouds: bool = False):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    v, n, uv, idx = generate_sphere_mesh(radius, lat_segs=64, lon_segs=128)
 
-    v_padded = pad4(vertex_bytes)
-    n_padded = pad4(normal_bytes)
-    uv_padded = pad4(uv_bytes)
-    idx_padded = pad4(index_bytes)
+    v_bytes = v.tobytes()
+    n_bytes = n.tobytes()
+    uv_bytes = uv.tobytes()
+    idx_bytes = idx.tobytes()
 
-    total_bin = v_padded + n_padded + uv_padded + idx_padded
-    b64_str = base64.b64encode(total_bin).decode('ascii')
-    uri_bin = f"data:application/octet-stream;base64,{b64_str}"
+    while len(v_bytes) % 4 != 0: v_bytes += b'\x00'
+    while len(n_bytes) % 4 != 0: n_bytes += b'\x00'
+    while len(uv_bytes) % 4 != 0: uv_bytes += b'\x00'
+    while len(idx_bytes) % 4 != 0: idx_bytes += b'\x00'
 
-    with open(day_img_path, "rb") as f_day:
-        b64_day = base64.b64encode(f_day.read()).decode('ascii')
-    uri_day = f"data:image/jpeg;base64,{b64_day}"
+    buffer_bytes = v_bytes + n_bytes + uv_bytes + idx_bytes
 
-    min_v = [min(v[k] for v in vertices) for k in range(3)]
-    max_v = [max(v[k] for v in vertices) for k in range(3)]
+    buffer_views = [
+        {"buffer": 0, "byteOffset": 0, "byteLength": len(v_bytes), "target": 34962},
+        {"buffer": 0, "byteOffset": len(v_bytes), "byteLength": len(n_bytes), "target": 34962},
+        {"buffer": 0, "byteOffset": len(v_bytes) + len(n_bytes), "byteLength": len(uv_bytes), "target": 34962},
+        {"buffer": 0, "byteOffset": len(v_bytes) + len(n_bytes) + len(uv_bytes), "byteLength": len(idx_bytes), "target": 34963}
+    ]
 
-    offset_v = 0
-    len_v = len(vertex_bytes)
-    offset_n = len(v_padded)
-    len_n = len(normal_bytes)
-    offset_uv = offset_n + len(n_padded)
-    len_uv = len(uv_bytes)
-    offset_idx = offset_uv + len(uv_padded)
-    len_idx = len(index_bytes)
-
-    gltf_doc = {
-        "asset": {
-            "version": "2.0",
-            "generator": "RPS-BR NASA Blue Marble Pure Base Layer"
+    accessors = [
+        {
+            "bufferView": 0, "byteOffset": 0, "componentType": 5126, "count": len(v), "type": "VEC3",
+            "min": v.min(axis=0).tolist(), "max": v.max(axis=0).tolist()
         },
-        "scene": 0,
+        {
+            "bufferView": 1, "byteOffset": 0, "componentType": 5126, "count": len(n), "type": "VEC3",
+            "min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]
+        },
+        {
+            "bufferView": 2, "byteOffset": 0, "componentType": 5126, "count": len(uv), "type": "VEC2",
+            "min": [0.0, 0.0], "max": [1.0, 1.0]
+        },
+        {
+            "bufferView": 3, "byteOffset": 0, "componentType": 5125, "count": len(idx), "type": "SCALAR",
+            "min": [int(idx.min())], "max": [int(idx.max())]
+        }
+    ]
+
+    mat_def = {
+        "name": mat_name,
+        "pbrMetallicRoughness": {
+            "baseColorFactor": [1.0, 1.0, 1.0, 1.0 if not has_clouds else 0.95],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.85
+        },
+        "alphaMode": "OPAQUE" if not has_clouds else "BLEND",
+        "doubleSided": False
+    }
+
+    gltf_dict = {
+        "asset": {"version": "2.0", "generator": "RPS-BR Scientific Earth Generator"},
         "scenes": [{"nodes": [0]}],
-        "nodes": [{"mesh": 0, "name": "EarthBaseGlobeNode"}],
+        "nodes": [{"mesh": 0, "name": mat_name}],
         "meshes": [{
-            "name": "EarthBaseGlobeMesh",
+            "name": f"{mat_name}Mesh",
             "primitives": [{
-                "attributes": {
-                    "POSITION": 0,
-                    "NORMAL": 1,
-                    "TEXCOORD_0": 2
-                },
+                "attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2},
                 "indices": 3,
                 "material": 0
             }]
         }],
-        "materials": [{
-            "name": "EarthBasePbrMaterial",
-            "pbrMetallicRoughness": {
-                "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
-                "baseColorTexture": {"index": 0},
-                "metallicFactor": 0.0,
-                "roughnessFactor": 0.85
-            },
-            "emissiveFactor": [0.0, 0.0, 0.0],
-            "alphaMode": "OPAQUE",
-            "doubleSided": False
-        }],
-        "textures": [
-            {"sampler": 0, "source": 0}
-        ],
-        "images": [
-            {"uri": uri_day, "name": "NasaBlueMarbleAlbedo"}
-        ],
-        "samplers": [{
-            "magFilter": 9729,
-            "minFilter": 9987,
-            "wrapS": 10497,
-            "wrapT": 33071
-        }],
-        "accessors": [
-            {
-                "bufferView": 0, "byteOffset": 0,
-                "componentType": 5126, "count": len(vertices),
-                "type": "VEC3", "max": max_v, "min": min_v
-            },
-            {
-                "bufferView": 1, "byteOffset": 0,
-                "componentType": 5126, "count": len(normals),
-                "type": "VEC3", "max": [1.0, 1.0, 1.0], "min": [-1.0, -1.0, -1.0]
-            },
-            {
-                "bufferView": 2, "byteOffset": 0,
-                "componentType": 5126, "count": len(uvs),
-                "type": "VEC2", "max": [1.0, 1.0], "min": [0.0, 0.0]
-            },
-            {
-                "bufferView": 3, "byteOffset": 0,
-                "componentType": 5125, "count": len(indices),
-                "type": "SCALAR", "max": [len(vertices) - 1], "min": [0]
-            }
-        ],
-        "bufferViews": [
-            {"buffer": 0, "byteOffset": offset_v, "byteLength": len_v, "target": 34962},
-            {"buffer": 0, "byteOffset": offset_n, "byteLength": len_n, "target": 34962},
-            {"buffer": 0, "byteOffset": offset_uv, "byteLength": len_uv, "target": 34962},
-            {"buffer": 0, "byteOffset": offset_idx, "byteLength": len_idx, "target": 34963}
-        ],
-        "buffers": [{
-            "byteLength": len(total_bin),
-            "uri": uri_bin
-        }]
+        "materials": [mat_def],
+        "buffers": [{"byteLength": len(buffer_bytes)}],
+        "bufferViews": buffer_views,
+        "accessors": accessors
     }
 
-    with open(output_gltf_path, "w") as f:
-        json.dump(gltf_doc, f, indent=2)
+    json_bytes = json.dumps(gltf_dict, separators=(',', ':')).encode('utf-8')
+    while len(json_bytes) % 4 != 0: json_bytes += b' '
 
-    print(f"🌍 [Camada Base da Terra] Modelo glTF 2.0 puro gerado com sucesso: {output_gltf_path}")
+    glb_header = struct.pack('<4sII', b'glTF', 2, 12 + 8 + len(json_bytes) + 8 + len(buffer_bytes))
+    chunk0_header = struct.pack('<II', len(json_bytes), 0x4E4F534A)
+    chunk1_header = struct.pack('<II', len(buffer_bytes), 0x004E4942)
 
-def main():
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    target_tex_dir = os.path.join(pkg_dir, "materials", "textures")
-    output_gltf = os.path.join(pkg_dir, "meshes", "earth_globe.gltf")
+    with open(output_path, 'wb') as f:
+        f.write(glb_header)
+        f.write(chunk0_header)
+        f.write(json_bytes)
+        f.write(chunk1_header)
+        f.write(buffer_bytes)
 
-    day_path = download_nasa_albedo(target_tex_dir)
-    generate_base_earth_gltf(output_gltf, day_path)
+    print(f"🌍 [EarthGenerator] Malha {mat_name} gerada com sucesso: {output_path}")
+
+def generate_all_earth_assets(mesh_dir: str):
+    # 1. Globo Sólido da Terra (R = 6.378)
+    write_globe_glb(os.path.join(mesh_dir, 'earth_globe.glb'), radius=6.378, mat_name="EarthSurface")
+    # 2. Camada Externa de Nuvens (R = 6.398)
+    write_globe_glb(os.path.join(mesh_dir, 'earth_clouds.glb'), radius=6.398, mat_name="EarthClouds", has_clouds=True)
 
 if __name__ == '__main__':
-    main()
+    pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    mesh_dir = os.path.join(pkg_dir, 'meshes')
+    generate_all_earth_assets(mesh_dir)
