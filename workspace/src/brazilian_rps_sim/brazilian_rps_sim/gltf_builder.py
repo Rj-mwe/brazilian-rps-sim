@@ -17,6 +17,23 @@ from typing import List, Tuple, Optional, Union
 import numpy as np
 
 
+class GltfPrimitiveDef:
+    """Representa uma primitiva geométrica do glTF com material próprio."""
+    def __init__(
+        self,
+        positions: Optional[Union[np.ndarray, List[List[float]]]] = None,
+        normals: Optional[Union[np.ndarray, List[List[float]]]] = None,
+        uvs: Optional[Union[np.ndarray, List[List[float]]]] = None,
+        indices: Optional[Union[np.ndarray, List[int]]] = None,
+        material_def: Optional[dict] = None
+    ):
+        self.positions = np.array(positions, dtype=np.float32) if positions is not None else None
+        self.normals = np.array(normals, dtype=np.float32) if normals is not None and len(normals) > 0 else None
+        self.uvs = np.array(uvs, dtype=np.float32) if uvs is not None and len(uvs) > 0 else None
+        self.indices = np.array(indices, dtype=np.uint32) if indices is not None and len(indices) > 0 else None
+        self.material_def = material_def
+
+
 class GltfMeshBuilder:
     """Builder fluente para construção e exportação de malhas glTF 2.0 e GLB."""
 
@@ -28,8 +45,9 @@ class GltfMeshBuilder:
         self.normals: Optional[np.ndarray] = None
         self.uvs: Optional[np.ndarray] = None
         self.indices: Optional[np.ndarray] = None
-        
         self.material_def: Optional[dict] = None
+
+        self.primitives: List[GltfPrimitiveDef] = []
 
     def set_positions(self, positions: Union[np.ndarray, List[List[float]]]) -> 'GltfMeshBuilder':
         """Define os vértices 3D (VEC3 - Float32)."""
@@ -85,25 +103,66 @@ class GltfMeshBuilder:
         }
         return self
 
-    def _pack_binary_buffers(self) -> Tuple[List[dict], List[dict], bytes, dict]:
+    def add_primitive(
+        self,
+        positions: Union[np.ndarray, List[List[float]]],
+        normals: Optional[Union[np.ndarray, List[List[float]]]] = None,
+        uvs: Optional[Union[np.ndarray, List[List[float]]]] = None,
+        indices: Optional[Union[np.ndarray, List[int]]] = None,
+        material_name: str = "PbrMaterial",
+        base_color_rgba: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+        metallic: float = 0.0,
+        roughness: float = 0.5,
+        emissive_rgb: Optional[Tuple[float, float, float]] = None,
+        emissive_intensity: float = 0.0,
+        alpha_mode: str = "OPAQUE",
+        double_sided: bool = True
+    ) -> 'GltfMeshBuilder':
+        """Adiciona uma primitiva com material PBR independente (Multi-material)."""
+        r, g, b, a = base_color_rgba
+        if emissive_rgb is not None:
+            er, eg, eb = emissive_rgb
+        elif emissive_intensity > 0.0:
+            er, eg, eb = r * emissive_intensity, g * emissive_intensity, b * emissive_intensity
+        else:
+            er, eg, eb = 0.0, 0.0, 0.0
+
+        mat_def = {
+            "name": material_name,
+            "pbrMetallicRoughness": {
+                "baseColorFactor": [float(r), float(g), float(b), float(a)],
+                "metallicFactor": float(metallic),
+                "roughnessFactor": float(roughness)
+            },
+            "emissiveFactor": [float(er), float(eg), float(eb)],
+            "alphaMode": alpha_mode,
+            "doubleSided": double_sided
+        }
+        self.primitives.append(GltfPrimitiveDef(positions, normals, uvs, indices, mat_def))
+        return self
+
+    def _pack_binary_buffers(self) -> Tuple[List[dict], List[dict], bytes, List[dict], List[dict]]:
         """Empacota os atributos geométricos nos buffers binários alinhados a 4 bytes."""
-        if self.positions is None:
+        prim_list = self.primitives if self.primitives else [
+            GltfPrimitiveDef(self.positions, self.normals, self.uvs, self.indices, self.material_def)
+        ]
+
+        if not prim_list or prim_list[0].positions is None:
             raise ValueError("GltfMeshBuilder: 'positions' (vértices) são obrigatórios.")
 
         buffer_views = []
         accessors = []
         raw_chunks = []
-        primitive_attributes = {}
+        materials = []
+        gltf_primitives = []
         byte_offset = 0
 
         def append_chunk(data_bytes: bytes, target: int, count: int, comp_type: int,
-                         type_str: str, min_val, max_val) -> int:
+                          type_str: str, min_val, max_val) -> int:
             nonlocal byte_offset
-            # Alinhamento obrigatório do glTF a 4 bytes
             pad = (4 - (len(data_bytes) % 4)) % 4
             aligned_data = data_bytes + (b'\x00' * pad)
             chunk_len = len(aligned_data)
-            
             raw_chunks.append(aligned_data)
             
             bv_idx = len(buffer_views)
@@ -128,76 +187,80 @@ class GltfMeshBuilder:
             byte_offset += chunk_len
             return acc_idx
 
-        # 1. Posições (VEC3 Float32)
-        pos_bytes = self.positions.tobytes()
-        acc_pos = append_chunk(
-            pos_bytes,
-            target=34962, # ARRAY_BUFFER
-            count=len(self.positions),
-            comp_type=5126, # FLOAT
-            type_str="VEC3",
-            min_val=self.positions.min(axis=0).tolist(),
-            max_val=self.positions.max(axis=0).tolist()
-        )
-        primitive_attributes["POSITION"] = acc_pos
+        for prim in prim_list:
+            prim_attrs = {}
 
-        # 2. Normais (VEC3 Float32 - Opcional)
-        if self.normals is not None and len(self.normals) > 0:
-            norm_bytes = self.normals.tobytes()
-            acc_norm = append_chunk(
-                norm_bytes,
+            # POSITION
+            pos_bytes = prim.positions.tobytes()
+            acc_pos = append_chunk(
+                pos_bytes,
                 target=34962,
-                count=len(self.normals),
+                count=len(prim.positions),
                 comp_type=5126,
                 type_str="VEC3",
-                min_val=[-1.0, -1.0, -1.0],
-                max_val=[1.0, 1.0, 1.0]
+                min_val=prim.positions.min(axis=0).tolist(),
+                max_val=prim.positions.max(axis=0).tolist()
             )
-            primitive_attributes["NORMAL"] = acc_norm
+            prim_attrs["POSITION"] = acc_pos
 
-        # 3. Coordenadas UV (VEC2 Float32 - Opcional)
-        if self.uvs is not None and len(self.uvs) > 0:
-            uv_bytes = self.uvs.tobytes()
-            acc_uv = append_chunk(
-                uv_bytes,
-                target=34962,
-                count=len(self.uvs),
-                comp_type=5126,
-                type_str="VEC2",
-                min_val=[0.0, 0.0],
-                max_val=[1.0, 1.0]
-            )
-            primitive_attributes["TEXCOORD_0"] = acc_uv
+            # NORMAL
+            if prim.normals is not None and len(prim.normals) > 0:
+                norm_bytes = prim.normals.tobytes()
+                acc_norm = append_chunk(
+                    norm_bytes,
+                    target=34962,
+                    count=len(prim.normals),
+                    comp_type=5126,
+                    type_str="VEC3",
+                    min_val=[-1.0, -1.0, -1.0],
+                    max_val=[1.0, 1.0, 1.0]
+                )
+                prim_attrs["NORMAL"] = acc_norm
 
-        # 4. Índices Triangulares (SCALAR UInt32 - Opcional)
-        indices_acc_idx = None
-        if self.indices is not None and len(self.indices) > 0:
-            idx_bytes = self.indices.tobytes()
-            indices_acc_idx = append_chunk(
-                idx_bytes,
-                target=34963, # ELEMENT_ARRAY_BUFFER
-                count=len(self.indices),
-                comp_type=5125, # UNSIGNED_INT
-                type_str="SCALAR",
-                min_val=[int(self.indices.min())],
-                max_val=[int(self.indices.max())]
-            )
+            # TEXCOORD_0
+            if prim.uvs is not None and len(prim.uvs) > 0:
+                uv_bytes = prim.uvs.tobytes()
+                acc_uv = append_chunk(
+                    uv_bytes,
+                    target=34962,
+                    count=len(prim.uvs),
+                    comp_type=5126,
+                    type_str="VEC2",
+                    min_val=[0.0, 0.0],
+                    max_val=[1.0, 1.0]
+                )
+                prim_attrs["TEXCOORD_0"] = acc_uv
+
+            prim_dict = {"attributes": prim_attrs}
+
+            # INDICES
+            if prim.indices is not None and len(prim.indices) > 0:
+                idx_bytes = prim.indices.tobytes()
+                acc_idx = append_chunk(
+                    idx_bytes,
+                    target=34963,
+                    count=len(prim.indices),
+                    comp_type=5125,
+                    type_str="SCALAR",
+                    min_val=[int(prim.indices.min())],
+                    max_val=[int(prim.indices.max())]
+                )
+                prim_dict["indices"] = acc_idx
+
+            # MATERIAL
+            if prim.material_def is not None:
+                mat_idx = len(materials)
+                materials.append(prim.material_def)
+                prim_dict["material"] = mat_idx
+
+            gltf_primitives.append(prim_dict)
 
         full_bin_buffer = b"".join(raw_chunks)
-        return buffer_views, accessors, full_bin_buffer, primitive_attributes
+        return buffer_views, accessors, full_bin_buffer, gltf_primitives, materials
 
     def build_gltf_dict(self, embedded_base64: bool = False) -> Tuple[dict, bytes]:
         """Constrói a árvore de nós do glTF 2.0 e retorna o JSON estruturado e o buffer binário."""
-        buffer_views, accessors, bin_buffer, primitive_attrs = self._pack_binary_buffers()
-
-        primitive = {
-            "attributes": primitive_attrs
-        }
-        if self.indices is not None and len(self.indices) > 0:
-            primitive["indices"] = len(accessors) - 1 # Último acessor empacotado
-
-        if self.material_def is not None:
-            primitive["material"] = 0
+        buffer_views, accessors, bin_buffer, primitives, materials = self._pack_binary_buffers()
 
         buffer_entry = {"byteLength": len(bin_buffer)}
         if embedded_base64:
@@ -214,15 +277,15 @@ class GltfMeshBuilder:
             "nodes": [{"mesh": 0, "name": f"{self.name}Node"}],
             "meshes": [{
                 "name": f"{self.name}Mesh",
-                "primitives": [primitive]
+                "primitives": primitives
             }],
             "buffers": [buffer_entry],
             "bufferViews": buffer_views,
             "accessors": accessors
         }
 
-        if self.material_def is not None:
-            gltf_doc["materials"] = [self.material_def]
+        if materials:
+            gltf_doc["materials"] = materials
 
         return gltf_doc, bin_buffer
 

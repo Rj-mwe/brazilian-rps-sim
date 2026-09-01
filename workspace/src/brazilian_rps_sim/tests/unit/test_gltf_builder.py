@@ -68,3 +68,38 @@ def test_gltf_builder_missing_positions_raises():
     builder = GltfMeshBuilder()
     with pytest.raises(ValueError, match="positions"):
         builder.build_gltf_dict()
+
+
+def test_gltf_builder_multi_primitive(tmp_path):
+    """Testa a geração de malha com múltiplas primitivas e materiais PBR distintos."""
+    builder = GltfMeshBuilder(name="MultiPrimTest")
+    
+    # Primitiva 1: Triângulo Ciano
+    builder.add_primitive(
+        positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        indices=[0, 1, 2],
+        material_name="CyanMat",
+        base_color_rgba=(0.0, 0.9, 1.0, 1.0),
+        emissive_intensity=0.8
+    )
+    # Primitiva 2: Triângulo Laranja
+    builder.add_primitive(
+        positions=[[2, 0, 0], [3, 0, 0], [2, 1, 0]],
+        indices=[0, 1, 2],
+        material_name="OrangeMat",
+        base_color_rgba=(1.0, 0.45, 0.05, 1.0),
+        emissive_intensity=1.0
+    )
+
+    output_glb = str(tmp_path / "multiprim.glb")
+    builder.save_glb(output_glb)
+
+    assert os.path.exists(output_glb)
+    assert os.path.getsize(output_glb) % 4 == 0
+
+    doc, _ = builder.build_gltf_dict()
+    assert len(doc["meshes"][0]["primitives"]) == 2
+    assert len(doc["materials"]) == 2
+    assert doc["materials"][0]["name"] == "CyanMat"
+    assert doc["materials"][1]["name"] == "OrangeMat"
+

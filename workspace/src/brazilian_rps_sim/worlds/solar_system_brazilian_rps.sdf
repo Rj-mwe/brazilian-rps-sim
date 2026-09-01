@@ -400,7 +400,7 @@
           <material>
             <diffuse>0.0 0.9 1.0 0.05</diffuse>
             <ambient>0.0 0.9 1.0 0.05</ambient>
-            <emissive>0.0 0.765 0.85 1.0</emissive>
+            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>0</render_order>
           </material>
@@ -470,7 +470,7 @@
           <material>
             <diffuse>0.0 0.9 1.0 0.05</diffuse>
             <ambient>0.0 0.9 1.0 0.05</ambient>
-            <emissive>0.0 0.765 0.85 1.0</emissive>
+            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>0</render_order>
           </material>
@@ -540,7 +540,7 @@
           <material>
             <diffuse>0.0 0.9 1.0 0.05</diffuse>
             <ambient>0.0 0.9 1.0 0.05</ambient>
-            <emissive>0.0 0.765 0.85 1.0</emissive>
+            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>0</render_order>
           </material>
@@ -610,7 +610,7 @@
           <material>
             <diffuse>1.0 0.8 0.1 0.35</diffuse>
             <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>10</render_order>
           </material>
@@ -680,7 +680,7 @@
           <material>
             <diffuse>1.0 0.8 0.1 0.35</diffuse>
             <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>10</render_order>
           </material>
@@ -750,7 +750,7 @@
           <material>
             <diffuse>1.0 0.8 0.1 0.35</diffuse>
             <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>10</render_order>
           </material>
@@ -820,7 +820,7 @@
           <material>
             <diffuse>1.0 0.8 0.1 0.35</diffuse>
             <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>10</render_order>
           </material>

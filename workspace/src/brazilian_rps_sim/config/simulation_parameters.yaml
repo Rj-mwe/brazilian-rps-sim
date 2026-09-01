@@ -63,7 +63,8 @@ visualization:
       show_footprint_crosshair: true     # Mira de alvo no ponto sub-satélite
       footprint_radius_km: 4800.0        # Raio no solo em km (4.80 unidades)
       ray_thickness: 0.016               # Espessura dos tubos laser
-      color: "cyan"                      # Cor do feixe GEO (Ciano Espacial)
+      color: "cyan"                      # Cor da gaiola externa GEO (Ciano Espacial)
+      color_boresight: "white"           # Cor do raio central laser GEO (Branco Puro)
       emissive_intensity: 0.85           # Brilho neon emissivo (0.0 a 1.0)
       beacon_emissive: 0.80              # Brilho do halo GEO
 
@@ -81,7 +82,8 @@ visualization:
       show_footprint_crosshair: true     # Mira de alvo no ponto sub-satélite
       footprint_radius_km: 1150.0        # Raio no solo em km (1.15 unidades)
       ray_thickness: 0.018               # Espessura dos tubos laser
-      color: "amber"                     # Cor do feixe IGSO (Âmbar/Dourado Neon)
+      color: "amber"                     # Cor da gaiola externa IGSO (Âmbar/Dourado)
+      color_boresight: "orange"          # Cor do raio central laser IGSO (Laranja Vibrante)
       emissive_intensity: 0.95           # Brilho neon emissivo (0.0 a 1.0)
       beacon_emissive: 0.85              # Brilho do halo IGSO
 

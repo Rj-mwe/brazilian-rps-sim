@@ -79,7 +79,7 @@ class Ros2ConstellationNode(Node):
         self.outbound_adapter.publish_celestial_state(celestial_state)
 
         # Coleta posições ECEF dos satélites e calcula métricas DOP
-        sats_ecef = {sat.name: sat.position_ecef.to_numpy() for sat in self.constellation.satellites}
+        sats_ecef = {sat.name: sat.r_ecef.to_numpy() for sat in self.constellation.satellites}
         self.dop_use_case.execute(sats_ecef, sim_time_sec)
         # Execução estritamente silenciosa (sem spam de terminal)
 

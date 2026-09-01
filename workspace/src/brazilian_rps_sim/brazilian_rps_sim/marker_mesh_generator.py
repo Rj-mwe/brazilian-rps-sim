@@ -96,7 +96,8 @@ def generate_holographic_nadir_cage_glb(
     r_top: float,
     r_bottom: float,
     height: float,
-    color_rgb: Tuple[float, float, float],
+    color_cage_rgb: Tuple[float, float, float],
+    color_boresight_rgb: Optional[Tuple[float, float, float]] = None,
     emissive_intensity: float = 0.90,
     show_generatrix_rays: bool = True,
     num_rays: int = 4,
@@ -109,80 +110,109 @@ def generate_holographic_nadir_cage_glb(
 ) -> None:
     """
     Gera a Gaiola Holográfica Radar Nadir (Padrão Aeroespacial STK/NASA).
-    Permite exibição/ocultação granular e independente de cada componente.
+    Utiliza duas primitivas PBR independentes:
+    1. Gaiola / Anel de Pegada / Raios Geratrizes (color_cage_rgb)
+    2. Raio Central Laser Boresight / Mira de Alvo (color_boresight_rgb)
     """
-    all_verts: List[List[float]] = []
-    all_norms: List[List[float]] = []
-    all_indices: List[int] = []
+    if color_boresight_rgb is None:
+        color_boresight_rgb = color_cage_rgb
 
-    def append_submesh(v, n, idx):
-        base_idx = len(all_verts)
-        all_verts.extend(v if isinstance(v, list) else v.tolist())
-        all_norms.extend(n if isinstance(n, list) else n.tolist())
-        all_indices.extend([int(i) + base_idx for i in idx])
+    builder = GltfMeshBuilder(name="HolographicNadirCage", generator_tag="RPS-BR Holographic Nadir Cage Generator")
 
-    # 1. Anel da Pegada no Solo (Surface Footprint Boundary Ring)
+    # 1. Primitiva da Gaiola Externa (Anel de Pegada, Anel do Topo, Anel Intermediário, Raios Geratrizes)
+    cage_verts: List[List[float]] = []
+    cage_norms: List[List[float]] = []
+    cage_indices: List[int] = []
+
+    def append_cage(v, n, idx):
+        base_idx = len(cage_verts)
+        cage_verts.extend(v if isinstance(v, list) else v.tolist())
+        cage_norms.extend(n if isinstance(n, list) else n.tolist())
+        cage_indices.extend([int(i) + base_idx for i in idx])
+
     if show_footprint_ring and r_bottom > 0.01:
         v, n, idx = _create_circular_ring(r_bottom, height, tube_radius=tube_radius * 1.3, num_pts=64)
-        append_submesh(v, n, idx)
+        append_cage(v, n, idx)
 
-    # 2. Anel do Topo (Antena do Satélite)
     if show_top_ring and r_top > 0.01:
         v, n, idx = _create_circular_ring(r_top, 0.0, tube_radius=tube_radius * 1.0, num_pts=32)
-        append_submesh(v, n, idx)
+        append_cage(v, n, idx)
 
-    # 3. Anel Intermediário de Altitude (Range Altitude Ring)
     if show_mid_ring:
         r_mid = (r_top + r_bottom) * 0.5
         h_mid = height * 0.5
         v, n, idx = _create_circular_ring(r_mid, h_mid, tube_radius=tube_radius * 0.85, num_pts=48)
-        append_submesh(v, n, idx)
+        append_cage(v, n, idx)
 
-    # 4. Feixes Laser Geratrizes Externos (Generatrix Rays)
     if show_generatrix_rays and num_rays > 0:
-        # Clampeia num_rays no intervalo razoável [0, 16]
         clamped_rays = max(1, min(16, num_rays))
         ray_angles = np.linspace(0, 2 * math.pi, clamped_rays, endpoint=False)
         for phi in ray_angles:
             p_top = [r_top * math.cos(phi), r_top * math.sin(phi), 0.0]
             p_bottom = [r_bottom * math.cos(phi), r_bottom * math.sin(phi), height]
             v, n, idx = _create_cylinder_segment(p_top, p_bottom, radius=tube_radius, radial_segs=8)
-            append_submesh(v, n, idx)
+            append_cage(v, n, idx)
 
-    # 5. Eixo Central Boresight Interno (Raio central sub-satélite apontado para o solo)
+    if cage_verts:
+        rc, gc, bc = color_cage_rgb
+        builder.add_primitive(
+            positions=cage_verts,
+            normals=cage_norms,
+            indices=cage_indices,
+            material_name="CageWireframeMaterial",
+            base_color_rgba=(rc, gc, bc, 1.0),
+            metallic=0.0,
+            roughness=0.2,
+            emissive_rgb=(rc, gc, bc),
+            emissive_intensity=emissive_intensity,
+            alpha_mode="OPAQUE",
+            double_sided=True
+        )
+
+    # 2. Primitiva do Raio Central Boresight & Mira Crosshair
+    bore_verts: List[List[float]] = []
+    bore_norms: List[List[float]] = []
+    bore_indices: List[int] = []
+
+    def append_bore(v, n, idx):
+        base_idx = len(bore_verts)
+        bore_verts.extend(v if isinstance(v, list) else v.tolist())
+        bore_norms.extend(n if isinstance(n, list) else n.tolist())
+        bore_indices.extend([int(i) + base_idx for i in idx])
+
     if show_boresight:
-        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 1.0, radial_segs=8)
-        append_submesh(v, n, idx)
+        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 1.15, radial_segs=8)
+        append_bore(v, n, idx)
 
-    # 6. Mira de Alvo no Solo (Sub-satellite Footprint Crosshair)
     if show_crosshair and r_bottom > 0.01:
         ch_len = r_bottom * 0.25
-        v, n, idx = _create_cylinder_segment([-ch_len, 0.0, height], [ch_len, 0.0, height], radius=tube_radius * 0.8, radial_segs=6)
-        append_submesh(v, n, idx)
-        v, n, idx = _create_cylinder_segment([0.0, -ch_len, height], [0.0, ch_len, height], radius=tube_radius * 0.8, radial_segs=6)
-        append_submesh(v, n, idx)
+        v, n, idx = _create_cylinder_segment([-ch_len, 0.0, height], [ch_len, 0.0, height], radius=tube_radius * 0.9, radial_segs=6)
+        append_bore(v, n, idx)
+        v, n, idx = _create_cylinder_segment([0.0, -ch_len, height], [0.0, ch_len, height], radius=tube_radius * 0.9, radial_segs=6)
+        append_bore(v, n, idx)
+
+    if bore_verts:
+        rb, gb, bb = color_boresight_rgb
+        builder.add_primitive(
+            positions=bore_verts,
+            normals=bore_norms,
+            indices=bore_indices,
+            material_name="BoresightLaserMaterial",
+            base_color_rgba=(rb, gb, bb, 1.0),
+            metallic=0.0,
+            roughness=0.1,
+            emissive_rgb=(rb, gb, bb),
+            emissive_intensity=min(1.0, emissive_intensity * 1.05),
+            alpha_mode="OPAQUE",
+            double_sided=True
+        )
 
     # Se nenhum elemento estiver ativo, gera ao menos um ponto central neutro
-    if not all_verts:
+    if not cage_verts and not bore_verts:
         v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, 0.01], radius=tube_radius, radial_segs=4)
-        append_submesh(v, n, idx)
+        builder.add_primitive(v, n, indices=idx)
 
-    r, g, b = color_rgb
-    builder = GltfMeshBuilder(name="HolographicNadirCage", generator_tag="RPS-BR Holographic Nadir Cage Generator")
-    builder.set_positions(all_verts)\
-           .set_normals(all_norms)\
-           .set_indices(all_indices)\
-           .set_pbr_material(
-               name="HolographicLaserMaterial",
-               base_color_rgba=(r, g, b, 1.0),
-               metallic=0.0,
-               roughness=0.2,
-               emissive_rgb=(r, g, b),
-               emissive_intensity=emissive_intensity,
-               alpha_mode="OPAQUE",
-               double_sided=True
-           )\
-           .save_glb(output_path)
+    builder.save_glb(output_path)
 
 
 def generate_nadir_beam_glb(
@@ -329,7 +359,8 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
     height = 45.0
 
     # Extrai configurações do GEO
-    color_geo = resolve_color(geo_cfg.get('color', markers_cfg.get('color_nadir_cone_geo', 'cyan')), default=(0.0, 0.90, 1.0))
+    color_cage_geo = resolve_color(geo_cfg.get('color', markers_cfg.get('color_nadir_cone_geo', 'cyan')), default=(0.0, 0.90, 1.0))
+    color_bore_geo = resolve_color(geo_cfg.get('color_boresight', 'white'), default=(0.95, 0.95, 1.0))
     e_beacon_geo = float(geo_cfg.get('beacon_emissive', markers_cfg.get('beacon_emissive_geo', 0.80)))
     e_cone_geo = float(geo_cfg.get('emissive_intensity', markers_cfg.get('nadir_cone_emissive_geo', 0.85)))
     r_bottom_geo = float(geo_cfg.get('footprint_radius_km', 4800.0)) / 1000.0
@@ -342,7 +373,8 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
     show_crosshair_geo = bool(geo_cfg.get('show_footprint_crosshair', markers_cfg.get('show_footprint_crosshair', True)))
 
     # Extrai configurações do IGSO
-    color_igso = resolve_color(igso_cfg.get('color', markers_cfg.get('color_nadir_cone_igso', 'amber')), default=(1.0, 0.80, 0.10))
+    color_cage_igso = resolve_color(igso_cfg.get('color', markers_cfg.get('color_nadir_cone_igso', 'amber')), default=(1.0, 0.80, 0.10))
+    color_bore_igso = resolve_color(igso_cfg.get('color_boresight', 'orange'), default=(1.0, 0.45, 0.05))
     e_beacon_igso = float(igso_cfg.get('beacon_emissive', markers_cfg.get('beacon_emissive_igso', 0.85)))
     e_cone_igso = float(igso_cfg.get('emissive_intensity', markers_cfg.get('nadir_cone_emissive_igso', 0.95)))
     r_bottom_igso = float(igso_cfg.get('footprint_radius_km', 1150.0)) / 1000.0
@@ -358,13 +390,13 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
     generate_locator_ring_glb(
         output_path=os.path.join(mesh_dir, 'locator_ring_geo.glb'),
         r_major=r_beacon, r_minor=t_beacon,
-        color_rgb=color_geo,
+        color_rgb=color_cage_geo,
         emissive_intensity=e_beacon_geo
     )
     generate_locator_ring_glb(
         output_path=os.path.join(mesh_dir, 'locator_ring_igso.glb'),
         r_major=r_beacon, r_minor=t_beacon,
-        color_rgb=color_igso,
+        color_rgb=color_cage_igso,
         emissive_intensity=e_beacon_igso
     )
 
@@ -373,7 +405,8 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
         generate_holographic_nadir_cage_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
             r_top=r_top, r_bottom=r_bottom_geo, height=height,
-            color_rgb=color_geo,
+            color_cage_rgb=color_cage_geo,
+            color_boresight_rgb=color_bore_geo,
             emissive_intensity=e_cone_geo,
             show_generatrix_rays=show_gen_geo,
             num_rays=num_rays_geo,
@@ -386,7 +419,8 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
         generate_holographic_nadir_cage_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
             r_top=r_top, r_bottom=r_bottom_igso, height=height,
-            color_rgb=color_igso,
+            color_cage_rgb=color_cage_igso,
+            color_boresight_rgb=color_bore_igso,
             emissive_intensity=e_cone_igso,
             show_generatrix_rays=show_gen_igso,
             num_rays=num_rays_igso,
@@ -402,13 +436,13 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
         generate_nadir_beam_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
             r_top=r_top, r_bottom=r_bottom_geo, height=height,
-            color_rgba=(color_geo[0], color_geo[1], color_geo[2], op_geo),
+            color_rgba=(color_cage_geo[0], color_cage_geo[1], color_cage_geo[2], op_geo),
             emissive_intensity=e_cone_geo
         )
         generate_nadir_beam_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
             r_top=r_top, r_bottom=r_bottom_igso, height=height,
-            color_rgba=(color_igso[0], color_igso[1], color_igso[2], op_igso),
+            color_rgba=(color_cage_igso[0], color_cage_igso[1], color_cage_igso[2], op_igso),
             emissive_intensity=e_cone_igso
         )
 
