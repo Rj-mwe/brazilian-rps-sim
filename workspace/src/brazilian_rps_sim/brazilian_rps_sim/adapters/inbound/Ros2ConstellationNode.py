@@ -14,6 +14,10 @@ from brazilian_rps_sim.core.application.services.PropagateConstellationUseCase i
 from brazilian_rps_sim.core.application.dtos.SimulationDTOs import SimulationStepRequestDTO
 from brazilian_rps_sim.adapters.outbound.Ros2TelemetryOutboundAdapter import Ros2TelemetryOutboundAdapter
 
+from brazilian_rps_sim.core.application.services.CalculateGroundStationDopUseCase import CalculateGroundStationDopUseCase
+from brazilian_rps_sim.core.domain.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
+from brazilian_rps_sim.core.domain.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
+
 class Ros2ConstellationNode(Node):
     def __init__(self):
         super().__init__('rps_constellation_node')
@@ -34,7 +38,7 @@ class Ros2ConstellationNode(Node):
         self.constellation = ConstellationAggregate.from_config(cfg.get('constellation', {}))
         self.celestial_system = CelestialSystemAggregate()
 
-        # 3. Instancia Adaptador de Saída e Caso de Uso
+        # 3. Instancia Adaptador de Saída e Casos de Uso (Hexagonal)
         self.outbound_adapter = Ros2TelemetryOutboundAdapter(
             node=self,
             total_satellites=len(self.constellation.satellites),
@@ -45,14 +49,20 @@ class Ros2ConstellationNode(Node):
             telemetry_port=self.outbound_adapter
         )
 
-        # 4. Timer de atualização (1.0 Hz)
+        # 4. Caso de Uso de Avaliação de DOP (Strategy + Observer Pattern)
+        self.dop_use_case = CalculateGroundStationDopUseCase(
+            strategy=StandardLeastSquaresDopStrategy(min_elevation_deg=5.0)
+        )
+        self.dop_buffer_observer = DopTelemetryBufferObserver()
+        self.dop_use_case.attach_observer(self.dop_buffer_observer)
+
+        # 5. Timer de atualização (1.0 Hz)
         timer_period = 1.0 / max(rate_hz, 0.1)
         self.timer = self.create_timer(timer_period, self._on_step)
 
-        # Log único de inicialização informando a configuração ativa
         speed_desc = "1:1 (Tempo Real)" if self.time_multiplier == 1.0 else f"{self.time_multiplier:.0f}x (1s = {self.time_multiplier/86400.0:.2f} dia)"
         self.get_logger().info(
-            f"🛰️ [Hexágono Dourado] Constelação RPS-BR (7 satélites) ativa | Velocidade: {speed_desc} | Taxa: {rate_hz:.1f} Hz"
+            f"🛰️ [Hexágono Dourado] Constelação RPS-BR (7 satélites) + Motor DOP (Strategy/Observer) ativo | Velocidade: {speed_desc} | Taxa: {rate_hz:.1f} Hz"
         )
 
     def _on_step(self):
@@ -67,6 +77,10 @@ class Ros2ConstellationNode(Node):
         # Atualiza e despacha estado celeste
         celestial_state = self.celestial_system.compute_state(sim_time_sec)
         self.outbound_adapter.publish_celestial_state(celestial_state)
+
+        # Coleta posições ECEF dos satélites e calcula métricas DOP
+        sats_ecef = {sat.name: sat.position_ecef.to_numpy() for sat in self.constellation.satellites}
+        self.dop_use_case.execute(sats_ecef, sim_time_sec)
         # Execução estritamente silenciosa (sem spam de terminal)
 
 def main(args=None):
