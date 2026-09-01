@@ -87,9 +87,10 @@ def write_globe_glb(output_path: str, radius: float, mat_name: str, has_clouds: 
     print(f"🌍 Malha esférica gerada via GltfMeshBuilder: {output_path} (R={radius}, Vértices={len(v)})")
 
 
-def generate_all_earth_assets():
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    mesh_dir = os.path.join(pkg_dir, 'meshes')
+def generate_all_earth_assets(mesh_dir: str = None):
+    if not mesh_dir:
+        pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        mesh_dir = os.path.join(pkg_dir, 'meshes')
 
     # 1. Globo Terrestre Sólido (R = 6.378 km)
     write_globe_glb(

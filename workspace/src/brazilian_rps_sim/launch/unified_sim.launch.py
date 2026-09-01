@@ -28,9 +28,11 @@ def build_world_and_markers(context, *args, **kwargs):
         from brazilian_rps_sim.orbit_mesh_generator import generate_all_orbit_rings
         from brazilian_rps_sim.world_generator import generate_world_sdf
         from brazilian_rps_sim.earth_globe_generator import generate_all_earth_assets
+        from brazilian_rps_sim.celestial_mesh_generator import generate_all_celestial_assets
 
-        # Garante que as malhas da Terra, marcadores e órbitas estão sincronizadas com o YAML
+        # Garante que as malhas da Terra, corpos celestes, marcadores e órbitas estão sincronizadas
         generate_all_earth_assets(mesh_dir)
+        generate_all_celestial_assets(mesh_dir)
         generate_all_marker_assets(config_file_path, mesh_dir)
         generate_all_orbit_rings(config_file_path, mesh_dir)
         generate_world_sdf(config_file_path, world_path)
@@ -52,8 +54,10 @@ def generate_launch_description():
         from brazilian_rps_sim.orbit_mesh_generator import generate_all_orbit_rings
         from brazilian_rps_sim.world_generator import generate_world_sdf
         from brazilian_rps_sim.earth_globe_generator import generate_all_earth_assets
+        from brazilian_rps_sim.celestial_mesh_generator import generate_all_celestial_assets
 
         generate_all_earth_assets(mesh_dir)
+        generate_all_celestial_assets(mesh_dir)
         generate_all_marker_assets(config_file_path, mesh_dir)
         generate_all_orbit_rings(config_file_path, mesh_dir)
         generate_world_sdf(config_file_path, world_path)

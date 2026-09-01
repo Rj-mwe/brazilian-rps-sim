@@ -47,9 +47,10 @@ def generate_orbit_gltf(output_path: str, radius: float, inclination_deg: float,
     print(f"✅ Malha glTF 2.0 gerada via GltfMeshBuilder: {output_path} (Cor RGB: {r},{g},{b})")
 
 
-def main():
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    mesh_dir = os.path.join(pkg_dir, "meshes")
+def generate_all_celestial_assets(mesh_dir: str = None):
+    if not mesh_dir:
+        pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        mesh_dir = os.path.join(pkg_dir, "meshes")
 
     # 1. Órbita da Terra: DOURADO VIBRANTE (R=1.0, G=0.75, B=0.1)
     generate_orbit_gltf(
@@ -70,6 +71,10 @@ def main():
         r=0.0, g=0.85, b=1.0, alpha=1.0,
         num_pts=720
     )
+
+
+def main():
+    generate_all_celestial_assets()
 
 
 if __name__ == '__main__':
