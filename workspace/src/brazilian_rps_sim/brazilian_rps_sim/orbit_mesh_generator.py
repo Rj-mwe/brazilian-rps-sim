@@ -4,7 +4,10 @@ Gerador procedural das trajetórias e anéis orbitais 3D em glTF 2.0 PBR:
 1. Anel Equatorial dos GEOs (orbit_geo.gltf)
 2. Trajetória 3D da Figura-8 dos IGSOs (orbit_igso.gltf)
 
-Refatorado com o Design Pattern BUILDER (GltfMeshBuilder).
+Implementa:
+- Rotation Minimizing Frames (RMF / Parallel Transport Frames) para eliminar
+  completamente descontinuidades de Gimbal, torções e distorções na malha 3D.
+- GltfMeshBuilder Pattern para empacotamento PBR limpo.
 """
 
 import os
@@ -20,42 +23,131 @@ except ImportError:
     from gltf_builder import GltfMeshBuilder
 
 
-def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.10,
-                        color_rgb: tuple = (1.0, 0.8, 0.2), emissive_intensity: float = 0.95):
-    """Gera um tubo 3D contínuo ao longo de uma trajetória tridimensional usando GltfMeshBuilder."""
-    num_pts = len(pts)
+def build_smooth_rmf_tube(pts: np.ndarray, radius: float = 0.12, radial_segs: int = 8):
+    """
+    Gera malha 3D tubular perfeitamente lisa e contínua usando
+    Rotation Minimizing Frames (RMF / Bishop Frames).
+    Elimina 100% de torções de Frenet e singularidades de Gimbal.
+    """
+    n = len(pts)
+    
+    # 1. Vetores tangentes unitários contínuos
+    tangents = []
+    for i in range(n):
+        p_prev = pts[(i - 1) % n]
+        p_next = pts[(i + 1) % n]
+        t = p_next - p_prev
+        norm = np.linalg.norm(t)
+        tangents.append(t / norm if norm > 1e-9 else np.array([1.0, 0.0, 0.0]))
+    tangents = np.array(tangents)
+
+    # 2. Frame inicial perpendicular a tangents[0]
+    t0 = tangents[0]
+    ref = np.array([0.0, 0.0, 1.0]) if abs(t0[2]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    n0 = np.cross(t0, ref)
+    n0 = n0 / np.linalg.norm(n0)
+    b0 = np.cross(t0, n0)
+
+    normals = [n0]
+    binormals = [b0]
+
+    # 3. Propagação por RMF (Rodrigues Rotation)
+    for i in range(n - 1):
+        t_curr = tangents[i]
+        t_next = tangents[i + 1]
+        v = np.cross(t_curr, t_next)
+        v_norm = np.linalg.norm(v)
+        
+        if v_norm < 1e-8:
+            n_next = normals[-1]
+        else:
+            axis = v / v_norm
+            c = np.clip(np.dot(t_curr, t_next), -1.0, 1.0)
+            angle = math.acos(c)
+            n_prev = normals[-1]
+            n_next = (n_prev * math.cos(angle) +
+                      np.cross(axis, n_prev) * math.sin(angle) +
+                      axis * np.dot(axis, n_prev) * (1.0 - math.cos(angle)))
+            n_next = n_next / np.linalg.norm(n_next)
+            
+        b_next = np.cross(t_next, n_next)
+        b_next = b_next / np.linalg.norm(b_next)
+        normals.append(n_next)
+        binormals.append(b_next)
+
+    # 4. Correção de Holonomia/Torção de fechamento ao longo do anel periódico
+    t_end = tangents[-1]
+    t_start = tangents[0]
+    v_close = np.cross(t_end, t_start)
+    v_close_norm = np.linalg.norm(v_close)
+    if v_close_norm < 1e-8:
+        n_close = normals[-1]
+    else:
+        axis = v_close / v_close_norm
+        angle = math.acos(np.clip(np.dot(t_end, t_start), -1.0, 1.0))
+        n_close = (normals[-1] * math.cos(angle) +
+                   np.cross(axis, normals[-1]) * math.sin(angle) +
+                   axis * np.dot(axis, normals[-1]) * (1.0 - math.cos(angle)))
+        n_close = n_close / np.linalg.norm(n_close)
+        
+    dot_close = np.clip(np.dot(n_close, normals[0]), -1.0, 1.0)
+    cross_close = np.dot(tangents[0], np.cross(n_close, normals[0]))
+    twist_angle = math.atan2(cross_close, dot_close)
+
+    # Distribui a rotação suavemente para fechar sem descontinuidade
+    corrected_normals = []
+    corrected_binormals = []
+    for i in range(n):
+        frac = i / n
+        theta_twist = frac * twist_angle
+        t_i = tangents[i]
+        n_i = normals[i]
+        n_corr = (n_i * math.cos(theta_twist) +
+                  np.cross(t_i, n_i) * math.sin(theta_twist) +
+                  t_i * np.dot(t_i, n_i) * (1.0 - math.cos(theta_twist)))
+        n_corr = n_corr / np.linalg.norm(n_corr)
+        b_corr = np.cross(t_i, n_corr)
+        b_corr = b_corr / np.linalg.norm(b_corr)
+        corrected_normals.append(n_corr)
+        corrected_binormals.append(b_corr)
+
+    # 5. Geração dos vértices e normais da seção transversal circular
     vertices = []
-    normals = []
+    v_normals = []
+    angles = np.linspace(0, 2 * math.pi, radial_segs, endpoint=False)
+    cos_a = np.cos(angles)
+    sin_a = np.sin(angles)
+
+    for i in range(n):
+        center = pts[i]
+        n_i = corrected_normals[i]
+        b_i = corrected_binormals[i]
+        for j in range(radial_segs):
+            offset_dir = cos_a[j] * n_i + sin_a[j] * b_i
+            pos = center + radius * offset_dir
+            vertices.append(pos.tolist())
+            v_normals.append(offset_dir.tolist())
+
     indices = []
+    for i in range(n):
+        i_next = (i + 1) % n
+        base_curr = i * radial_segs
+        base_next = i_next * radial_segs
+        for j in range(radial_segs):
+            j_next = (j + 1) % radial_segs
+            p00 = base_curr + j
+            p01 = base_curr + j_next
+            p10 = base_next + j
+            p11 = base_next + j_next
+            indices.extend([p00, p10, p01, p01, p10, p11])
 
-    for i in range(num_pts):
-        p = pts[i]
-        p_next = pts[(i + 1) % num_pts]
-        tangent = p_next - p
-        norm = np.linalg.norm(tangent)
-        tangent = tangent / norm if norm > 1e-6 else np.array([1, 0, 0])
+    return np.array(vertices, dtype=np.float32), np.array(v_normals, dtype=np.float32), np.array(indices, dtype=np.uint32)
 
-        up = np.array([0, 0, 1]) if abs(tangent[2]) < 0.9 else np.array([1, 0, 0])
-        normal = np.cross(tangent, up)
-        normal = normal / np.linalg.norm(normal)
-        binormal = np.cross(tangent, normal)
 
-        for angle in [0, math.pi / 2, math.pi, 3 * math.pi / 2]:
-            offset = thickness * (math.cos(angle) * normal + math.sin(angle) * binormal)
-            vertices.append((p + offset).tolist())
-            normals.append((offset / thickness).tolist())
-
-    for i in range(num_pts):
-        i_next = (i + 1) % num_pts
-        base_curr = i * 4
-        base_next = i_next * 4
-        for j in range(4):
-            j_next = (j + 1) % 4
-            v1 = base_curr + j
-            v2 = base_curr + j_next
-            v3 = base_next + j_next
-            v4 = base_next + j
-            indices.extend([v1, v2, v3, v1, v3, v4])
+def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.12,
+                        color_rgb: tuple = (1.0, 0.8, 0.2), emissive_intensity: float = 0.95):
+    """Exporta um tubo 3D contínuo e suave usando RMF e GltfMeshBuilder."""
+    vertices, normals, indices = build_smooth_rmf_tube(pts, radius=thickness, radial_segs=8)
 
     r, g, b = color_rgb
     builder = GltfMeshBuilder(name="OrbitTrajectory", generator_tag="RPS-BR Orbital Trajectory Generator")
@@ -73,7 +165,7 @@ def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.
            )\
            .save_gltf(output_path, embedded_base64=True)
 
-    print(f"✨ [OrbitGenerator] Trilha orbital salva via GltfMeshBuilder: {output_path} (Cor: {color_rgb})")
+    print(f"✨ [OrbitGenerator] Trilha orbital RMF salva via GltfMeshBuilder: {output_path} (Cor: {color_rgb})")
 
 
 def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
@@ -95,9 +187,9 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
     color_geo = resolve_color(trails_cfg.get('color_geo_orbit', 'cyan'), default=(0.0, 0.90, 1.0))
     color_igso = resolve_color(trails_cfg.get('color_igso_orbit', 'amber'), default=(1.0, 0.80, 0.10))
 
-    # 1. Anel Equatorial dos GEOs
-    num_pts = 360
-    theta = np.linspace(0, 2 * np.pi, num_pts, endpoint=False)
+    # 1. Anel Equatorial dos GEOs (720 pontos)
+    num_pts_geo = 720
+    theta = np.linspace(0, 2 * np.pi, num_pts_geo, endpoint=False)
     r_geo = 42.16414
     pts_geo = [[r_geo * math.cos(th), r_geo * math.sin(th), 0.0] for th in theta]
 
@@ -109,7 +201,7 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
         emissive_intensity=0.95
     )
 
-    # 2. Trajetória 3D da Figura-8 dos IGSOs
+    # 2. Trajetória 3D da Figura-8 dos IGSOs (720 pontos = amostragem a cada 2 min)
     sat_list = cfg.get('constellation', {}).get('satellites', [])
     igso_sats = [s for s in sat_list if s.get('type') == 'IGSO']
     
@@ -123,8 +215,9 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
         m0 = math.radians(float(igso.get('mean_anomaly_deg', 180.0)))
         omega_earth = 7.292115e-5
 
+        num_pts_igso = 720
         pts_figure8 = []
-        for t in np.linspace(0, 86164.0905, num_pts, endpoint=False):
+        for t in np.linspace(0, 86164.0905, num_pts_igso, endpoint=False):
             M = m0 + omega_earth * t
             E = M
             for _ in range(10):
@@ -144,7 +237,7 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
             P_z = sin_w * sin_i
 
             Q_x = -cos_O * sin_w - sin_O * cos_w * cos_i
-            Q_y = -sin_O * sin_w + cos_O * sin_w * cos_i
+            Q_y = -sin_O * sin_w + cos_O * cos_w * cos_i
             Q_z = cos_w * sin_i
 
             eci_x = p_x * P_x + p_y * Q_x

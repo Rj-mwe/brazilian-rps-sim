@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Gera malhas orbitais em formato glTF 2.0 (.gltf) padrão da indústria para Sol, Terra e Lua.
-Refatorado com o Design Pattern BUILDER (GltfMeshBuilder).
+Refatorado com RMF e GltfMeshBuilder.
 """
 
 import os
@@ -9,52 +9,25 @@ import math
 import numpy as np
 
 try:
-    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder
+    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
 except ImportError:
-    from gltf_builder import GltfMeshBuilder
+    from gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
 
 
 def generate_orbit_gltf(output_path: str, radius: float, inclination_deg: float, thickness: float,
-                        r: float, g: float, b: float, alpha: float = 1.0, num_pts: int = 480):
-    """Gera um anel orbital usando o GltfMeshBuilder."""
-    theta = np.linspace(0, 2 * np.pi, num_pts, endpoint=False)
-    inc = np.radians(inclination_deg)
+                        r: float, g: float, b: float, alpha: float = 1.0, num_pts: int = 720):
+    """Gera um anel orbital usando RMF e GltfMeshBuilder."""
+    theta = np.linspace(0, 2 * math.pi, num_pts, endpoint=False)
+    inc = math.radians(inclination_deg)
 
     pts = []
     for th in theta:
-        x = radius * np.cos(th)
-        y = radius * np.sin(th) * np.cos(inc)
-        z = radius * np.sin(th) * np.sin(inc)
-        pts.append(np.array([x, y, z]))
+        x = radius * math.cos(th)
+        y = radius * math.sin(th) * math.cos(inc)
+        z = radius * math.sin(th) * math.sin(inc)
+        pts.append([x, y, z])
 
-    vertices = []
-    normals = []
-    for i, p in enumerate(pts):
-        p_next = pts[(i + 1) % len(pts)]
-        tangent = p_next - p
-        tangent = tangent / np.linalg.norm(tangent)
-        up = np.array([0, 0, 1]) if abs(tangent[2]) < 0.9 else np.array([1, 0, 0])
-        normal = np.cross(tangent, up)
-        normal = normal / np.linalg.norm(normal)
-        binormal = np.cross(tangent, normal)
-
-        for angle in [0, np.pi / 2, np.pi, 3 * np.pi / 2]:
-            offset = thickness * (np.cos(angle) * normal + np.sin(angle) * binormal)
-            vertices.append((p + offset).tolist())
-            normals.append((offset / thickness).tolist())
-
-    indices = []
-    for i in range(num_pts):
-        i_next = (i + 1) % num_pts
-        base_curr = i * 4
-        base_next = i_next * 4
-        for j in range(4):
-            j_next = (j + 1) % 4
-            v1 = base_curr + j
-            v2 = base_curr + j_next
-            v3 = base_next + j_next
-            v4 = base_next + j
-            indices.extend([v1, v2, v3, v1, v3, v4])
+    vertices, normals, indices = build_smooth_rmf_tube(np.array(pts, dtype=np.float32), radius=thickness, radial_segs=8)
 
     builder = GltfMeshBuilder(name="CelestialOrbitRing", generator_tag="RPS-BR Astrodynamics glTF Generator")
     builder.set_positions(vertices)\
@@ -95,7 +68,7 @@ def main():
         inclination_deg=5.145,
         thickness=0.03,
         r=0.0, g=0.85, b=1.0, alpha=1.0,
-        num_pts=480
+        num_pts=720
     )
 
 

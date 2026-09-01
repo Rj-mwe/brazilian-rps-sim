@@ -12,6 +12,7 @@ import os
 import json
 import struct
 import base64
+import math
 from typing import List, Tuple, Optional, Union
 import numpy as np
 
@@ -256,3 +257,118 @@ class GltfMeshBuilder:
         gltf_doc, _ = self.build_gltf_dict(embedded_base64=embedded_base64)
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(gltf_doc, f, indent=2)
+
+
+def build_smooth_rmf_tube(pts: np.ndarray, radius: float = 0.12, radial_segs: int = 8) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Gera malha 3D tubular contínua usando Rotation Minimizing Frames (RMF / Bishop Frames).
+    Elimina 100% de singularidades de Gimbal, flips de vetor normal e torções de fita.
+    """
+    n = len(pts)
+    tangents = []
+    for i in range(n):
+        p_prev = pts[(i - 1) % n]
+        p_next = pts[(i + 1) % n]
+        t = p_next - p_prev
+        norm = np.linalg.norm(t)
+        tangents.append(t / norm if norm > 1e-9 else np.array([1.0, 0.0, 0.0]))
+    tangents = np.array(tangents)
+
+    # Frame inicial
+    t0 = tangents[0]
+    ref = np.array([0.0, 0.0, 1.0]) if abs(t0[2]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    n0 = np.cross(t0, ref)
+    n0 = n0 / np.linalg.norm(n0)
+    b0 = np.cross(t0, n0)
+
+    normals = [n0]
+    binormals = [b0]
+
+    for i in range(n - 1):
+        t_curr = tangents[i]
+        t_next = tangents[i + 1]
+        v = np.cross(t_curr, t_next)
+        v_norm = np.linalg.norm(v)
+        
+        if v_norm < 1e-8:
+            n_next = normals[-1]
+        else:
+            axis = v / v_norm
+            c = np.clip(np.dot(t_curr, t_next), -1.0, 1.0)
+            angle = math.acos(c)
+            n_prev = normals[-1]
+            n_next = (n_prev * math.cos(angle) +
+                      np.cross(axis, n_prev) * math.sin(angle) +
+                      axis * np.dot(axis, n_prev) * (1.0 - math.cos(angle)))
+            n_next = n_next / np.linalg.norm(n_next)
+            
+        b_next = np.cross(t_next, n_next)
+        b_next = b_next / np.linalg.norm(b_next)
+        normals.append(n_next)
+        binormals.append(b_next)
+
+    # Correção de holonomia no fechamento da curva periódica
+    t_end = tangents[-1]
+    t_start = tangents[0]
+    v_close = np.cross(t_end, t_start)
+    v_close_norm = np.linalg.norm(v_close)
+    if v_close_norm < 1e-8:
+        n_close = normals[-1]
+    else:
+        axis = v_close / v_close_norm
+        angle = math.acos(np.clip(np.dot(t_end, t_start), -1.0, 1.0))
+        n_close = (normals[-1] * math.cos(angle) +
+                   np.cross(axis, normals[-1]) * math.sin(angle) +
+                   axis * np.dot(axis, normals[-1]) * (1.0 - math.cos(angle)))
+        n_close = n_close / np.linalg.norm(n_close)
+        
+    dot_close = np.clip(np.dot(n_close, normals[0]), -1.0, 1.0)
+    cross_close = np.dot(tangents[0], np.cross(n_close, normals[0]))
+    twist_angle = math.atan2(cross_close, dot_close)
+
+    corrected_normals = []
+    corrected_binormals = []
+    for i in range(n):
+        frac = i / n
+        theta_twist = frac * twist_angle
+        t_i = tangents[i]
+        n_i = normals[i]
+        n_corr = (n_i * math.cos(theta_twist) +
+                  np.cross(t_i, n_i) * math.sin(theta_twist) +
+                  t_i * np.dot(t_i, n_i) * (1.0 - math.cos(theta_twist)))
+        n_corr = n_corr / np.linalg.norm(n_corr)
+        b_corr = np.cross(t_i, n_corr)
+        b_corr = b_corr / np.linalg.norm(b_corr)
+        corrected_normals.append(n_corr)
+        corrected_binormals.append(b_corr)
+
+    vertices = []
+    v_normals = []
+    angles = np.linspace(0, 2 * math.pi, radial_segs, endpoint=False)
+    cos_a = np.cos(angles)
+    sin_a = np.sin(angles)
+
+    for i in range(n):
+        center = pts[i]
+        n_i = corrected_normals[i]
+        b_i = corrected_binormals[i]
+        for j in range(radial_segs):
+            offset_dir = cos_a[j] * n_i + sin_a[j] * b_i
+            pos = center + radius * offset_dir
+            vertices.append(pos.tolist())
+            v_normals.append(offset_dir.tolist())
+
+    indices = []
+    for i in range(n):
+        i_next = (i + 1) % n
+        base_curr = i * radial_segs
+        base_next = i_next * radial_segs
+        for j in range(radial_segs):
+            j_next = (j + 1) % radial_segs
+            p00 = base_curr + j
+            p01 = base_curr + j_next
+            p10 = base_next + j
+            p11 = base_next + j_next
+            indices.extend([p00, p10, p01, p01, p10, p11])
+
+    return np.array(vertices, dtype=np.float32), np.array(v_normals, dtype=np.float32), np.array(indices, dtype=np.uint32)
