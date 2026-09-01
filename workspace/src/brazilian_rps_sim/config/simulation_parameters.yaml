@@ -13,27 +13,52 @@ simulation:
   telemetry_rate_hz: 1.0          # Frequência de publicação ROS 2 (Hz)
   physics_frequency_hz: 60.0      # Frequência do motor de física / quadros (Hz)
 
-# 🎨 2. Configurações Declarativas de Marcadores Visuais (100% Customizáveis)
+# 🎨 2. Visualização, Marcadores e Linhas de Trajetória (100% Modulares e Sob Demanda)
 visualization:
-  markers:
-    # --- Chaves de Ativação Geral ---
-    show_beacon_halo: true          # Retículos/anéis de mira holográficos neon
-    show_nadir_cone: true           # Feixes/cones de cobertura Nadir sobre a Terra
-    show_orbital_ring: true         # Anéis 3D da trajetória orbital no vácuo
+  # ============================================================================
+  # 🌌 A) Linhas e Trilhas de Órbita no Espaço (Orbit Trails / Trajetórias 3D)
+  # ============================================================================
+  orbit_trails:
+    show_earth_orbit: true        # Linha da órbita da Terra ao redor do Sol (Amarela)
+    show_moon_orbit: true         # Linha da órbita da Lua ao redor da Terra (Branca)
+    show_geo_orbit: true          # Anel circular equatorial dos satélites GEO (Ciano Neon)
+    show_igso_orbit: true         # Trajetória 3D da Figura-8 dos satélites IGSO (Dourado Neon)
     
-    # --- Parâmetros dos Retículos / Halos ---
-    beacon_radius: 0.35             # Raio do anel de mira (unidades do mundo)
-    beacon_tube_thickness: 0.015    # Espessura do anel holográfico
-    beacon_emissive_intensity: 0.70 # Brilho emissivo neon suave (0.0 a 1.0)
+    # Espessura dos tubos orbitais (unidades do mundo)
+    tube_thickness_earth: 0.80    # Espessura da linha heliocêntrica
+    tube_thickness_moon: 0.35     # Espessura da linha lunar
+    tube_thickness_geo: 0.10      # Espessura do anel GEO
+    tube_thickness_igso: 0.12     # Espessura do tubo da Figura-8 IGSO
+
+  # ============================================================================
+  # 🛰️ B) Marcadores de Satélite (Halos Holográficos e Feixes de Cobertura Nadir)
+  # ============================================================================
+  satellite_markers:
+    # --- Retículos / Halos Holográficos de Mira (Beacons Neon) ---
+    show_beacon_halo_geo: true    # Halo dos satélites GEO (Ciano)
+    show_beacon_halo_igso: true   # Halo dos satélites IGSO (Dourado/Âmbar)
+    beacon_radius: 0.35           # Raio do anel holográfico
+    beacon_tube_thickness: 0.015  # Espessura do anel holográfico
+    beacon_emissive_geo: 0.80     # Brilho emissivo do halo GEO (0.0 a 1.0)
+    beacon_emissive_igso: 0.85    # Brilho emissivo do halo IGSO (0.0 a 1.0)
     
-    # --- Parâmetros dos Feixes / Cones Nadir (Ultratranslúcidos e discretos) ---
-    nadir_cone_opacity: 0.15        # Opacidade ultratranslúcida e suave
-    nadir_cone_top_radius: 0.08     # Diâmetro no topo (escala exata da antena do satélite)
-    nadir_cone_bottom_radius: 1.35  # Raio de cobertura no solo (~1.350 km)
-    nadir_cone_emissive_intensity: 0.20 # Brilho emissivo suave e elegante
+    # --- Feixes / Cones Nadir (GEO: Continental Amplo | IGSO: Spot-Beam Zenital) ---
+    show_nadir_cone_geo: true     # Feixe Nadir dos satélites GEO
+    show_nadir_cone_igso: true    # Feixe Nadir dos satélites IGSO
+    nadir_cone_top_radius: 0.08   # Diâmetro no topo (escala exata da antena do satélite)
     
-    # --- Escala Visual do Satélite 3D ---
-    satellite_visual_scale: 0.08    # Escala visual do satélite (1.0 = real)
+    # GEO (Cobertura Continental Ampla):
+    nadir_cone_bottom_radius_geo: 2.60   # Raio de cobertura no solo (~2.600 km)
+    nadir_cone_opacity_geo: 0.15         # Opacidade suave e translúcida
+    nadir_cone_emissive_geo: 0.20        # Brilho difuso elegante
+    
+    # IGSO (Spot-Beam Zenital Regional Focado):
+    nadir_cone_bottom_radius_igso: 1.15  # Raio de cobertura no solo (~1.150 km)
+    nadir_cone_opacity_igso: 0.22        # Opacidade destacada
+    nadir_cone_emissive_igso: 0.35       # Brilho vibrante
+    
+    # Escala Visual do Satélite 3D
+    satellite_visual_scale: 0.08  # Escala do modelo 3D do satélite (1.0 = real)
 
 # 🌌 3. Mecânica Celeste e Corpos Astronômicos
 celestial_mechanics:
@@ -54,7 +79,7 @@ celestial_mechanics:
     sidereal_month_sec: 2360591.51 # 27.321661 dias
     synodic_month_sec: 2551442.89  # 29.530589 dias
 
-# 🛰️ 4. Constelação RPS-BR: Trinca de Satélites Geoestacionários Calibrados
+# 🛰️ 4. Constelação RPS-BR: 3 GEOs + 1º IGSO Calibrado
 constellation:
   mu_earth: 398600.4418           # km^3 / s^2
   j2_perturbation: 1.08263e-3
@@ -95,3 +120,14 @@ constellation:
       arg_perigee_deg: 0.0
       mean_anomaly_deg: 324.0     # 36.0° W (Nordeste / Sudeste / Costa Leste)
       station_longitude_deg: -36.0
+
+    # --- IGSO 1: Cobertura Zenital no Sul do Brasil (25.0° Inclinação / e=0.040) ---
+    - id: 4
+      name: "RPS-IGSO-1 (Sul-Zenital/Apogeu)"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.040         # Excentricidade calibrada para dwell prolongado
+      inclination_deg: 25.0       # 25° de inclinação (alcança todo o Sul do Brasil)
+      raan_deg: 42.0              # RAAN 42° (centralizado em 48°W Brasília)
+      arg_perigee_deg: 90.0       # Apogeu no Hemisfério Sul (-25° Lat)
+      mean_anomaly_deg: 180.0     # Inicia no apogeu sobre o Sul (-25° Lat, 48°W)

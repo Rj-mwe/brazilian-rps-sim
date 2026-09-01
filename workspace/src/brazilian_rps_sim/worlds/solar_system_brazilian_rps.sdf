@@ -4,13 +4,12 @@
   Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
   Arquivo: solar_system_brazilian_rps.sdf
   Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
-             Contém Sol, Terra NASA PBR 5 camadas (Malha GLB Paramétrica), Lua LRO,
-             Cúpula 360° da Via Láctea e 3 Satélites Small GEO com marcadores configuráveis.
+             Contém Sol, Terra NASA PBR 5 camadas, Lua LRO, Cúpula Gaia GLB,
+             Linhas de Trajetória sob demanda e 4 Satélites com marcadores configuráveis.
   ==============================================================================
 -->
 <sdf version="1.8">
   <world name="solar_system_rps_world">
-    <!-- Configurações de Física Analítica -->
     <physics name="physics_60hz" type="ignored">
       <max_step_size>0.016666667</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -32,9 +31,7 @@
       <state_hertz>60</state_hertz>
     </plugin>
 
-    <!-- ======================================================================= -->
-    <!-- 🌌 CAMPO ESTRELADO DO ESPAÇO PROFUNDO E VIA LÁCTEA (NASA/ESA Gaia GLB)  -->
-    <!-- ======================================================================= -->
+    <!-- 🌌 Cúpula Celeste 360° Gaia GLB -->
     <model name="celestial_starfield">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
@@ -50,9 +47,7 @@
       </link>
     </model>
 
-    <!-- ======================================================================= -->
-    <!-- ☀️ ILUMINAÇÃO SOLAR HELIOCÊNTRICA (Luz Pontual Omnidirecional na Origem) -->
-    <!-- ======================================================================= -->
+    <!-- ☀️ Luz Solar Heliocêntrica -->
     <light name="sun_radial_light" type="point">
       <pose>0 0 0 0 0 0</pose>
       <cast_shadows>false</cast_shadows>
@@ -94,7 +89,7 @@
       </plugin>
     </model>
 
-    <!-- Trilha Visual da Órbita da Terra ao redor do Sol -->
+    <!-- Trilha Visual da Órbita da Terra ao redor do Sol (Amarela) -->
     <model name="earth_orbit_trail">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
@@ -112,7 +107,7 @@
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z NORTE, +X 0° LON) -->
+    <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z POLAR)           -->
     <!-- ======================================================================= -->
     <model name="earth">
       <pose>1200 0 0 0 0 0</pose>
@@ -121,7 +116,6 @@
           <geometry><sphere><radius>6.378</radius></sphere></geometry>
         </collision>
 
-        <!-- 1. Superfície Sólida da Terra (Malha GLB Paramétrica de Alta Precisão) -->
         <visual name="earth_surface">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -145,7 +139,6 @@
           </material>
         </visual>
 
-        <!-- 2. Halo Azul Atmosférico (Espalhamento de Rayleigh) -->
         <visual name="earth_atmosphere_halo">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -172,7 +165,7 @@
       </plugin>
     </model>
 
-    <!-- 3. Camada Externa de Nuvens Dinâmicas (Malha GLB Paramétrica) -->
+    <!-- Nuvens da Terra -->
     <model name="earth_clouds">
       <pose>1200 0 0 0 0 0</pose>
       <link name="clouds_link">
@@ -203,7 +196,7 @@
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO COM ALBEDO E RELEVO 3D                  -->
+    <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO                                         -->
     <!-- ======================================================================= -->
     <model name="moon">
       <pose>1584.4 0 0 0 0 0</pose>
@@ -235,7 +228,7 @@
       </plugin>
     </model>
 
-    <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
+    <!-- Trilha Visual da Órbita da Lua ao redor da Terra (Branca) -->
     <model name="moon_orbit_trail">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -252,21 +245,28 @@
       </plugin>
     </model>
 
-    <!-- ======================================================================= -->
-    <!-- 🛰️ ANÉIS ORBITAIS VISUAIS DA CONSTELAÇÃO (GEO e IGSO)                   -->
-    <!-- ======================================================================= -->
-    <model name="constellation_orbit_rings">
+    <!-- Anel Orbital Equatorial GEO (Ciano Neon) -->
+    <model name="constellation_orbit_geo">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
-      <link name="rings_link">
-        <!-- Anel Geoestacionário (GEO - Plano Equatorial 0°) -->
+      <link name="geo_ring_link">
         <visual name="v_orbit_geo">
           <cast_shadows>false</cast_shadows>
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/orbit_geo.gltf</uri></mesh>
           </geometry>
         </visual>
-        <!-- Anel Geossíncrono Inclinado (IGSO - Inclinação 29°) -->
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>constellation_geo_ring</body_type>
+      </plugin>
+    </model>
+
+    <!-- Trajetória 3D da Figura-8 dos IGSOs (Dourado/Âmbar Neon - Fixa sobre o Brasil) -->
+    <model name="constellation_orbit_igso">
+      <static>true</static>
+      <pose>1200 0 0 0 0 0</pose>
+      <link name="igso_ring_link">
         <visual name="v_orbit_igso">
           <cast_shadows>false</cast_shadows>
           <geometry>
@@ -275,7 +275,7 @@
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>earth_trail</body_type>
+        <body_type>constellation_igso_trail</body_type>
       </plugin>
     </model>
 
@@ -314,7 +314,7 @@
           </geometry>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir Ultratranslúcido -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -369,7 +369,7 @@
           </geometry>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir Ultratranslúcido -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -424,7 +424,7 @@
           </geometry>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir Ultratranslúcido -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -444,6 +444,61 @@
         <raan_deg>0.000000</raan_deg>
         <arg_perigee_deg>0.000000</arg_perigee_deg>
         <mean_anomaly_deg>324.000000</mean_anomaly_deg>
+        <heliocentric>true</heliocentric>
+      </plugin>
+    </model>
+
+    <!-- Satélite 4: RPS-IGSO-1 (Sul-Zenital/Apogeu) [IGSO] -->
+    <model name="rps_sat_4">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_4_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
+        <visual name="v_nadir_beam">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>42.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>180.000000</mean_anomaly_deg>
         <heliocentric>true</heliocentric>
       </plugin>
     </model>

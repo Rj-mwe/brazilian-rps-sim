@@ -3,7 +3,7 @@
 Gerador Dinâmico e Desacoplado do Mundo SDFormat (solar_system_brazilian_rps.sdf)
 para o Sistema Solar e a Constelação de N Satélites do RPS-BR.
 Lê dinamicamente o arquivo central config/simulation_parameters.yaml e constrói
-os modelos 3D com malhas PBR fotorrealistas e os 3 estilos de marcadores visuais configuráveis.
+os modelos 3D com malhas PBR fotorrealistas, linhas de órbita e marcadores granulares sob demanda.
 """
 
 import os
@@ -19,30 +19,39 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
 
-    # 1. Parâmetros Globais de Visualização e Marcadores
-    vis_cfg = cfg.get('visualization', {}).get('markers', {})
-    show_beacon = vis_cfg.get('show_beacon_halo', True)
-    show_cone = vis_cfg.get('show_nadir_cone', True)
-    show_rings = vis_cfg.get('show_orbital_ring', True)
-    sat_scale = float(vis_cfg.get('satellite_visual_scale', 0.08))
+    vis_cfg = cfg.get('visualization', {})
+    
+    # 1. Linhas e Trilhas Orbitais (Orbit Trails)
+    trails_cfg = vis_cfg.get('orbit_trails', {})
+    show_earth_orbit = trails_cfg.get('show_earth_orbit', True)
+    show_moon_orbit = trails_cfg.get('show_moon_orbit', True)
+    show_geo_orbit = trails_cfg.get('show_geo_orbit', True)
+    show_igso_orbit = trails_cfg.get('show_igso_orbit', True)
 
-    # 2. Parâmetros da Constelação
+    # 2. Marcadores dos Satélites (Satellite Markers)
+    markers_cfg = vis_cfg.get('satellite_markers', vis_cfg.get('markers', {}))
+    show_beacon_geo = markers_cfg.get('show_beacon_halo_geo', True)
+    show_beacon_igso = markers_cfg.get('show_beacon_halo_igso', True)
+    show_cone_geo = markers_cfg.get('show_nadir_cone_geo', True)
+    show_cone_igso = markers_cfg.get('show_nadir_cone_igso', True)
+    sat_scale = float(markers_cfg.get('satellite_visual_scale', 0.08))
+
+    # 3. Satélites
     satellites = cfg.get('constellation', {}).get('satellites', [])
 
-    # 3. Construção do Cabeçalho e Corpos Celestes
+    # 4. Construção do SDFormat
     sdf_content = f"""<?xml version="1.0" ?>
 <!--
   ==============================================================================
   Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
   Arquivo: solar_system_brazilian_rps.sdf
   Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
-             Contém Sol, Terra NASA PBR 5 camadas (Malha GLB Paramétrica), Lua LRO,
-             Cúpula 360° da Via Láctea e {len(satellites)} Satélites Small GEO com marcadores configuráveis.
+             Contém Sol, Terra NASA PBR 5 camadas, Lua LRO, Cúpula Gaia GLB,
+             Linhas de Trajetória sob demanda e {len(satellites)} Satélites com marcadores configuráveis.
   ==============================================================================
 -->
 <sdf version="1.8">
   <world name="solar_system_rps_world">
-    <!-- Configurações de Física Analítica -->
     <physics name="physics_60hz" type="ignored">
       <max_step_size>0.016666667</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -64,9 +73,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
       <state_hertz>60</state_hertz>
     </plugin>
 
-    <!-- ======================================================================= -->
-    <!-- 🌌 CAMPO ESTRELADO DO ESPAÇO PROFUNDO E VIA LÁCTEA (NASA/ESA Gaia GLB)  -->
-    <!-- ======================================================================= -->
+    <!-- 🌌 Cúpula Celeste 360° Gaia GLB -->
     <model name="celestial_starfield">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
@@ -82,9 +89,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
       </link>
     </model>
 
-    <!-- ======================================================================= -->
-    <!-- ☀️ ILUMINAÇÃO SOLAR HELIOCÊNTRICA (Luz Pontual Omnidirecional na Origem) -->
-    <!-- ======================================================================= -->
+    <!-- ☀️ Luz Solar Heliocêntrica -->
     <light name="sun_radial_light" type="point">
       <pose>0 0 0 0 0 0</pose>
       <cast_shadows>false</cast_shadows>
@@ -125,8 +130,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         <body_type>sun</body_type>
       </plugin>
     </model>
+"""
 
-    <!-- Trilha Visual da Órbita da Terra ao redor do Sol -->
+    # 1. Trilha da Órbita da Terra ao redor do Sol
+    if show_earth_orbit:
+        sdf_content += """
+    <!-- Trilha Visual da Órbita da Terra ao redor do Sol (Amarela) -->
     <model name="earth_orbit_trail">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
@@ -142,9 +151,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         <body_type>earth_trail</body_type>
       </plugin>
     </model>
+"""
 
+    # 2. A Terra
+    sdf_content += """
     <!-- ======================================================================= -->
-    <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z NORTE, +X 0° LON) -->
+    <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z POLAR)           -->
     <!-- ======================================================================= -->
     <model name="earth">
       <pose>1200 0 0 0 0 0</pose>
@@ -153,7 +165,6 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           <geometry><sphere><radius>6.378</radius></sphere></geometry>
         </collision>
 
-        <!-- 1. Superfície Sólida da Terra (Malha GLB Paramétrica de Alta Precisão) -->
         <visual name="earth_surface">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -177,7 +188,6 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           </material>
         </visual>
 
-        <!-- 2. Halo Azul Atmosférico (Espalhamento de Rayleigh) -->
         <visual name="earth_atmosphere_halo">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -204,7 +214,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
       </plugin>
     </model>
 
-    <!-- 3. Camada Externa de Nuvens Dinâmicas (Malha GLB Paramétrica) -->
+    <!-- Nuvens da Terra -->
     <model name="earth_clouds">
       <pose>1200 0 0 0 0 0</pose>
       <link name="clouds_link">
@@ -235,7 +245,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO COM ALBEDO E RELEVO 3D                  -->
+    <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO                                         -->
     <!-- ======================================================================= -->
     <model name="moon">
       <pose>1584.4 0 0 0 0 0</pose>
@@ -266,8 +276,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         <body_type>moon</body_type>
       </plugin>
     </model>
+"""
 
-    <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
+    # 3. Trilha da Órbita da Lua ao redor da Terra
+    if show_moon_orbit:
+        sdf_content += """
+    <!-- Trilha Visual da Órbita da Lua ao redor da Terra (Branca) -->
     <model name="moon_orbit_trail">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -285,24 +299,34 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     </model>
 """
 
-    # 4. Inserção dos Anéis Orbitais Visuais (se habilitados)
-    if show_rings:
+    # 4. Inserção dos Anéis Orbitais dos Satélites (GEO e IGSO)
+    if show_geo_orbit:
         sdf_content += """
-    <!-- ======================================================================= -->
-    <!-- 🛰️ ANÉIS ORBITAIS VISUAIS DA CONSTELAÇÃO (GEO e IGSO)                   -->
-    <!-- ======================================================================= -->
-    <model name="constellation_orbit_rings">
+    <!-- Anel Orbital Equatorial GEO (Ciano Neon) -->
+    <model name="constellation_orbit_geo">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
-      <link name="rings_link">
-        <!-- Anel Geoestacionário (GEO - Plano Equatorial 0°) -->
+      <link name="geo_ring_link">
         <visual name="v_orbit_geo">
           <cast_shadows>false</cast_shadows>
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/orbit_geo.gltf</uri></mesh>
           </geometry>
         </visual>
-        <!-- Anel Geossíncrono Inclinado (IGSO - Inclinação 29°) -->
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>constellation_geo_ring</body_type>
+      </plugin>
+    </model>
+"""
+
+    if show_igso_orbit:
+        sdf_content += """
+    <!-- Trajetória 3D da Figura-8 dos IGSOs (Dourado/Âmbar Neon - Fixa sobre o Brasil) -->
+    <model name="constellation_orbit_igso">
+      <static>true</static>
+      <pose>1200 0 0 0 0 0</pose>
+      <link name="igso_ring_link">
         <visual name="v_orbit_igso">
           <cast_shadows>false</cast_shadows>
           <geometry>
@@ -311,12 +335,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>earth_trail</body_type>
+        <body_type>constellation_igso_trail</body_type>
       </plugin>
     </model>
 """
 
-    # 5. Inserção Dinâmica de cada Satélite com Malha PBR e Marcadores Refinados
+    # 5. Inserção dos Modelos 3D dos Satélites com Marcadores
     sdf_content += """
     <!-- ======================================================================= -->
     <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES REFINADOS) -->
@@ -328,8 +352,10 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         name = s.get('name', f"SAT-{sat_id}")
         sat_type = s.get('type', 'GEO')
         type_lower = sat_type.lower()
+        is_geo = (sat_type == 'GEO')
+
         a_km = float(s.get('semi_major_axis_km', 42164.14))
-        a_scale = a_km / 1000.0 # 42.164 unidades no mundo
+        a_scale = a_km / 1000.0
         e = float(s.get('eccentricity', 0.0))
         inc_deg = float(s.get('inclination_deg', 0.0))
         raan_deg = float(s.get('raan_deg', 0.0))
@@ -337,6 +363,9 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         m0_deg = float(s.get('mean_anomaly_deg', 0.0))
 
         model_name = f"rps_sat_{sat_id}"
+
+        show_beacon = show_beacon_geo if is_geo else show_beacon_igso
+        show_cone = show_cone_geo if is_geo else show_cone_igso
 
         sdf_content += f"""
     <!-- Satélite {sat_id}: {name} [{sat_type}] -->
@@ -360,7 +389,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         </visual>
 """
 
-        # Marcador 1: Retículo/Anel Holográfico Radiante (se ativado)
+        # Marcador: Halo
         if show_beacon:
             sdf_content += f"""
         <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
@@ -375,10 +404,10 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
         </visual>
 """
 
-        # Marcador 2: Cone de Feixe Nadir Ultratranslúcido (se ativado)
+        # Marcador: Cone Nadir
         if show_cone:
             sdf_content += f"""
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir Ultratranslúcido -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -413,7 +442,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(sdf_content)
 
-    print(f"🌍 [WorldGenerator] Mundo SDF gerado com sucesso para {len(satellites)} satélites com malhas GLB da Terra: {output_path}")
+    print(f"🌍 [WorldGenerator] Mundo SDF gerado com sucesso com linhas orbitais e {len(satellites)} satélites: {output_path}")
 
 if __name__ == '__main__':
     generate_world_sdf()

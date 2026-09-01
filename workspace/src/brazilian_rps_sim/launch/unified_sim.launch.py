@@ -2,7 +2,7 @@
 """
 Arquivo de inicialização unificado do Sistema Solar e da Constelação RPS-BR.
 Arquitetura Hexagonal:
-- Gera proceduralmente os marcadores e o mundo SDFormat com base no YAML antes da inicialização
+- Gera proceduralmente as malhas da Terra, marcadores, anéis orbitais e o mundo SDFormat com base no YAML
 - Executa o Gazebo Sim Harmonic com o mundo atualizado
 - Conecta a ponte de relógio (/clock)
 - Inicializa o nó mestre da constelação (rps_constellation_node)
@@ -25,12 +25,14 @@ def build_world_and_markers(context, *args, **kwargs):
 
     try:
         from brazilian_rps_sim.marker_mesh_generator import generate_all_marker_assets
+        from brazilian_rps_sim.orbit_mesh_generator import generate_all_orbit_rings
         from brazilian_rps_sim.world_generator import generate_world_sdf
         from brazilian_rps_sim.earth_globe_generator import generate_all_earth_assets
 
-        # Garante que as malhas da Terra e marcadores estão sincronizadas com o YAML
+        # Garante que as malhas da Terra, marcadores e órbitas estão sincronizadas com o YAML
         generate_all_earth_assets(mesh_dir)
         generate_all_marker_assets(config_file_path, mesh_dir)
+        generate_all_orbit_rings(config_file_path, mesh_dir)
         generate_world_sdf(config_file_path, world_path)
     except Exception as e:
         print(f"⚠️ [Launch] Aviso na geração procedural: {e}")
@@ -47,11 +49,13 @@ def generate_launch_description():
     # Executa a geração procedural no momento do carregamento
     try:
         from brazilian_rps_sim.marker_mesh_generator import generate_all_marker_assets
+        from brazilian_rps_sim.orbit_mesh_generator import generate_all_orbit_rings
         from brazilian_rps_sim.world_generator import generate_world_sdf
         from brazilian_rps_sim.earth_globe_generator import generate_all_earth_assets
 
         generate_all_earth_assets(mesh_dir)
         generate_all_marker_assets(config_file_path, mesh_dir)
+        generate_all_orbit_rings(config_file_path, mesh_dir)
         generate_world_sdf(config_file_path, world_path)
     except Exception as e:
         pass
@@ -61,7 +65,7 @@ def generate_launch_description():
         focus_script = '/home/rjgamito/ros2_ws/install/brazilian_rps_sim/lib/brazilian_rps_sim/camera_auto_focus.py'
 
     return LaunchDescription([
-        # 1. Atualização procedural a quente dos parâmetros visuais e do mundo
+        # 1. Atualização procedural a quente dos parâmetros visuais, órbitas e do mundo
         OpaqueFunction(function=build_world_and_markers),
 
         # 2. Motor de Simulação do Gazebo Harmonic

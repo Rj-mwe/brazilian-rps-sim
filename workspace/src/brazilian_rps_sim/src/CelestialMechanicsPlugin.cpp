@@ -1,7 +1,7 @@
 /**
  * @file CelestialMechanicsPlugin.cpp
  * @brief Plugin C++ do Gazebo Harmonic para simulação analítica da Mecânica Celeste Sol-Terra-Lua
- *        com rotação polar acoplada (q_tilt * q_spin) e leitura declarativa de parâmetros via YAML.
+ *        com rotação polar acoplada (q_tilt * q_spin), anéis orbitais acoplados à Terra e leitura via YAML.
  */
 
 #include <gz/sim/System.hh>
@@ -153,6 +153,14 @@ public:
         else if (this->body_type == "earth_trail")
         {
             pose.Set(gz::math::Vector3d(0.0, 0.0, 0.0), gz::math::Quaterniond::Identity);
+        }
+        else if (this->body_type == "constellation_geo_ring")
+        {
+            pose.Set(gz::math::Vector3d(earth_x, earth_y, earth_z), q_tilt);
+        }
+        else if (this->body_type == "constellation_igso_trail")
+        {
+            pose.Set(gz::math::Vector3d(earth_x, earth_y, earth_z), q_earth_axial);
         }
         else if (this->body_type == "moon")
         {
