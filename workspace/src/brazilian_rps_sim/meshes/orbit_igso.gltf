@@ -37,7 +37,7 @@
       "pbrMetallicRoughness": {
         "baseColorFactor": [
           1.0,
-          0.78,
+          0.8,
           0.1,
           1.0
         ],
@@ -46,7 +46,7 @@
       },
       "emissiveFactor": [
         0.95,
-        0.741,
+        0.76,
         0.095
       ],
       "alphaMode": "OPAQUE",

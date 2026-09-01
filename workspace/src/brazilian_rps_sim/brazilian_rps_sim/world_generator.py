@@ -2,12 +2,17 @@
 """
 Gerador Dinâmico e Desacoplado do Mundo SDFormat (solar_system_brazilian_rps.sdf)
 para o Sistema Solar e a Constelação de N Satélites do RPS-BR.
-Lê dinamicamente o arquivo central config/simulation_parameters.yaml e constrói
-os modelos 3D com malhas PBR fotorrealistas, linhas de órbita e marcadores granulares sob demanda.
+Aplica ordem de renderização (render_order) explícita no Gazebo/OGRE 2 para garantir
+que os cones e marcadores dos IGSOs se sobreponham aos feixes de fundo dos GEOs sem oclusão.
 """
 
 import os
 import yaml
+
+try:
+    from brazilian_rps_sim.color_palette import resolve_color
+except ImportError:
+    from color_palette import resolve_color
 
 def generate_world_sdf(config_path: str = None, output_path: str = None):
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,10 +36,18 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     # 2. Marcadores dos Satélites (Satellite Markers)
     markers_cfg = vis_cfg.get('satellite_markers', vis_cfg.get('markers', {}))
     show_beacon_geo = markers_cfg.get('show_beacon_halo_geo', True)
-    show_beacon_igso = markers_cfg.get('show_beacon_halo_igso', True)
+    show_beacon_halo_igso = markers_cfg.get('show_beacon_halo_igso', True)
     show_cone_geo = markers_cfg.get('show_nadir_cone_geo', True)
     show_cone_igso = markers_cfg.get('show_nadir_cone_igso', True)
     sat_scale = float(markers_cfg.get('satellite_visual_scale', 0.08))
+
+    # Cores
+    color_cone_geo = resolve_color(markers_cfg.get('color_nadir_cone_geo', 'cyan'), default=(0.0, 0.90, 1.0))
+    color_cone_igso = resolve_color(markers_cfg.get('color_nadir_cone_igso', 'amber'), default=(1.0, 0.80, 0.10))
+    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.06))
+    op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
+    e_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.10))
+    e_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.85))
 
     # 3. Satélites
     satellites = cfg.get('constellation', {}).get('satellites', [])
@@ -47,7 +60,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
   Arquivo: solar_system_brazilian_rps.sdf
   Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
              Contém Sol, Terra NASA PBR 5 camadas, Lua LRO, Cúpula Gaia GLB,
-             Linhas de Trajetória sob demanda e {len(satellites)} Satélites com marcadores configuráveis.
+             Linhas de Trajetória sob demanda e {len(satellites)} Satélites com render_order diferenciado.
   ==============================================================================
 -->
 <sdf version="1.8">
@@ -135,7 +148,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     # 1. Trilha da Órbita da Terra ao redor do Sol
     if show_earth_orbit:
         sdf_content += """
-    <!-- Trilha Visual da Órbita da Terra ao redor do Sol (Amarela) -->
+    <!-- Trilha Visual da Órbita da Terra ao redor do Sol -->
     <model name="earth_orbit_trail">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
@@ -281,7 +294,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     # 3. Trilha da Órbita da Lua ao redor da Terra
     if show_moon_orbit:
         sdf_content += """
-    <!-- Trilha Visual da Órbita da Lua ao redor da Terra (Branca) -->
+    <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
     <model name="moon_orbit_trail">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -302,7 +315,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     # 4. Inserção dos Anéis Orbitais dos Satélites (GEO e IGSO)
     if show_geo_orbit:
         sdf_content += """
-    <!-- Anel Orbital Equatorial GEO (Ciano Neon) -->
+    <!-- Anel Orbital Equatorial GEO -->
     <model name="constellation_orbit_geo">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -322,7 +335,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
 
     if show_igso_orbit:
         sdf_content += """
-    <!-- Trajetória 3D da Figura-8 dos IGSOs (Dourado/Âmbar Neon - Fixa sobre o Brasil) -->
+    <!-- Trajetória 3D da Figura-8 dos IGSOs (Fixa sobre o Brasil) -->
     <model name="constellation_orbit_igso">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -340,10 +353,10 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     </model>
 """
 
-    # 5. Inserção dos Modelos 3D dos Satélites com Marcadores
+    # 5. Inserção dos Modelos 3D dos Satélites com Render Order
     sdf_content += """
     <!-- ======================================================================= -->
-    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES REFINADOS) -->
+    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES SOBREPOSTOS)-->
     <!-- ======================================================================= -->
 """
 
@@ -364,8 +377,14 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
 
         model_name = f"rps_sat_{sat_id}"
 
-        show_beacon = show_beacon_geo if is_geo else show_beacon_igso
+        show_beacon = show_beacon_geo if is_geo else show_beacon_halo_igso
         show_cone = show_cone_geo if is_geo else show_cone_igso
+
+        # Render Order no OGRE 2: GEO = 0 (fundo), IGSO = 10 (frente / sobreposto)
+        cone_render_order = 0 if is_geo else 10
+        cone_color = color_cone_geo if is_geo else color_cone_igso
+        cone_op = op_geo if is_geo else op_igso
+        cone_em = e_geo if is_geo else e_igso
 
         sdf_content += f"""
     <!-- Satélite {sat_id}: {name} [{sat_type}] -->
@@ -401,13 +420,16 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
               <uri>package://brazilian_rps_sim/meshes/locator_ring_{type_lower}.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
         </visual>
 """
 
-        # Marcador: Cone Nadir
+        # Marcador: Cone Nadir (Com Render Order Explícito para Sobreposição)
         if show_cone:
             sdf_content += f"""
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: {cone_render_order}) -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -416,6 +438,13 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
               <uri>package://brazilian_rps_sim/meshes/nadir_beam_{type_lower}.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <diffuse>{cone_color[0]} {cone_color[1]} {cone_color[2]} {cone_op}</diffuse>
+            <ambient>{cone_color[0]} {cone_color[1]} {cone_color[2]} {cone_op}</ambient>
+            <emissive>{cone_color[0]*cone_em} {cone_color[1]*cone_em} {cone_color[2]*cone_em} 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>{cone_render_order}</render_order>
+          </material>
         </visual>
 """
 
@@ -442,7 +471,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(sdf_content)
 
-    print(f"🌍 [WorldGenerator] Mundo SDF gerado com sucesso com linhas orbitais e {len(satellites)} satélites: {output_path}")
+    print(f"🌍 [WorldGenerator] Mundo SDF gerado com sucesso com render_order diferenciado e {len(satellites)} satélites: {output_path}")
 
 if __name__ == '__main__':
     generate_world_sdf()

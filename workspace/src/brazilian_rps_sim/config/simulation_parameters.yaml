@@ -2,7 +2,7 @@
 # Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
 # Arquivo: simulation_parameters.yaml
 # Descrição: Configurações declarativas centrais para simulação, astrodinâmica,
-#            mecânica celeste, constelação dinâmica e marcadores visuais 3D.
+#            mecânica celeste, constelação completa de 7 satélites (3 GEO + 4 IGSO).
 # ==============================================================================
 
 # ⏱️ 1. Configurações Globais de Simulação e Tempo
@@ -13,16 +13,24 @@ simulation:
   telemetry_rate_hz: 1.0          # Frequência de publicação ROS 2 (Hz)
   physics_frequency_hz: 60.0      # Frequência do motor de física / quadros (Hz)
 
-# 🎨 2. Visualização, Marcadores e Linhas de Trajetória (100% Modulares e Sob Demanda)
+# 🎨 2. Visualização, Marcadores e Linhas de Trajetória (100% Modulares e com Paleta de Cores)
+# Paleta pré-determinada disponível:
+# 'cyan', 'amber', 'gold', 'neon_green', 'electric_blue', 'magenta', 'orange', 'purple', 'red', 'white'
 visualization:
   # ============================================================================
   # 🌌 A) Linhas e Trilhas de Órbita no Espaço (Orbit Trails / Trajetórias 3D)
   # ============================================================================
   orbit_trails:
-    show_earth_orbit: true        # Linha da órbita da Terra ao redor do Sol (Amarela)
-    show_moon_orbit: true         # Linha da órbita da Lua ao redor da Terra (Branca)
-    show_geo_orbit: true          # Anel circular equatorial dos satélites GEO (Ciano Neon)
-    show_igso_orbit: true         # Trajetória 3D da Figura-8 dos satélites IGSO (Dourado Neon)
+    show_earth_orbit: true        # Linha da órbita da Terra ao redor do Sol
+    show_moon_orbit: true         # Linha da órbita da Lua ao redor da Terra
+    show_geo_orbit: true          # Anel circular equatorial dos satélites GEO
+    show_igso_orbit: true         # Trajetória 3D da Figura-8 dos satélites IGSO
+    
+    # Cores das Linhas Orbitais (Paleta amigável ou [r, g, b])
+    color_earth_orbit: "gold"     # Amarelo/Dourado solar
+    color_moon_orbit: "white"     # Branco lunar
+    color_geo_orbit: "cyan"       # Ciano neon
+    color_igso_orbit: "amber"     # Âmbar/Dourado neon
     
     # Espessura dos tubos orbitais (unidades do mundo)
     tube_thickness_earth: 0.80    # Espessura da linha heliocêntrica
@@ -35,27 +43,33 @@ visualization:
   # ============================================================================
   satellite_markers:
     # --- Retículos / Halos Holográficos de Mira (Beacons Neon) ---
-    show_beacon_halo_geo: true    # Halo dos satélites GEO (Ciano)
-    show_beacon_halo_igso: true   # Halo dos satélites IGSO (Dourado/Âmbar)
+    show_beacon_halo_geo: true    # Halo dos satélites GEO
+    show_beacon_halo_igso: true   # Halo dos satélites IGSO
+    color_beacon_geo: "cyan"      # Cor do halo GEO
+    color_beacon_igso: "amber"    # Cor do halo IGSO
     beacon_radius: 0.35           # Raio do anel holográfico
     beacon_tube_thickness: 0.015  # Espessura do anel holográfico
     beacon_emissive_geo: 0.80     # Brilho emissivo do halo GEO (0.0 a 1.0)
     beacon_emissive_igso: 0.85    # Brilho emissivo do halo IGSO (0.0 a 1.0)
     
-    # --- Feixes / Cones Nadir (GEO: Continental Amplo | IGSO: Spot-Beam Zenital) ---
+    # --- Feixes / Cones Nadir (GEO: Fundo Translúcido | IGSO: Dourado Sobreposto) ---
     show_nadir_cone_geo: true     # Feixe Nadir dos satélites GEO
     show_nadir_cone_igso: true    # Feixe Nadir dos satélites IGSO
     nadir_cone_top_radius: 0.08   # Diâmetro no topo (escala exata da antena do satélite)
     
-    # GEO (Cobertura Continental Ampla):
-    nadir_cone_bottom_radius_geo: 2.60   # Raio de cobertura no solo (~2.600 km)
-    nadir_cone_opacity_geo: 0.15         # Opacidade suave e translúcida
-    nadir_cone_emissive_geo: 0.20        # Brilho difuso elegante
+    # Cores dos Feixes Nadir
+    color_nadir_cone_geo: "cyan"  # Cor dos feixes GEO
+    color_nadir_cone_igso: "amber" # Cor dos feixes IGSO
     
-    # IGSO (Spot-Beam Zenital Regional Focado):
+    # GEO (Fundo Translúcido Suave de Cobertura Continental Ampla):
+    nadir_cone_bottom_radius_geo: 4.80   # Raio de cobertura no solo de ~4.800 km
+    nadir_cone_opacity_geo: 0.05         # Opacidade ultracristalina (não ofusca a sobreposição)
+    nadir_cone_emissive_geo: 0.08        # Brilho suave sem ofuscamento
+    
+    # IGSO (Feixe Dourado Neon Vibrante com Prioridade de Render_Order 10):
     nadir_cone_bottom_radius_igso: 1.15  # Raio de cobertura no solo (~1.150 km)
-    nadir_cone_opacity_igso: 0.22        # Opacidade destacada
-    nadir_cone_emissive_igso: 0.35       # Brilho vibrante
+    nadir_cone_opacity_igso: 0.35        # Opacidade encorpada
+    nadir_cone_emissive_igso: 0.90       # Brilho emissivo neon vibrante (brilha sobreposto aos GEOs)
     
     # Escala Visual do Satélite 3D
     satellite_visual_scale: 0.08  # Escala do modelo 3D do satélite (1.0 = real)
@@ -79,13 +93,15 @@ celestial_mechanics:
     sidereal_month_sec: 2360591.51 # 27.321661 dias
     synodic_month_sec: 2551442.89  # 29.530589 dias
 
-# 🛰️ 4. Constelação RPS-BR: 3 GEOs + 1º IGSO Calibrado
+# 🛰️ 4. Constelação Completa RPS-BR: 7 Satélites (3 GEO + 4 IGSO)
 constellation:
   mu_earth: 398600.4418           # km^3 / s^2
   j2_perturbation: 1.08263e-3
   flattening: 0.00335281          # 1 / 298.257223563
   satellites:
-    # --- GEO 1: Cobertura Norte / Amazônia Central (60.0° W - Manaus) ---
+    # ==========================================================================
+    # 📡 SEGMENTO GEO (3 Satélites Geoestacionários ao Longo do Equador)
+    # ==========================================================================
     - id: 1
       name: "RPS-GEO-1 (Norte/Manaus)"
       type: "GEO"
@@ -97,7 +113,6 @@ constellation:
       mean_anomaly_deg: 300.0     # 60.0° W (Manaus / Amazônia Central)
       station_longitude_deg: -60.0
 
-    # --- GEO 2: Cobertura Centro-Oeste / Brasília (48.0° W) ---
     - id: 2
       name: "RPS-GEO-2 (Centro/BSB)"
       type: "GEO"
@@ -109,7 +124,6 @@ constellation:
       mean_anomaly_deg: 312.0     # 48.0° W (Brasília / Centro-Oeste)
       station_longitude_deg: -48.0
 
-    # --- GEO 3: Cobertura Leste / Nordeste / Sudeste (36.0° W) ---
     - id: 3
       name: "RPS-GEO-3 (Leste/Costa)"
       type: "GEO"
@@ -121,13 +135,45 @@ constellation:
       mean_anomaly_deg: 324.0     # 36.0° W (Nordeste / Sudeste / Costa Leste)
       station_longitude_deg: -36.0
 
-    # --- IGSO 1: Cobertura Zenital no Sul do Brasil (25.0° Inclinação / e=0.040) ---
+    # ==========================================================================
+    # 🛰️ SEGMENTO IGSO (4 Satélites Geossíncronos em Figura-8 com Apogeu no Sul)
+    # ==========================================================================
     - id: 4
-      name: "RPS-IGSO-1 (Sul-Zenital/Apogeu)"
+      name: "RPS-IGSO-1 (Sul/Apogeu)"
       type: "IGSO"
       semi_major_axis_km: 42164.14
-      eccentricity: 0.040         # Excentricidade calibrada para dwell prolongado
-      inclination_deg: 25.0       # 25° de inclinação (alcança todo o Sul do Brasil)
-      raan_deg: 42.0              # RAAN 42° (centralizado em 48°W Brasília)
-      arg_perigee_deg: 90.0       # Apogeu no Hemisfério Sul (-25° Lat)
-      mean_anomaly_deg: 180.0     # Inicia no apogeu sobre o Sul (-25° Lat, 48°W)
+      eccentricity: 0.040
+      inclination_deg: 25.0
+      raan_deg: 42.0
+      arg_perigee_deg: 90.0
+      mean_anomaly_deg: 180.0     # Apogeu no Sul
+
+    - id: 5
+      name: "RPS-IGSO-2 (Descida Sul)"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.040
+      inclination_deg: 25.0
+      raan_deg: 312.0
+      arg_perigee_deg: 90.0
+      mean_anomaly_deg: 270.0
+
+    - id: 6
+      name: "RPS-IGSO-3 (Norte/Perigeu)"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.040
+      inclination_deg: 25.0
+      raan_deg: 222.0
+      arg_perigee_deg: 90.0
+      mean_anomaly_deg: 0.0       # Perigeu no Norte
+
+    - id: 7
+      name: "RPS-IGSO-4 (Subida Norte)"
+      type: "IGSO"
+      semi_major_axis_km: 42164.14
+      eccentricity: 0.040
+      inclination_deg: 25.0
+      raan_deg: 132.0
+      arg_perigee_deg: 90.0
+      mean_anomaly_deg: 90.0

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Gerador procedural das trajetórias e anéis orbitais 3D em glTF 2.0 PBR:
-1. Anel Equatorial dos GEOs (orbit_geo.gltf - Ciano Neon)
-2. Trajetória 3D da Figura-8 dos IGSOs (orbit_igso.gltf - Dourado/Âmbar Neon)
+1. Anel Equatorial dos GEOs (orbit_geo.gltf)
+2. Trajetória 3D da Figura-8 dos IGSOs (orbit_igso.gltf)
+Suporta paleta de cores configurável via simulation_parameters.yaml.
 """
 
 import os
@@ -12,6 +13,11 @@ import base64
 import math
 import numpy as np
 import yaml
+
+try:
+    from brazilian_rps_sim.color_palette import resolve_color
+except ImportError:
+    from color_palette import resolve_color
 
 def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.10,
                         color_rgb: tuple = (1.0, 0.8, 0.2), emissive_intensity: float = 0.95):
@@ -118,7 +124,7 @@ def generate_orbit_tube(output_path: str, pts: np.ndarray, thickness: float = 0.
     with open(output_path, 'w') as f:
         json.dump(gltf_doc, f, indent=2)
 
-    print(f"✨ [OrbitGenerator] Trilha orbital salva: {output_path}")
+    print(f"✨ [OrbitGenerator] Trilha orbital salva: {output_path} (Cor: {color_rgb})")
 
 def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
     pkg_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -136,7 +142,10 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
     thick_geo = float(trails_cfg.get('tube_thickness_geo', 0.10))
     thick_igso = float(trails_cfg.get('tube_thickness_igso', 0.12))
 
-    # 1. Anel Equatorial dos GEOs (R = 42.164 no plano XY equatorial da Terra)
+    color_geo = resolve_color(trails_cfg.get('color_geo_orbit', 'cyan'), default=(0.0, 0.90, 1.0))
+    color_igso = resolve_color(trails_cfg.get('color_igso_orbit', 'amber'), default=(1.0, 0.80, 0.10))
+
+    # 1. Anel Equatorial dos GEOs
     num_pts = 360
     theta = np.linspace(0, 2*np.pi, num_pts, endpoint=False)
     r_geo = 42.16414
@@ -146,11 +155,11 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
         output_path=os.path.join(mesh_dir, 'orbit_geo.gltf'),
         pts=np.array(pts_geo, dtype=np.float32),
         thickness=thick_geo,
-        color_rgb=(0.0, 0.9, 1.0), # Ciano Neon
+        color_rgb=color_geo,
         emissive_intensity=0.95
     )
 
-    # 2. Trajetória 3D da Figura-8 dos IGSOs (no referencial girante da Terra ECEF)
+    # 2. Trajetória 3D da Figura-8 dos IGSOs
     sat_list = cfg.get('constellation', {}).get('satellites', [])
     igso_sats = [s for s in sat_list if s.get('type') == 'IGSO']
     
@@ -166,7 +175,6 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
 
         pts_figure8 = []
         for t in np.linspace(0, 86164.0905, num_pts, endpoint=False):
-            # Anomalia Média com m0
             M = m0 + omega_earth * t
             E = M
             for _ in range(10):
@@ -183,7 +191,6 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
             y_eci = x_orb * math.sin(raan) + y_orb * math.cos(raan)
             z_eci = z_orb
 
-            # Projeção no referencial girante da Terra (ECEF / Body)
             theta_spin = omega_earth * t
             x_body = x_eci * math.cos(theta_spin) + y_eci * math.sin(theta_spin)
             y_body = -x_eci * math.sin(theta_spin) + y_eci * math.cos(theta_spin)
@@ -195,7 +202,7 @@ def generate_all_orbit_rings(config_path: str = None, mesh_dir: str = None):
             output_path=os.path.join(mesh_dir, 'orbit_igso.gltf'),
             pts=np.array(pts_figure8, dtype=np.float32),
             thickness=thick_igso,
-            color_rgb=(1.0, 0.78, 0.1), # Dourado/Âmbar Neon
+            color_rgb=color_igso,
             emissive_intensity=0.95
         )
 

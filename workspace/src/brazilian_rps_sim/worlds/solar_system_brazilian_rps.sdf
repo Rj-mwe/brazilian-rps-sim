@@ -5,7 +5,7 @@
   Arquivo: solar_system_brazilian_rps.sdf
   Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
              Contém Sol, Terra NASA PBR 5 camadas, Lua LRO, Cúpula Gaia GLB,
-             Linhas de Trajetória sob demanda e 4 Satélites com marcadores configuráveis.
+             Linhas de Trajetória sob demanda e 7 Satélites com render_order diferenciado.
   ==============================================================================
 -->
 <sdf version="1.8">
@@ -89,7 +89,7 @@
       </plugin>
     </model>
 
-    <!-- Trilha Visual da Órbita da Terra ao redor do Sol (Amarela) -->
+    <!-- Trilha Visual da Órbita da Terra ao redor do Sol -->
     <model name="earth_orbit_trail">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
@@ -228,7 +228,7 @@
       </plugin>
     </model>
 
-    <!-- Trilha Visual da Órbita da Lua ao redor da Terra (Branca) -->
+    <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
     <model name="moon_orbit_trail">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -245,7 +245,7 @@
       </plugin>
     </model>
 
-    <!-- Anel Orbital Equatorial GEO (Ciano Neon) -->
+    <!-- Anel Orbital Equatorial GEO -->
     <model name="constellation_orbit_geo">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -262,7 +262,7 @@
       </plugin>
     </model>
 
-    <!-- Trajetória 3D da Figura-8 dos IGSOs (Dourado/Âmbar Neon - Fixa sobre o Brasil) -->
+    <!-- Trajetória 3D da Figura-8 dos IGSOs (Fixa sobre o Brasil) -->
     <model name="constellation_orbit_igso">
       <static>true</static>
       <pose>1200 0 0 0 0 0</pose>
@@ -280,7 +280,7 @@
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES REFINADOS) -->
+    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (MODELOS 3D PBR + MARCADORES SOBREPOSTOS)-->
     <!-- ======================================================================= -->
 
     <!-- Satélite 1: RPS-GEO-1 (Norte/Manaus) [GEO] -->
@@ -312,9 +312,12 @@
               <uri>package://brazilian_rps_sim/meshes/locator_ring_geo.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 0) -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -323,6 +326,13 @@
               <uri>package://brazilian_rps_sim/meshes/nadir_beam_geo.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 0.01</diffuse>
+            <ambient>0.0 0.9 1.0 0.01</ambient>
+            <emissive>0.0 0.009000000000000001 0.01 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>0</render_order>
+          </material>
         </visual>
       </link>
 
@@ -367,9 +377,12 @@
               <uri>package://brazilian_rps_sim/meshes/locator_ring_geo.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 0) -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -378,6 +391,13 @@
               <uri>package://brazilian_rps_sim/meshes/nadir_beam_geo.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 0.01</diffuse>
+            <ambient>0.0 0.9 1.0 0.01</ambient>
+            <emissive>0.0 0.009000000000000001 0.01 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>0</render_order>
+          </material>
         </visual>
       </link>
 
@@ -422,9 +442,12 @@
               <uri>package://brazilian_rps_sim/meshes/locator_ring_geo.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 0) -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -433,6 +456,13 @@
               <uri>package://brazilian_rps_sim/meshes/nadir_beam_geo.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 0.01</diffuse>
+            <ambient>0.0 0.9 1.0 0.01</ambient>
+            <emissive>0.0 0.009000000000000001 0.01 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>0</render_order>
+          </material>
         </visual>
       </link>
 
@@ -448,7 +478,7 @@
       </plugin>
     </model>
 
-    <!-- Satélite 4: RPS-IGSO-1 (Sul-Zenital/Apogeu) [IGSO] -->
+    <!-- Satélite 4: RPS-IGSO-1 (Sul/Apogeu) [IGSO] -->
     <model name="rps_sat_4">
       <pose>1242.164 0 0 0 0 0</pose>
       <link name="rps_sat_4_link">
@@ -477,9 +507,12 @@
               <uri>package://brazilian_rps_sim/meshes/locator_ring_igso.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir -->
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
         <visual name="v_nadir_beam">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
@@ -488,6 +521,13 @@
               <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
             </mesh>
           </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 0.35</diffuse>
+            <ambient>1.0 0.8 0.1 0.35</ambient>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
         </visual>
       </link>
 
@@ -499,6 +539,201 @@
         <raan_deg>42.000000</raan_deg>
         <arg_perigee_deg>90.000000</arg_perigee_deg>
         <mean_anomaly_deg>180.000000</mean_anomaly_deg>
+        <heliocentric>true</heliocentric>
+      </plugin>
+    </model>
+
+    <!-- Satélite 5: RPS-IGSO-2 (Descida Sul) [IGSO] -->
+    <model name="rps_sat_5">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_5_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
+        <visual name="v_nadir_beam">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 0.35</diffuse>
+            <ambient>1.0 0.8 0.1 0.35</ambient>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>312.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>270.000000</mean_anomaly_deg>
+        <heliocentric>true</heliocentric>
+      </plugin>
+    </model>
+
+    <!-- Satélite 6: RPS-IGSO-3 (Norte/Perigeu) [IGSO] -->
+    <model name="rps_sat_6">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_6_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
+        <visual name="v_nadir_beam">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 0.35</diffuse>
+            <ambient>1.0 0.8 0.1 0.35</ambient>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>222.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>0.000000</mean_anomaly_deg>
+        <heliocentric>true</heliocentric>
+      </plugin>
+    </model>
+
+    <!-- Satélite 7: RPS-IGSO-4 (Subida Norte) [IGSO] -->
+    <model name="rps_sat_7">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_7_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
+        <visual name="v_nadir_beam">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 0.35</diffuse>
+            <ambient>1.0 0.8 0.1 0.35</ambient>
+            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>132.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>90.000000</mean_anomaly_deg>
         <heliocentric>true</heliocentric>
       </plugin>
     </model>

@@ -2,7 +2,8 @@
 """
 Gerador de Malhas 3D Procedurais PBR (glTF 2.0 / .glb) para Marcadores Espaciais:
 1. Retículo/Anel Holográfico de Mira (Torus Neon Emissivo)
-2. Feixes Nadir com parâmetros independentes de opacidade, brilho e raio para GEO e IGSO.
+2. Feixes Nadir com parâmetros independentes de cor, opacidade, brilho e raio.
+Suporta paleta de cores configurável via simulation_parameters.yaml.
 """
 
 import os
@@ -11,6 +12,11 @@ import struct
 import math
 import numpy as np
 import yaml
+
+try:
+    from brazilian_rps_sim.color_palette import resolve_color
+except ImportError:
+    from color_palette import resolve_color
 
 def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, height: float,
                             color_rgba: tuple, emissive_intensity: float = 0.5, segs: int = 48):
@@ -23,7 +29,6 @@ def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, hei
     cos_t = np.cos(theta)
     sin_t = np.sin(theta)
 
-    # Ângulo do cone
     dr = r_bottom - r_top
     length = math.sqrt(dr*dr + height*height)
     nr = height / length
@@ -45,7 +50,7 @@ def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, hei
         vertices.append([x, y, z])
         normals.append([nr * cos_t[i], nr * sin_t[i], nz])
 
-    # 3. Triângulos do Cone Truncado (Dupla Face)
+    # 3. Triângulos do Cone Truncado (CCW)
     for i in range(segs):
         i_next = (i + 1) % segs
         p0 = i
@@ -53,12 +58,8 @@ def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, hei
         p2 = segs + i
         p3 = segs + i_next
 
-        # Face Externa
         indices.extend([p0, p1, p3])
         indices.extend([p0, p3, p2])
-        # Face Interna (Inverted CCW)
-        indices.extend([p0, p3, p1])
-        indices.extend([p0, p2, p3])
 
     v_arr = np.array(vertices, dtype=np.float32)
     n_arr = np.array(normals, dtype=np.float32)
@@ -101,7 +102,7 @@ def generate_nadir_beam_glb(output_path: str, r_top: float, r_bottom: float, hei
         "pbrMetallicRoughness": {
             "baseColorFactor": [float(r), float(g), float(b), float(a)],
             "metallicFactor": 0.0,
-            "roughnessFactor": 0.1
+            "roughnessFactor": 1.0
         },
         "emissiveFactor": [float(r * emissive_intensity), float(g * emissive_intensity), float(b * emissive_intensity)],
         "alphaMode": "BLEND",
@@ -275,52 +276,57 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
 
     r_beacon = float(markers_cfg.get('beacon_radius', 0.35))
     t_beacon = float(markers_cfg.get('beacon_tube_thickness', 0.015))
-    e_beacon_geo = float(markers_cfg.get('beacon_emissive_geo', markers_cfg.get('beacon_emissive_intensity_geo', 0.80)))
-    e_beacon_igso = float(markers_cfg.get('beacon_emissive_igso', markers_cfg.get('beacon_emissive_intensity_igso', 0.85)))
+    e_beacon_geo = float(markers_cfg.get('beacon_emissive_geo', 0.80))
+    e_beacon_igso = float(markers_cfg.get('beacon_emissive_igso', 0.85))
+
+    color_beacon_geo = resolve_color(markers_cfg.get('color_beacon_geo', 'cyan'), default=(0.0, 0.90, 1.0))
+    color_beacon_igso = resolve_color(markers_cfg.get('color_beacon_igso', 'amber'), default=(1.0, 0.80, 0.10))
+
+    color_cone_geo = resolve_color(markers_cfg.get('color_nadir_cone_geo', 'cyan'), default=(0.0, 0.90, 1.0))
+    color_cone_igso = resolve_color(markers_cfg.get('color_nadir_cone_igso', 'amber'), default=(1.0, 0.80, 0.10))
 
     r_top = float(markers_cfg.get('nadir_cone_top_radius', 0.08))
     
-    # Parâmetros independentes de raio, opacidade e emissão
-    r_bottom_geo = float(markers_cfg.get('nadir_cone_bottom_radius_geo', 2.60))
+    r_bottom_geo = float(markers_cfg.get('nadir_cone_bottom_radius_geo', 4.80))
     r_bottom_igso = float(markers_cfg.get('nadir_cone_bottom_radius_igso', 1.15))
     
-    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.15))
-    op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.22))
+    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.06))
+    op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
     
-    e_cone_geo = float(markers_cfg.get('nadir_cone_emissive_geo', markers_cfg.get('nadir_cone_emissive_intensity_geo', 0.20)))
-    e_cone_igso = float(markers_cfg.get('nadir_cone_emissive_igso', markers_cfg.get('nadir_cone_emissive_intensity_igso', 0.35)))
+    e_cone_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.10))
+    e_cone_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.85))
     
-    height = 45.0 # Comprimento seguro para contato contínuo no apogeu
+    height = 45.0
 
     # 1. Halos/Retículos de Mira Neon
     generate_locator_ring_glb(
         output_path=os.path.join(mesh_dir, 'locator_ring_geo.glb'),
         r_major=r_beacon, r_minor=t_beacon,
-        color_rgb=(0.0, 0.9, 1.0), # Ciano Neon
+        color_rgb=color_beacon_geo,
         emissive_intensity=e_beacon_geo
     )
     generate_locator_ring_glb(
         output_path=os.path.join(mesh_dir, 'locator_ring_igso.glb'),
         r_major=r_beacon, r_minor=t_beacon,
-        color_rgb=(1.0, 0.8, 0.1), # Dourado/Âmbar Neon
+        color_rgb=color_beacon_igso,
         emissive_intensity=e_beacon_igso
     )
 
-    # 2. Cones Nadir (GEO: Cobertura Ampla Continental | IGSO: Spot Beam Zenital Focado)
+    # 2. Cones Nadir
     generate_nadir_beam_glb(
         output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
         r_top=r_top, r_bottom=r_bottom_geo, height=height,
-        color_rgba=(0.0, 0.85, 1.0, op_geo),
+        color_rgba=(color_cone_geo[0], color_cone_geo[1], color_cone_geo[2], op_geo),
         emissive_intensity=e_cone_geo
     )
     generate_nadir_beam_glb(
         output_path=os.path.join(mesh_dir, 'nadir_beam_igso.glb'),
         r_top=r_top, r_bottom=r_bottom_igso, height=height,
-        color_rgba=(1.0, 0.75, 0.1, op_igso),
+        color_rgba=(color_cone_igso[0], color_cone_igso[1], color_cone_igso[2], op_igso),
         emissive_intensity=e_cone_igso
     )
 
-    print(f"✨ [MarkerGenerator] Marcadores gerados: GEO (Op: {op_geo*100:.0f}%, Raio: {r_bottom_geo}) | IGSO (Op: {op_igso*100:.0f}%, Raio: {r_bottom_igso})!")
+    print(f"✨ [MarkerGenerator] Marcadores gerados: GEO (Cor: {color_cone_geo}, Op: {op_geo*100:.0f}%) | IGSO (Cor: {color_cone_igso}, Op: {op_igso*100:.0f}%)!")
 
 if __name__ == '__main__':
     generate_all_marker_assets()
