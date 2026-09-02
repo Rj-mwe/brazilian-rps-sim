@@ -30,8 +30,8 @@
       <state_hertz>60</state_hertz>
     </plugin>
 
-    <!-- 🌌 Cúpula Celeste 360° Gaia GLB -->
-    <model name="celestial_starfield">
+    <!-- 🌟 Cúpula Celeste: Starfield Hipparcos 360° -->
+    <model name="celestial_skydome">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
       <link name="starfield_link">
@@ -107,6 +107,12 @@
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/earth_orbit_ring.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>1.0 0.75 0.1 1.0</diffuse>
+            <ambient>1.0 0.75 0.1 1.0</ambient>
+            <emissive>1.0 0.75 0.1 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
@@ -148,35 +154,35 @@
               <metal>
                 <albedo_map>package://brazilian_rps_sim/materials/textures/earth_day_albedo_2k.jpg</albedo_map>
                 <emissive_map>package://brazilian_rps_sim/materials/textures/earth_night_lights_2k.jpg</emissive_map>
-                <roughness_map>package://brazilian_rps_sim/materials/textures/earth_roughness_2k.jpg</roughness_map>
-                <normal_map>package://brazilian_rps_sim/materials/textures/earth_normal_2k.jpg</normal_map>
+                <roughness>0.6</roughness>
                 <metalness>0.0</metalness>
               </metal>
             </pbr>
           </material>
         </visual>
 
-        <visual name="earth_atmosphere_halo">
+        <!-- Camada Atmosférica de Nuvens Dinâmicas -->
+        <visual name="earth_clouds">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
-            <sphere><radius>6.423</radius></sphere>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/earth_clouds.glb</uri>
+            </mesh>
           </geometry>
           <material>
-            <diffuse>0.2 0.65 1.0 0.85</diffuse>
-            <specular>0.4 0.7 1.0 1.0</specular>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
             <pbr>
               <metal>
-                <albedo_map>package://brazilian_rps_sim/materials/textures/earth_atmosphere_halo_2k.png</albedo_map>
-                <emissive_map>package://brazilian_rps_sim/materials/textures/earth_atmosphere_emissive_2k.jpg</emissive_map>
-                <roughness>0.85</roughness>
+                <albedo_map>package://brazilian_rps_sim/materials/textures/earth_clouds_2k.png</albedo_map>
+                <roughness>0.9</roughness>
                 <metalness>0.0</metalness>
               </metal>
             </pbr>
+            <render_order>1</render_order>
           </material>
         </visual>
       </link>
-
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
         <body_type>earth</body_type>
         <time_scale>3600.0</time_scale>
@@ -191,58 +197,21 @@
       </plugin>
     </model>
 
-    <!-- Nuvens da Terra -->
-    <model name="earth_clouds">
-      <pose>1200.0 0 0 0 0 0</pose>
-      <link name="clouds_link">
-        <visual name="clouds_surface">
-          <cast_shadows>false</cast_shadows>
-          <pose>0 0 0 0 0 0</pose>
-          <geometry>
-            <mesh>
-              <uri>package://brazilian_rps_sim/meshes/earth_clouds.glb</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <diffuse>1.0 1.0 1.0 0.95</diffuse>
-            <specular>0.5 0.5 0.5 1.0</specular>
-            <pbr>
-              <metal>
-                <albedo_map>package://brazilian_rps_sim/materials/textures/earth_clouds_2k.png</albedo_map>
-                <roughness>0.9</roughness>
-                <metalness>0.0</metalness>
-              </metal>
-            </pbr>
-          </material>
-        </visual>
-      </link>
-      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
-        <body_type>earth_clouds</body_type>
-        <time_scale>3600.0</time_scale>
-        <dist_sun_earth>1200.0</dist_sun_earth>
-        <dist_earth_moon>384.4</dist_earth_moon>
-        <obliquity_deg>23.43928</obliquity_deg>
-        <clouds_drift_factor>1.035</clouds_drift_factor>
-        <sidereal_day_sec>86164.0905</sidereal_day_sec>
-        <sidereal_year_sec>31558149.76</sidereal_year_sec>
-        <sidereal_month_sec>2360591.51</sidereal_month_sec>
-        <moon_inclination_deg>5.145</moon_inclination_deg>
-      </plugin>
-    </model>
-
     <!-- ======================================================================= -->
-    <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO                                         -->
+    <!-- 🌕 A LUA: ESFERA COM TEXTURA LRO PBR 2K (+Z POLAR)                      -->
     <!-- ======================================================================= -->
     <model name="moon">
       <pose>1584.4 0 0 0 0 0</pose>
       <link name="moon_link">
         <collision name="moon_col">
-          <geometry><sphere><radius>1.7374</radius></sphere></geometry>
+          <geometry><sphere><radius>1.737</radius></sphere></geometry>
         </collision>
+
         <visual name="moon_surface">
           <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
           <geometry>
-            <sphere><radius>1.7374</radius></sphere>
+            <sphere><radius>1.737</radius></sphere>
           </geometry>
           <material>
             <diffuse>1.0 1.0 1.0 1.0</diffuse>
@@ -251,7 +220,7 @@
               <metal>
                 <albedo_map>package://brazilian_rps_sim/materials/textures/moon_day_albedo_2k.jpg</albedo_map>
                 <normal_map>package://brazilian_rps_sim/materials/textures/moon_normal_2k.jpg</normal_map>
-                <roughness>0.95</roughness>
+                <roughness>0.9</roughness>
                 <metalness>0.0</metalness>
               </metal>
             </pbr>
@@ -282,6 +251,12 @@
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/moon_orbit_ring.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>0.0 0.85 1.0 1.0</diffuse>
+            <ambient>0.0 0.85 1.0 1.0</ambient>
+            <emissive>0.0 0.85 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
@@ -308,6 +283,12 @@
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/orbit_geo.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.9 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
@@ -334,6 +315,12 @@
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/orbit_igso.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>1.0 0.8 0.1 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
@@ -384,25 +371,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.7200000000000001 0.8 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 0) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_geo.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_geo.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>0.0 0.9 1.0 0.05</diffuse>
-            <ambient>0.0 0.9 1.0 0.05</ambient>
-            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.765 0.85 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>0</render_order>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.95 0.95 1.0 1.0</diffuse>
+            <ambient>0.95 0.95 1.0 1.0</ambient>
+            <emissive>0.95 0.95 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
           </material>
         </visual>
       </link>
@@ -454,25 +463,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.7200000000000001 0.8 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 0) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_geo.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_geo.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>0.0 0.9 1.0 0.05</diffuse>
-            <ambient>0.0 0.9 1.0 0.05</ambient>
-            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.765 0.85 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>0</render_order>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.95 0.95 1.0 1.0</diffuse>
+            <ambient>0.95 0.95 1.0 1.0</ambient>
+            <emissive>0.95 0.95 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
           </material>
         </visual>
       </link>
@@ -524,25 +555,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.7200000000000001 0.8 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 0) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_geo.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_geo.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>0.0 0.9 1.0 0.05</diffuse>
-            <ambient>0.0 0.9 1.0 0.05</ambient>
-            <emissive>0.0 0.07200000000000001 0.08 1.0</emissive>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.765 0.85 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>0</render_order>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.95 0.95 1.0 1.0</diffuse>
+            <ambient>0.95 0.95 1.0 1.0</ambient>
+            <emissive>0.95 0.95 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
           </material>
         </visual>
       </link>
@@ -594,25 +647,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_igso.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>1.0 0.8 0.1 0.35</diffuse>
-            <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>10</render_order>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
           </material>
         </visual>
       </link>
@@ -664,25 +739,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_igso.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>1.0 0.8 0.1 0.35</diffuse>
-            <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>10</render_order>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
           </material>
         </visual>
       </link>
@@ -734,25 +831,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_igso.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>1.0 0.8 0.1 0.35</diffuse>
-            <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>10</render_order>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
           </material>
         </visual>
       </link>
@@ -804,25 +923,47 @@
             </mesh>
           </geometry>
           <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: 10) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_igso.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_igso.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>1.0 0.8 0.1 0.35</diffuse>
-            <ambient>1.0 0.8 0.1 0.35</ambient>
-            <emissive>0.9 0.7200000000000001 0.09000000000000001 1.0</emissive>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
             <double_sided>true</double_sided>
-            <render_order>10</render_order>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
           </material>
         </visual>
       </link>

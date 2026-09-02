@@ -181,7 +181,7 @@ def generate_holographic_nadir_cage_glb(
         bore_indices.extend([int(i) + base_idx for i in idx])
 
     if show_boresight:
-        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 1.15, radial_segs=8)
+        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 1.4, radial_segs=8)
         append_bore(v, n, idx)
 
     if show_crosshair and r_bottom > 0.01:
@@ -213,6 +213,126 @@ def generate_holographic_nadir_cage_glb(
         builder.add_primitive(v, n, indices=idx)
 
     builder.save_glb(output_path)
+
+
+def generate_nadir_cage_glb(
+    output_path: str,
+    r_top: float,
+    r_bottom: float,
+    height: float,
+    color_rgb: Tuple[float, float, float],
+    emissive_intensity: float = 0.90,
+    show_generatrix_rays: bool = True,
+    num_rays: int = 4,
+    tube_radius: float = 0.018,
+    show_top_ring: bool = True,
+    show_footprint_ring: bool = True,
+    show_mid_ring: bool = False
+) -> None:
+    """Gera apenas a malha da Gaiola Externa e Pegada no Solo (sem o feixe central)."""
+    all_verts: List[List[float]] = []
+    all_norms: List[List[float]] = []
+    all_indices: List[int] = []
+
+    def append_sub(v, n, idx):
+        base_idx = len(all_verts)
+        all_verts.extend(v if isinstance(v, list) else v.tolist())
+        all_norms.extend(n if isinstance(n, list) else n.tolist())
+        all_indices.extend([int(i) + base_idx for i in idx])
+
+    if show_footprint_ring and r_bottom > 0.01:
+        v, n, idx = _create_circular_ring(r_bottom, height, tube_radius=tube_radius * 1.3, num_pts=64)
+        append_sub(v, n, idx)
+
+    if show_top_ring and r_top > 0.01:
+        v, n, idx = _create_circular_ring(r_top, 0.0, tube_radius=tube_radius * 1.0, num_pts=32)
+        append_sub(v, n, idx)
+
+    if show_mid_ring:
+        r_mid = (r_top + r_bottom) * 0.5
+        h_mid = height * 0.5
+        v, n, idx = _create_circular_ring(r_mid, h_mid, tube_radius=tube_radius * 0.85, num_pts=48)
+        append_sub(v, n, idx)
+
+    if show_generatrix_rays and num_rays > 0:
+        clamped_rays = max(1, min(16, num_rays))
+        ray_angles = np.linspace(0, 2 * math.pi, clamped_rays, endpoint=False)
+        for phi in ray_angles:
+            p_top = [r_top * math.cos(phi), r_top * math.sin(phi), 0.0]
+            p_bottom = [r_bottom * math.cos(phi), r_bottom * math.sin(phi), height]
+            v, n, idx = _create_cylinder_segment(p_top, p_bottom, radius=tube_radius, radial_segs=8)
+            append_sub(v, n, idx)
+
+    if not all_verts:
+        v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, 0.01], radius=tube_radius, radial_segs=4)
+        append_sub(v, n, idx)
+
+    r, g, b = color_rgb
+    builder = GltfMeshBuilder(name="NadirCage", generator_tag="RPS-BR Nadir Cage Generator")
+    builder.set_positions(all_verts)\
+           .set_normals(all_norms)\
+           .set_indices(all_indices)\
+           .set_pbr_material(
+               name="CageMaterial",
+               base_color_rgba=(r, g, b, 1.0),
+               metallic=0.0,
+               roughness=0.2,
+               emissive_rgb=(r, g, b),
+               emissive_intensity=emissive_intensity,
+               alpha_mode="OPAQUE",
+               double_sided=True
+           )\
+           .save_glb(output_path)
+
+
+def generate_nadir_boresight_glb(
+    output_path: str,
+    r_bottom: float,
+    height: float,
+    color_rgb: Tuple[float, float, float],
+    emissive_intensity: float = 1.0,
+    tube_radius: float = 0.018,
+    show_crosshair: bool = True
+) -> None:
+    """Gera apenas o Feixe Central Laser Boresight e Crosshair no solo."""
+    all_verts: List[List[float]] = []
+    all_norms: List[List[float]] = []
+    all_indices: List[int] = []
+
+    def append_sub(v, n, idx):
+        base_idx = len(all_verts)
+        all_verts.extend(v if isinstance(v, list) else v.tolist())
+        all_norms.extend(n if isinstance(n, list) else n.tolist())
+        all_indices.extend([int(i) + base_idx for i in idx])
+
+    # 1. Feixe Laser Central
+    v, n, idx = _create_cylinder_segment([0.0, 0.0, 0.0], [0.0, 0.0, height], radius=tube_radius * 1.4, radial_segs=8)
+    append_sub(v, n, idx)
+
+    # 2. Mira Crosshair no Solo
+    if show_crosshair and r_bottom > 0.01:
+        ch_len = r_bottom * 0.25
+        v, n, idx = _create_cylinder_segment([-ch_len, 0.0, height], [ch_len, 0.0, height], radius=tube_radius * 0.9, radial_segs=6)
+        append_sub(v, n, idx)
+        v, n, idx = _create_cylinder_segment([0.0, -ch_len, height], [0.0, ch_len, height], radius=tube_radius * 0.9, radial_segs=6)
+        append_sub(v, n, idx)
+
+    r, g, b = color_rgb
+    builder = GltfMeshBuilder(name="NadirBoresight", generator_tag="RPS-BR Nadir Boresight Generator")
+    builder.set_positions(all_verts)\
+           .set_normals(all_norms)\
+           .set_indices(all_indices)\
+           .set_pbr_material(
+               name="BoresightMaterial",
+               base_color_rgba=(r, g, b, 1.0),
+               metallic=0.0,
+               roughness=0.1,
+               emissive_rgb=(r, g, b),
+               emissive_intensity=emissive_intensity,
+               alpha_mode="OPAQUE",
+               double_sided=True
+           )\
+           .save_glb(output_path)
 
 
 def generate_nadir_beam_glb(
@@ -430,6 +550,7 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
 
     # 2. Feixes / Gaiolas Nadir (Holográfico vs Sólido)
     if style == 'holographic_cage':
+        # 2a. Malha Combinada (Legado / Fallback)
         generate_holographic_nadir_cage_glb(
             output_path=os.path.join(mesh_dir, 'nadir_beam_geo.glb'),
             r_top=r_top, r_bottom=r_bottom_geo, height=height,
@@ -456,6 +577,48 @@ def generate_all_marker_assets(config_path: str = None, mesh_dir: str = None):
             show_footprint_ring=show_footprint_igso,
             show_mid_ring=show_mid_igso,
             show_boresight=show_boresight_igso,
+            show_crosshair=show_crosshair_igso
+        )
+
+        # 2b. Malha Dedicada da Gaiola Externa & Pegada 2D
+        generate_nadir_cage_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_cage_geo.glb'),
+            r_top=r_top, r_bottom=r_bottom_geo, height=height,
+            color_rgb=color_cage_geo,
+            emissive_intensity=e_cone_geo,
+            show_generatrix_rays=show_gen_geo,
+            num_rays=num_rays_geo,
+            tube_radius=ray_thickness_geo,
+            show_footprint_ring=show_footprint_geo,
+            show_mid_ring=show_mid_geo
+        )
+        generate_nadir_cage_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_cage_igso.glb'),
+            r_top=r_top, r_bottom=r_bottom_igso, height=height,
+            color_rgb=color_cage_igso,
+            emissive_intensity=e_cone_igso,
+            show_generatrix_rays=show_gen_igso,
+            num_rays=num_rays_igso,
+            tube_radius=ray_thickness_igso,
+            show_footprint_ring=show_footprint_igso,
+            show_mid_ring=show_mid_igso
+        )
+
+        # 2c. Malha Dedicada do Feixe Central Laser Boresight & Crosshair
+        generate_nadir_boresight_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_boresight_geo.glb'),
+            r_bottom=r_bottom_geo, height=height,
+            color_rgb=color_bore_geo,
+            emissive_intensity=1.0,
+            tube_radius=ray_thickness_geo,
+            show_crosshair=show_crosshair_geo
+        )
+        generate_nadir_boresight_glb(
+            output_path=os.path.join(mesh_dir, 'nadir_boresight_igso.glb'),
+            r_bottom=r_bottom_igso, height=height,
+            color_rgb=color_bore_igso,
+            emissive_intensity=1.0,
+            tube_radius=ray_thickness_igso,
             show_crosshair=show_crosshair_igso
         )
     else:

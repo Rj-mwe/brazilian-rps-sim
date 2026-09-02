@@ -32,9 +32,12 @@ COLOR_PALETTE = {
     'pink': (1.0, 0.20, 0.70),
     'rosa': (1.0, 0.20, 0.70),
     
-    # Laranja / Solar
-    'orange': (1.0, 0.45, 0.05),
-    'laranja': (1.0, 0.45, 0.05),
+    # Laranja / Laser Solar de Alto Contraste
+    'orange': (1.0, 0.18, 0.0),
+    'laranja': (1.0, 0.18, 0.0),
+    'neon_orange': (1.0, 0.18, 0.0),
+    'laser_orange': (1.0, 0.15, 0.0),
+    'deep_orange': (1.0, 0.12, 0.0),
     
     # Roxo / Violeta
     'purple': (0.60, 0.20, 1.0),

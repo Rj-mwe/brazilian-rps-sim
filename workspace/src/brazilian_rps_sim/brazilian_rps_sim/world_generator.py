@@ -80,19 +80,14 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
     show_geo_orbit = trails_cfg.get('show_geo_orbit', True)
     show_igso_orbit = trails_cfg.get('show_igso_orbit', True)
 
-    markers_cfg = vis_cfg.get('satellite_markers', vis_cfg.get('markers', {}))
-    show_beacon_geo = markers_cfg.get('show_beacon_halo_geo', True)
-    show_beacon_halo_igso = markers_cfg.get('show_beacon_halo_igso', True)
-    show_cone_geo = markers_cfg.get('show_nadir_cone_geo', True)
-    show_cone_igso = markers_cfg.get('show_nadir_cone_igso', True)
-    sat_scale = float(markers_cfg.get('satellite_visual_scale', 0.08))
+    color_orbit_geo = resolve_color(trails_cfg.get('color_geo_orbit', 'cyan'), default=(0.0, 0.90, 1.0))
+    color_orbit_igso = resolve_color(trails_cfg.get('color_igso_orbit', 'amber'), default=(1.0, 0.80, 0.10))
 
-    color_cone_geo = resolve_color(markers_cfg.get('color_nadir_cone_geo', 'cyan'), default=(0.0, 0.90, 1.0))
-    color_cone_igso = resolve_color(markers_cfg.get('color_nadir_cone_igso', 'amber'), default=(1.0, 0.80, 0.10))
-    op_geo = float(markers_cfg.get('nadir_cone_opacity_geo', 0.05))
-    op_igso = float(markers_cfg.get('nadir_cone_opacity_igso', 0.35))
-    e_geo = float(markers_cfg.get('nadir_cone_emissive_geo', 0.08))
-    e_igso = float(markers_cfg.get('nadir_cone_emissive_igso', 0.90))
+    markers_cfg = vis_cfg.get('satellite_markers', vis_cfg.get('markers', {}))
+    geo_cfg = markers_cfg.get('geo_markers', {})
+    igso_cfg = markers_cfg.get('igso_markers', {})
+
+    sat_scale = float(markers_cfg.get('satellite_visual_scale', 0.08))
 
     # 4. Satélites
     satellites = cfg.get('constellation', {}).get('satellites', [])
@@ -145,8 +140,8 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
       <state_hertz>60</state_hertz>
     </plugin>
 
-    <!-- 🌌 Cúpula Celeste 360° Gaia GLB -->
-    <model name="celestial_starfield">
+    <!-- 🌟 Cúpula Celeste: Starfield Hipparcos 360° -->
+    <model name="celestial_skydome">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
       <link name="starfield_link">
@@ -215,6 +210,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/earth_orbit_ring.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>1.0 0.75 0.1 1.0</diffuse>
+            <ambient>1.0 0.75 0.1 1.0</ambient>
+            <emissive>1.0 0.75 0.1 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       {make_celestial_plugin_tag("earth_trail")}
@@ -248,43 +249,15 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
               <metal>
                 <albedo_map>package://brazilian_rps_sim/materials/textures/earth_day_albedo_2k.jpg</albedo_map>
                 <emissive_map>package://brazilian_rps_sim/materials/textures/earth_night_lights_2k.jpg</emissive_map>
-                <roughness_map>package://brazilian_rps_sim/materials/textures/earth_roughness_2k.jpg</roughness_map>
-                <normal_map>package://brazilian_rps_sim/materials/textures/earth_normal_2k.jpg</normal_map>
+                <roughness>0.6</roughness>
                 <metalness>0.0</metalness>
               </metal>
             </pbr>
           </material>
         </visual>
 
-        <visual name="earth_atmosphere_halo">
-          <cast_shadows>false</cast_shadows>
-          <pose>0 0 0 0 0 0</pose>
-          <geometry>
-            <sphere><radius>6.423</radius></sphere>
-          </geometry>
-          <material>
-            <diffuse>0.2 0.65 1.0 0.85</diffuse>
-            <specular>0.4 0.7 1.0 1.0</specular>
-            <pbr>
-              <metal>
-                <albedo_map>package://brazilian_rps_sim/materials/textures/earth_atmosphere_halo_2k.png</albedo_map>
-                <emissive_map>package://brazilian_rps_sim/materials/textures/earth_atmosphere_emissive_2k.jpg</emissive_map>
-                <roughness>0.85</roughness>
-                <metalness>0.0</metalness>
-              </metal>
-            </pbr>
-          </material>
-        </visual>
-      </link>
-
-      {make_celestial_plugin_tag("earth")}
-    </model>
-
-    <!-- Nuvens da Terra -->
-    <model name="earth_clouds">
-      <pose>{dist_sun_earth} 0 0 0 0 0</pose>
-      <link name="clouds_link">
-        <visual name="clouds_surface">
+        <!-- Camada Atmosférica de Nuvens Dinâmicas -->
+        <visual name="earth_clouds">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
@@ -293,8 +266,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
             </mesh>
           </geometry>
           <material>
-            <diffuse>1.0 1.0 1.0 0.95</diffuse>
-            <specular>0.5 0.5 0.5 1.0</specular>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
             <pbr>
               <metal>
                 <albedo_map>package://brazilian_rps_sim/materials/textures/earth_clouds_2k.png</albedo_map>
@@ -302,25 +274,28 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
                 <metalness>0.0</metalness>
               </metal>
             </pbr>
+            <render_order>1</render_order>
           </material>
         </visual>
       </link>
-      {make_celestial_plugin_tag("earth_clouds")}
+      {make_celestial_plugin_tag("earth")}
     </model>
 
     <!-- ======================================================================= -->
-    <!-- 🌕 A LUA: MODELO CIENTÍFICO LRO                                         -->
+    <!-- 🌕 A LUA: ESFERA COM TEXTURA LRO PBR 2K (+Z POLAR)                      -->
     <!-- ======================================================================= -->
     <model name="moon">
       <pose>{dist_sun_earth + dist_earth_moon} 0 0 0 0 0</pose>
       <link name="moon_link">
         <collision name="moon_col">
-          <geometry><sphere><radius>1.7374</radius></sphere></geometry>
+          <geometry><sphere><radius>1.737</radius></sphere></geometry>
         </collision>
+
         <visual name="moon_surface">
           <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
           <geometry>
-            <sphere><radius>1.7374</radius></sphere>
+            <sphere><radius>1.737</radius></sphere>
           </geometry>
           <material>
             <diffuse>1.0 1.0 1.0 1.0</diffuse>
@@ -329,7 +304,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
               <metal>
                 <albedo_map>package://brazilian_rps_sim/materials/textures/moon_day_albedo_2k.jpg</albedo_map>
                 <normal_map>package://brazilian_rps_sim/materials/textures/moon_normal_2k.jpg</normal_map>
-                <roughness>0.95</roughness>
+                <roughness>0.9</roughness>
                 <metalness>0.0</metalness>
               </metal>
             </pbr>
@@ -338,11 +313,7 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
       </link>
       {make_celestial_plugin_tag("moon")}
     </model>
-"""
 
-    # 3. Trilha da Órbita da Lua ao redor da Terra
-    if show_moon_orbit:
-        sdf_content += f"""
     <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
     <model name="moon_orbit_trail">
       <static>true</static>
@@ -353,6 +324,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/moon_orbit_ring.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>0.0 0.85 1.0 1.0</diffuse>
+            <ambient>0.0 0.85 1.0 1.0</ambient>
+            <emissive>0.0 0.85 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       {make_celestial_plugin_tag("moon_trail")}
@@ -372,6 +349,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/orbit_geo.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>{color_orbit_geo[0]} {color_orbit_geo[1]} {color_orbit_geo[2]} 1.0</diffuse>
+            <ambient>{color_orbit_geo[0]} {color_orbit_geo[1]} {color_orbit_geo[2]} 1.0</ambient>
+            <emissive>{color_orbit_geo[0]} {color_orbit_geo[1]} {color_orbit_geo[2]} 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       {make_celestial_plugin_tag("constellation_geo_ring")}
@@ -390,6 +373,12 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
           <geometry>
             <mesh><uri>package://brazilian_rps_sim/meshes/orbit_igso.gltf</uri></mesh>
           </geometry>
+          <material>
+            <diffuse>{color_orbit_igso[0]} {color_orbit_igso[1]} {color_orbit_igso[2]} 1.0</diffuse>
+            <ambient>{color_orbit_igso[0]} {color_orbit_igso[1]} {color_orbit_igso[2]} 1.0</ambient>
+            <emissive>{color_orbit_igso[0]} {color_orbit_igso[1]} {color_orbit_igso[2]} 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
         </visual>
       </link>
       {make_celestial_plugin_tag("constellation_igso_trail")}
@@ -420,13 +409,30 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
 
         model_name = f"rps_sat_{sat_id}"
 
-        show_beacon = show_beacon_geo if is_geo else show_beacon_halo_igso
-        show_cone = show_cone_geo if is_geo else show_cone_igso
+        if is_geo:
+            show_beacon = geo_cfg.get('show_beacon_halo', markers_cfg.get('show_beacon_halo_geo', True))
+            color_beacon = resolve_color(geo_cfg.get('color', 'cyan'), default=(0.0, 0.90, 1.0))
+            e_beacon = float(geo_cfg.get('beacon_emissive', markers_cfg.get('beacon_emissive_geo', 0.80)))
 
-        cone_render_order = 0 if is_geo else 10
-        cone_color = color_cone_geo if is_geo else color_cone_igso
-        cone_op = op_geo if is_geo else op_igso
-        cone_em = e_geo if is_geo else e_igso
+            show_cone = geo_cfg.get('show_nadir_beam', markers_cfg.get('show_nadir_cone_geo', True))
+            show_cage = geo_cfg.get('show_generatrix_rays', True)
+            show_bore = geo_cfg.get('show_boresight_ray', True)
+            color_cage = resolve_color(geo_cfg.get('color', 'cyan'), default=(0.0, 0.90, 1.0))
+            color_bore = resolve_color(geo_cfg.get('color_boresight', 'white'), default=(0.95, 0.95, 1.0))
+            e_cone = float(geo_cfg.get('emissive_intensity', markers_cfg.get('nadir_cone_emissive_geo', 0.85)))
+            cone_render_order = 10
+        else:
+            show_beacon = igso_cfg.get('show_beacon_halo', markers_cfg.get('show_beacon_halo_igso', True))
+            color_beacon = resolve_color(igso_cfg.get('color', 'amber'), default=(1.0, 0.80, 0.10))
+            e_beacon = float(igso_cfg.get('beacon_emissive', markers_cfg.get('beacon_emissive_igso', 0.85)))
+
+            show_cone = igso_cfg.get('show_nadir_beam', markers_cfg.get('show_nadir_cone_igso', True))
+            show_cage = igso_cfg.get('show_generatrix_rays', True)
+            show_bore = igso_cfg.get('show_boresight_ray', True)
+            color_cage = resolve_color(igso_cfg.get('color', 'amber'), default=(1.0, 0.80, 0.10))
+            color_bore = resolve_color(igso_cfg.get('color_boresight', 'orange'), default=(1.0, 0.45, 0.05))
+            e_cone = float(igso_cfg.get('emissive_intensity', markers_cfg.get('nadir_cone_emissive_igso', 0.95)))
+            cone_render_order = 12
 
         sdf_content += f"""
     <!-- Satélite {sat_id}: {name} [{sat_type}] -->
@@ -463,29 +469,55 @@ def generate_world_sdf(config_path: str = None, output_path: str = None):
             </mesh>
           </geometry>
           <material>
+            <diffuse>{color_beacon[0]} {color_beacon[1]} {color_beacon[2]} 1.0</diffuse>
+            <ambient>{color_beacon[0]} {color_beacon[1]} {color_beacon[2]} 1.0</ambient>
+            <emissive>{color_beacon[0]*e_beacon} {color_beacon[1]*e_beacon} {color_beacon[2]*e_beacon} 1.0</emissive>
+            <double_sided>true</double_sided>
             <render_order>15</render_order>
           </material>
         </visual>
 """
 
-        # Marcador: Cone Nadir
-        if show_cone:
+        # Marcador: Gaiola Externa & Pegada 2D
+        if show_cone and show_cage:
             sdf_content += f"""
-        <!-- 3. Marcador Visual: Feixe de Cobertura Nadir (Render Order: {cone_render_order}) -->
-        <visual name="v_nadir_beam">
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
           <cast_shadows>false</cast_shadows>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://brazilian_rps_sim/meshes/nadir_beam_{type_lower}.glb</uri>
+              <uri>package://brazilian_rps_sim/meshes/nadir_cage_{type_lower}.glb</uri>
             </mesh>
           </geometry>
           <material>
-            <diffuse>{cone_color[0]} {cone_color[1]} {cone_color[2]} {cone_op}</diffuse>
-            <ambient>{cone_color[0]} {cone_color[1]} {cone_color[2]} {cone_op}</ambient>
-            <emissive>{cone_color[0]*cone_em} {cone_color[1]*cone_em} {cone_color[2]*cone_em} 1.0</emissive>
+            <diffuse>{color_cage[0]} {color_cage[1]} {color_cage[2]} 1.0</diffuse>
+            <ambient>{color_cage[0]} {color_cage[1]} {color_cage[2]} 1.0</ambient>
+            <emissive>{color_cage[0]*e_cone} {color_cage[1]*e_cone} {color_cage[2]*e_cone} 1.0</emissive>
             <double_sided>true</double_sided>
             <render_order>{cone_render_order}</render_order>
+          </material>
+        </visual>
+"""
+
+        # Marcador: Feixe Central Laser Boresight & Mira
+        if show_cone and show_bore:
+            sdf_content += f"""
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://brazilian_rps_sim/meshes/nadir_boresight_{type_lower}.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>{color_bore[0]} {color_bore[1]} {color_bore[2]} 1.0</diffuse>
+            <ambient>{color_bore[0]} {color_bore[1]} {color_bore[2]} 1.0</ambient>
+            <emissive>{color_bore[0]} {color_bore[1]} {color_bore[2]} 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>{cone_render_order + 2}</render_order>
           </material>
         </visual>
 """
