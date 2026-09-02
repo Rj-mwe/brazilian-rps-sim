@@ -1,0 +1,63 @@
+name: "🐛 Relato de Erro / Regressão (Bug Report)"
+description: "Relatar uma falha de execução, erro de renderização, regressão orbital ou inconsistência matemática."
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🔍 Investigação e Diagnóstico de Falha
+        Forneça o máximo de evidências técnicas para isolamento rápido da causa raiz.
+
+  - type: textarea
+    id: problem_description
+    attributes:
+      label: 1. Comportamento Observado
+      description: O que aconteceu de errado?
+      placeholder: "Ex: Linhas de órbita renderizadas em preto no vácuo espacial..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: 2. Comportamento Esperado
+      description: O que deveria ter acontecido segundo a teoria ou especificação?
+      placeholder: "Ex: As linhas de órbita devem emitir brilho neon visível independentemente da posição do Sol..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_component
+    attributes:
+      label: 3. Componente Afetado
+      description: Qual subsistema apresentou a falha?
+      options:
+        - "Renderizador Gazebo / OGRE 2 (SDFormat / Malhas glTF)"
+        - "Nó ROS 2 (Ros2ConstellationNode / Adaptadores Inbound/Outbound)"
+        - "Plugin C++ (OrbitalMotionPlugin / CelestialMechanicsPlugin)"
+        - "Domínio / Astrodinâmica / Algoritmos de DOP"
+        - "Scripts de Launch / Build Colcon"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: 4. Passos para Reprodução
+      description: Comandos exatos executados no terminal.
+      value: |
+        1. cd /home/rjgamito/Projetos/Engenharia/Aeroespacial/brazilian-rps-sim
+        2. ./run.sh ros2 launch brazilian_rps_sim unified_sim.launch.py
+        3. Observar...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs_evidence
+    attributes:
+      label: 5. Logs do Terminal e/ou Mensagens de Erro
+      description: Cole aqui os stack traces ou mensagens capturadas.
+      placeholder: "[Err] [Server.cc:86] Error Code 1: Msg: Error parsing XML..."
+    validations:
+      required: false

@@ -1,0 +1,40 @@
+name: "🔬 Pesquisa Técnica / Arquitetural (Research Spike)"
+description: "Investigação teórica, levantamento bibliográfico (RTCA, ICAO, NASA) ou prova de conceito."
+title: "[RESEARCH]: "
+labels: ["type:architecture", "documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🧪 Investigação Aeroespacial & Engenharia de Sistemas
+        Utilize este template para estruturar pesquisas que antecedem implementações críticas.
+
+  - type: textarea
+    id: research_goal
+    attributes:
+      label: 1. Objetivo da Investigação & Questão Central
+      description: Qual incerteza técnica ou teórica precisa ser elucidada antes do desenvolvimento?
+      placeholder: "Ex: Como calcular os limites de proteção HPL/VPL sob a norma RTCA DO-229D para SBAS..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: standards_references
+    attributes:
+      label: 2. Normas Técnicas & Referências Bibliográficas
+      description: Documentos de referência (ex: RTCA DO-229D, ICAO Annex 10, Vallado, Hofmann-Wellenhof).
+      placeholder: "- RTCA DO-229D: Minimum Operational Performance Standards for GPS/SBAS Airborne Equipment..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_deliverables
+    attributes:
+      label: 3. Entregáveis Esperados
+      description: O que marcará a conclusão desta pesquisa?
+      value: |
+        - [ ] Resumo técnico com equações fundamentadas
+        - [ ] Script de prototipagem em `scratch/` ou teste piloto
+        - [ ] Proposta de Value Objects e Interfaces de Domínio
+    validations:
+      required: true

@@ -1,0 +1,84 @@
+name: 📚 Docs-as-Code & Typst Papers CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # 1. Compilação dos Artigos e Relatórios em Typst
+  typst-papers:
+    name: 📄 Compilar Artigos em Typst
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Typst
+        uses: typst-community/setup-typst@v3
+
+      - name: Compilar Artigo Científico RPS-BR
+        run: |
+          mkdir -p output/papers
+          typst compile docs/papers/sbas_brazil_journal/main.typ output/papers/paper_sbas_brazil_rps.pdf
+
+      - name: Salvar PDF como Artefato do Workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-sbas-brazil-rps-pdf
+          path: output/papers/paper_sbas_brazil_rps.pdf
+
+  # 2. Compilação e Publicação do Portal MkDocs Material via UV
+  build-and-deploy-docs:
+    name: 🌐 Construir & Publicar Portal MkDocs
+    runs-on: ubuntu-latest
+    needs: typst-papers
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar UV (Python Package Manager Ultrarrápido)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Instalar Dependências de Documentação via UV
+        run: |
+          uv pip install --system mkdocs-material mkdocs
+
+      - name: Baixar PDF do Artigo Typst
+        uses: actions/download-artifact@v4
+        with:
+          name: paper-sbas-brazil-rps-pdf
+          path: docs/papers/sbas_brazil_journal/
+
+      - name: Compilar Portal de Documentação (Strict Mode)
+        run: |
+          mkdocs build --strict
+
+      - name: Publicar no GitHub Pages (Apenas em Push na Main)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force

@@ -10,6 +10,14 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
+# Documentation & Build Sites
+site/
+docs/**/*.pdf
+
+# Virtual Environments & UV
+.venv/
+uv.lock
+
 # Logs & Temporary Files
 *.log
 .directory

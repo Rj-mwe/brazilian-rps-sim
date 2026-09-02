@@ -1,0 +1,79 @@
+site_name: "Brazilian RPS Sim — Documentação da Missão"
+site_description: "Sistema de Posicionamento e Aumento Regional Brasileiro (RPS-BR)"
+site_author: "Roger J. Gamito"
+repo_url: "https://github.com/Rj-mwe/brazilian-rps-sim"
+repo_name: "Rj-mwe/brazilian-rps-sim"
+
+theme:
+  name: material
+  language: pt-BR
+  palette:
+    # Modo Claro
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Mudar para Modo Escuro
+    # Modo Escuro
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Mudar para Modo Claro
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search:
+      lang:
+        - pt
+        - en
+      separator: '[\s\-,.:;?+*~]+'
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - "Início": "index.md"
+  - "🏛️ Decisões de Arquitetura (ADRs)":
+      - "0001 - Arquitetura Hexagonal": "adr/0001-hexagonal-architecture.md"
+      - "0002 - Builder Pattern glTF 2.0": "adr/0002-gltf-builder-pattern.md"
+      - "0003 - Métricas DOP (Strategy & Observer)": "adr/0003-dop-strategy-observer.md"
+      - "0004 - Docs-as-Code & Typst": "adr/0004-docs-as-code-and-typst.md"
+  - "📋 Especificações & Normas":
+      - "Requisitos de Missão": "specifications/mission_requirements.md"
+      - "Conformidade RTCA & ICAO": "specifications/standards_compliance.md"
+  - "📐 Formulações Teóricas":
+      - "Astrodinâmica Kepleriana & J2": "math_theory/keplerian_propagation.md"
+      - "Retardos Atmosféricos (Iono/Tropo)": "math_theory/atmospheric_delays.md"
+      - "Determinação de Posição (WLS PVT)": "math_theory/pvt_least_squares.md"
+  - "📄 Artigos em Typst":
+      - "Artigo de Arquitetura & Desempenho": "papers/sbas_brazil_journal/README.md"
+  - "📓 Folhas de Cálculo":
+      - "Cadernos de Análise": "notebooks/README.md"

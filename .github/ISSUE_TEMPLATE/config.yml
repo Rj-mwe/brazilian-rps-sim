@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Arquitetura Hexagonal & Domínio RPS-BR
+    url: https://github.com/Rj-mwe/brazilian-rps-sim/tree/main/workspace/src/brazilian_rps_sim/brazilian_rps_sim/core
+    about: Consulte a estrutura de Domínio Puro, Casos de Uso e Adaptadores.

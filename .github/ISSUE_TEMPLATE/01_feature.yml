@@ -1,0 +1,82 @@
+name: "🚀 Nova Funcionalidade / Modelo de Engenharia"
+description: "Propor ou implementar um novo modelo físico, matemático, caso de uso ou recurso no simulador."
+title: "[FEAT]: "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🛰️ Especificação de Engenharia de Software Aeroespacial
+        Preencha os campos abaixo para manter a rastreabilidade sob a **Arquitetura Hexagonal**, **DDD** e **TDD**.
+
+  - type: textarea
+    id: theoretical_context
+    attributes:
+      label: 1. Contexto Teórico & Motivação
+      description: Explique o fenômeno físico, orbital ou métrica de navegação que motiva esta funcionalidade.
+      placeholder: "Ex: Simulação do retardo troposférico zenital utilizando o modelo Saastamoinen..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: architecture_layer
+    attributes:
+      label: 2. Camada da Arquitetura Hexagonal Afetada
+      description: Em qual camada do hexágono este código residirá prioritariamente?
+      options:
+        - "Domínio Puro (core/domain/) - Matemática, VOs, Entidades, Agregados"
+        - "Aplicação (core/application/) - Casos de Uso, DTOs, Mappers"
+        - "Adaptadores Inbound/Outbound (adapters/) - ROS 2 Nodes, Publishers, Subscribers"
+        - "Infraestrutura / Renderização (worlds/, meshes/, C++ Plugins)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: design_pattern
+    attributes:
+      label: 3. Design Pattern Adotado (GoF / DDD)
+      description: Qual padrão de projeto estruturará essa solução?
+      options:
+        - "Strategy Pattern (Algoritmos intercambiáveis em tempo de execução)"
+        - "Observer Pattern (Monitoramento e notificação de métricas desacopladas)"
+        - "Builder Pattern (Construção estruturada de malhas ou cenários complexos)"
+        - "Specification Pattern (Regras de negócio e conformidade operacional)"
+        - "Factory / Dependency Injection (Instanciação desacoplada de serviços)"
+        - "N/A (Estrutura direta de Value Object ou Serviço)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_specs
+    attributes:
+      label: 4. Especificação Técnica & Formulação Matemática
+      description: Apresente equações, parâmetros de entrada/saída ou diagramas.
+      placeholder: "Ex: delta_tropo = (0.002277 / cos(theta)) * [P + (1255/T + 0.05)*e - B*tan(theta)^2]"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: 5. Critérios de Aceitação TDD (Test-Driven Development)
+      description: Quais testes unitários ou de integração devem passar no pytest para validação?
+      placeholder: |
+        - [ ] Teste unitário de convergência analítica com tolerância < 1e-4
+        - [ ] Teste de caso limite (elevação próxima de 0 graus)
+        - [ ] 100% dos testes do pytest passando sem regressões
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: definition_of_done
+    attributes:
+      label: 6. Definição de Pronto (Definition of Done - DoD)
+      options:
+        - label: Código estritamente tipado (Python type hinting / docstrings completas)
+          required: true
+        - label: Sem dependências de framework (ROS2/Gazebo) no núcleo do Domínio Puro
+          required: true
+        - label: Testes automatizados executados e validados no `pytest`
+          required: true
+        - label: Zero erros e zero avisos na inicialização do launch
+          required: true
