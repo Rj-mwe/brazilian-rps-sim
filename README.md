@@ -1,52 +1,134 @@
-# Ambiente Podman: ROS 2 Jazzy Jalisco + Gazebo Harmonic
+<div align="center">
 
-Ambiente isolado, declarativo e reproduzível para robótica e simulação física 3D no Arch Linux.
+# 🛰️ Brazilian RPS Sim (RPS-BR)
+### Simulador do Sistema de Posicionamento e Aumento Regional Brasileiro
 
-## 🏗️ Estrutura do Repositório
+[![Docs & CI/CD](https://github.com/Rj-mwe/brazilian-rps-sim/actions/workflows/documentation.yml/badge.svg)](https://github.com/Rj-mwe/brazilian-rps-sim/actions/workflows/documentation.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/Code%20License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: CC BY 4.0](https://img.shields.io/badge/Docs%20License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+[![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy%20Jalisco-orange.svg)](https://docs.ros.org/en/jazzy/)
+[![Gazebo](https://img.shields.io/badge/Gazebo-Harmonic-blueviolet.svg)](https://gazebosim.org/)
+[![Typst](https://img.shields.io/badge/Papers-Typst%200.15-239dad.svg)](https://typst.app/)
+[![Python UV](https://img.shields.io/badge/UV-Fast%20Python-blue.svg)](https://github.com/astral-sh/uv)
 
-```text
-/srv/memory/src/ros2-gazebo/
-├── Containerfile       # Receita da imagem (ROS 2 Jazzy, Gazebo Harmonic, Mesa GPU AMD)
-├── entrypoint.sh       # Script de inicialização que carrega as variáveis do ROS 2
-├── build.sh            # Script para construir/atualizar a imagem no Podman
-├── run.sh              # Script para iniciar o contêiner com aceleração gráfica e rede DDS
-├── README.md           # Este guia didático
-└── workspace/          # Seu workspace de código persistente montado em ~/ros2_ws
-    └── src/            # Seus pacotes ROS 2, nós Python/C++, modelos SDF e robôs
+**Simulador físico, orbital e de navegação de alta fidelidade para a constelação soberana do RPS-BR.**  
+*Desenvolvido sob Arquitetura Hexagonal (Ports & Adapters), Test-Driven Development (TDD) e filosofia Docs-as-Code.*
+
+[📖 Portal de Documentação](https://rj-mwe.github.io/brazilian-rps-sim/) • [📋 GitHub Projects (Mission Board)](https://github.com/users/Rj-mwe/projects/2) • [📄 Artigo Científico](docs/papers/sbas_brazil_journal/README.md)
+
+</div>
+
+---
+
+## 🧭 Visão Geral da Missão
+
+O **Brazilian Regional Positioning & Augmentation System (RPS-BR)** é um projeto de engenharia aeroespacial para modelar, avaliar e certificar um sistema regional de navegação por satélite e aumento diferencial (SBAS / RNSS) soberano sobre o território continental brasileiro, a Zona Econômica Exclusiva (Amazônia Azul) e o espaço aéreo adjacente.
+
+O sistema opera de forma autônoma e como camada de integridade e aumento sobre constelações globais (GPS/Galileo), assegurando aproximações aéreas de precisão (Cat-I) em aeródromos sem infraestrutura terrestre (ILS), conformidade com os padrões **ICAO Annex 10** e **RTCA DO-229D**, e suporte a operações navais e agrícolas de alta precisão.
+
+---
+
+## 🌌 Constelação Híbrida GEO / IGSO (7 Satélites)
+
+A geometria do RPS-BR emprega **3 veículos Geoestacionários (GEO)** combinados com **4 veículos Geossíncronos Inclinados (IGSO)** em órbita de Figura-8:
+
+| Satélite | Tipo | Parâmetros Orbitais | Região Prioritária / Cobertura |
+| :--- | :---: | :--- | :--- |
+| **RPS-GEO-1** | GEO | $a = 42.164\text{ km}, i = 0^\circ, \lambda = 60^\circ\text{W}$ | Amazônia Ocidental e Fronteira Norte |
+| **RPS-GEO-2** | GEO | $a = 42.164\text{ km}, i = 0^\circ, \lambda = 48^\circ\text{W}$ | Centro-Oeste, Brasília e Bacia do Pantanal |
+| **RPS-GEO-3** | GEO | $a = 42.164\text{ km}, i = 0^\circ, \lambda = 36^\circ\text{W}$ | Região Nordeste e Costa Leste / Atlântico |
+| **RPS-IGSO-1** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Apogeu no Sul) |
+| **RPS-IGSO-2** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Fase $90^\circ$) |
+| **RPS-IGSO-3** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Fase $180^\circ$) |
+| **RPS-IGSO-4** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Fase $270^\circ$) |
+
+---
+
+## 🏛️ Arquitetura de Software (Clean Hexagonal)
+
+O projeto separa rigorosamente a matemática do domínio aeroespacial dos frameworks e motores de simulação:
+
+```mermaid
+graph TD
+    subgraph "Camada de Domínio Puro (core/domain/)"
+        A["Value Objects (Vector3D, Geodetic, Keplerian)"]
+        B["KeplerSolverService (Newton-Raphson + J2)"]
+        C["CoordinateTransformService (ECI ↔ ECEF ↔ ENU)"]
+        D["Estratégias de DOP (Strategy Pattern)"]
+    end
+
+    subgraph "Camada de Aplicação (core/application/)"
+        E["PropagateConstellationUseCase"]
+        F["CalculateGroundStationDopUseCase"]
+        G["DopSubject & Observers (Observer Pattern)"]
+    end
+
+    subgraph "Adaptadores & Infraestrutura (adapters/ & worlds/)"
+        H["Ros2ConstellationNode (Inbound)"]
+        I["Ros2TelemetryOutboundAdapter (Outbound)"]
+        J["Gazebo Sim Harmonic (OGRE 2 PBR)"]
+        K["GltfMeshBuilder (Builder Pattern)"]
+    end
+
+    E --> B
+    E --> C
+    F --> D
+    F --> G
+    H --> E
+    H --> F
+    H --> I
+    H --> J
 ```
 
-## 🚀 Como Usar
+---
 
-### 1. Construir a imagem (executar apenas na primeira vez ou ao alterar o Containerfile)
+## 🚀 Como Executar
+
+### 1. Inicializar a Simulação Física Completa (ROS 2 + Gazebo)
 ```bash
-cd /srv/memory/src/ros2-gazebo
-./build.sh
+./run.sh ros2 launch brazilian_rps_sim unified_sim.launch.py
 ```
 
-### 2. Entrar no contêiner interativo
+### 2. Executar a Suíte de Testes Automatizados (TDD)
 ```bash
-./run.sh
+./run.sh pytest src/brazilian_rps_sim/tests -v
 ```
 
-### 3. Rodar uma simulação de teste no Gazebo Harmonic
-Dentro do contêiner:
+### 3. Compilar a Documentação Localmente (MkDocs com UV)
 ```bash
-gz sim shapes.sdf
+uv run mkdocs serve
+# Acesse: http://127.0.0.1:8000
 ```
-Ou com a ponte ROS 2:
+
+### 4. Compilar o Artigo Científico em Typst
 ```bash
-ros2 launch ros_gz_sim gz_sim.launch.py gz_args:="-r shapes.sdf"
+typst compile docs/papers/sbas_brazil_journal/main.typ docs/papers/sbas_brazil_journal/paper_sbas_brazil.pdf
 ```
 
-### 4. Executar comandos diretamente sem abrir o terminal interativo
-```bash
-./run.sh gz sim -v 4
-./run.sh ros2 topic list
+---
+
+## 📜 Licenciamento Híbrido
+
+Este projeto adota um modelo de licenciamento duplo para harmonizar o desenvolvimento de software com a Ciência Aberta:
+
+* **Código-Fonte:** Licenciado sob a [Apache License, Versão 2.0](LICENSE).
+* **Documentação, Especificações e Artigos:** Licenciados sob a licença internacional [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+
+---
+
+## 📑 Como Citar este Projeto
+
+Se você utilizar este simulador, seus modelos analíticos ou publicações em seus estudos ou pesquisas, utilize a citação formal disponibilizada no arquivo [`CITATION.cff`](CITATION.cff) ou via BibTeX:
+
+```bibtex
+@article{Gamito_RPS_BR_2026,
+  author = {Gamito, Roger J.},
+  title = {{Arquitetura de Constelação Híbrida GEO/IGSO e Desempenho de Navegação para o Sistema de Aumento Regional Brasileiro (RPS-BR)}},
+  journal = {Brazilian RPS-BR Journal of Aerospace Engineering},
+  year = {2026},
+  volume = {1},
+  number = {1},
+  institution = {Instituto Tecnológico de Aeronáutica (ITA)},
+  url = {https://github.com/Rj-mwe/brazilian-rps-sim}
+}
 ```
-
-## 🧠 Detalhes Técnicos de Integração
-
-1. **Aceleração 3D por Hardware (GPU AMD):** Repassa `/dev/dri` com bibliotecas Mesa/Vulkan instaladas no contêiner.
-2. **Exibição Gráfica (Wayland & XWayland):** Repassa sockets de display sem comprometer a segurança.
-3. **Comunicação DDS (Multi-processo):** `--net=host` e `--ipc=host` permitem que nós ROS 2 dentro do contêiner descubram nós rodando no host ou em outros contêineres.
-4. **Permissões Limpas:** Mapeado para o seu UID/GID host (`1000:1000`). Os arquivos criados em `workspace/` pertencem diretamente a você.

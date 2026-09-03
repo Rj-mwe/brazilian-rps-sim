@@ -52,3 +52,13 @@ graph TD
 | **RPS-IGSO-2** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Fase $90^\circ$) |
 | **RPS-IGSO-3** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Fase $180^\circ$) |
 | **RPS-IGSO-4** | IGSO | $a = 42.164\text{ km}, e = 0.040, i = 25^\circ, \omega = 90^\circ$ | Figura-8 sobre o Brasil (Fase $270^\circ$) |
+
+---
+
+## 📜 Licenciamento Híbrido & Citação
+
+* **Código-Fonte:** Licenciado sob a **Apache License 2.0**.
+* **Documentação & Artigos:** Licenciados sob a **Creative Commons CC BY 4.0**.
+
+Para citar este projeto em artigos acadêmicos, teses ou relatórios técnicos, utilize o padrão definido no arquivo [`CITATION.cff`](https://github.com/Rj-mwe/brazilian-rps-sim/blob/main/CITATION.cff) ou o botão **Cite this repository** no GitHub.
+
