@@ -122,7 +122,7 @@ Se você utilizar este simulador, seus modelos analíticos ou publicações em s
 
 ```bibtex
 @article{Gamito_RPS_BR_2026,
-  author = {Gamito, Roger J.},
+  author = {Gamito, Roger J. G.},
   title = {{Arquitetura de Constelação Híbrida GEO/IGSO e Desempenho de Navegação para o Sistema de Aumento Regional Brasileiro (RPS-BR)}},
   journal = {Brazilian RPS-BR Journal of Aerospace Engineering},
   year = {2026},

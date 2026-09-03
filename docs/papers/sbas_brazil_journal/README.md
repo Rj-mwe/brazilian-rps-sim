@@ -1,7 +1,7 @@
 # 📄 Artigo Científico: Arquitetura e Desempenho do RPS-BR
 
 * **Título**: *Arquitetura de Constelação Híbrida GEO/IGSO e Desempenho de Navegação para o Sistema de Aumento Regional Brasileiro (RPS-BR)*
-* **Autor**: Roger J. Gamito (Instituto Tecnológico de Aeronáutica - ITA)
+* **Autor**: Roger J. G. Gamito (Instituto Tecnológico de Aeronáutica - ITA)
 * **Formato**: [Typst](https://typst.app/) (`main.typ`)
 
 ---

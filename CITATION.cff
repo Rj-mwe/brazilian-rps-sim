@@ -5,7 +5,7 @@ abstract: "Simulador físico e de astrodinâmica de alta fidelidade para o Siste
 type: software
 authors:
   - family-names: "Gamito"
-    given-names: "Roger J."
+    given-names: "Roger J. G."
     affiliation: "Instituto Tecnológico de Aeronáutica (ITA)"
     country: "BR"
 repository-code: "https://github.com/Rj-mwe/brazilian-rps-sim"
@@ -32,7 +32,7 @@ preferred-citation:
   type: article
   authors:
     - family-names: "Gamito"
-      given-names: "Roger J."
+      given-names: "Roger J. G."
       affiliation: "Instituto Tecnológico de Aeronáutica (ITA)"
   title: "Arquitetura de Constelação Híbrida GEO/IGSO e Desempenho de Navegação para o Sistema de Aumento Regional Brasileiro (RPS-BR)"
   journal: "Brazilian RPS-BR Journal of Aerospace Engineering"
