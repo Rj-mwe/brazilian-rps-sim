@@ -61,10 +61,13 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
+          cache-dependency-glob: "requirements-docs.txt"
 
       - name: Instalar Dependências de Documentação via UV
         run: |
-          uv pip install --system mkdocs-material mkdocs
+          uv venv .venv
+          uv pip install -r requirements-docs.txt
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
 
       - name: Baixar PDF do Artigo Typst
         uses: actions/download-artifact@v4
