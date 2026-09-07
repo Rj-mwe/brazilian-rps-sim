@@ -15,7 +15,9 @@ from pathlib import Path
 
 @pytest.fixture
 def pkg_paths():
-    pkg_dir = Path(__file__).resolve().parents[2]
+    current = Path(__file__).resolve()
+    # Busca dinamicamente o diretório raiz do pacote contendo config/
+    pkg_dir = next(p for p in current.parents if (p / "config" / "simulation_parameters.yaml").exists())
     config_path = pkg_dir / "config" / "simulation_parameters.yaml"
     mesh_dir = pkg_dir / "meshes"
     with open(config_path, "r", encoding="utf-8") as f:
