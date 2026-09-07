@@ -8,7 +8,7 @@ from brazilian_rps_sim.core.application.dtos.SimulationDTOs import (
     ConstellationStatusResponseDTO
 )
 from brazilian_rps_sim.core.application.mappers.TelemetryMapper import TelemetryMapper
-from brazilian_rps_sim.core.domain.aggregates.ConstellationAggregate import ConstellationAggregate
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
 from brazilian_rps_sim.core.domain.interfaces.ITelemetryOutboundPort import ITelemetryOutboundPort
 
 class PropagateConstellationUseCase(IPropagateConstellationUseCase):

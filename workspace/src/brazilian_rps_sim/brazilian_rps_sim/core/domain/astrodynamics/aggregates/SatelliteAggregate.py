@@ -8,7 +8,7 @@ from brazilian_rps_sim.core.domain.astrodynamics.value_objects.KeplerianElements
 from brazilian_rps_sim.core.domain.shared.value_objects.Vector3DVO import Vector3DVO
 from brazilian_rps_sim.core.domain.shared.value_objects.QuaternionVO import QuaternionVO
 from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.policies.KeplerianPropagationPolicy import KeplerianPropagationPolicy
+from brazilian_rps_sim.core.domain.astrodynamics.policies.KeplerianPropagationPolicy import KeplerianPropagationPolicy
 from brazilian_rps_sim.core.domain.astrodynamics.services.CoordinateTransformService import CoordinateTransformService
 
 @dataclass

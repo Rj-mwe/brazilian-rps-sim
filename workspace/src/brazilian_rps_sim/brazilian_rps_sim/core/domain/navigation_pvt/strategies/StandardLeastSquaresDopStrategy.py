@@ -8,7 +8,7 @@ import math
 from typing import Dict
 import numpy as np
 
-from brazilian_rps_sim.core.domain.strategies.IDopCalculationStrategy import IDopCalculationStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.IDopCalculationStrategy import IDopCalculationStrategy
 from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
 from brazilian_rps_sim.core.domain.navigation_pvt.value_objects.DopResultVO import DopResultVO
 from brazilian_rps_sim.core.domain.astrodynamics.services.CoordinateTransformService import CoordinateTransformService

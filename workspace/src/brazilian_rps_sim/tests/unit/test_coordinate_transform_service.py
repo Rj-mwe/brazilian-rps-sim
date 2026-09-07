@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from brazilian_rps_sim.core.domain.services.CoordinateTransformService import CoordinateTransformService
+from brazilian_rps_sim.core.domain.astrodynamics.services.CoordinateTransformService import CoordinateTransformService
 
 def test_eci_to_ecef_full_rotation():
     r_initial = np.array([42164.14, 0.0, 0.0], dtype=np.float64)

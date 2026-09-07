@@ -15,10 +15,10 @@ from brazilian_rps_sim.core.application.services.CalculateGroundStationDopUseCas
     CalculateGroundStationDopUseCase,
     DEFAULT_BRAZILIAN_GROUND_STATIONS
 )
-from brazilian_rps_sim.core.domain.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
-from brazilian_rps_sim.core.domain.strategies.WeightedElevationDopStrategy import WeightedElevationDopStrategy
-from brazilian_rps_sim.core.domain.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
-from brazilian_rps_sim.core.domain.services.CoordinateTransformService import CoordinateTransformService
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.WeightedElevationDopStrategy import WeightedElevationDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
+from brazilian_rps_sim.core.domain.astrodynamics.services.CoordinateTransformService import CoordinateTransformService
 
 
 @pytest.fixture

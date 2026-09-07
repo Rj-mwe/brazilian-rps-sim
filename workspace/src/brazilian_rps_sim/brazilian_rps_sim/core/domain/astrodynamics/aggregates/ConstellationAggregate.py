@@ -3,7 +3,7 @@ Agregado Raiz da Constelação RPS-BR mantendo a coleção dos 7 satélites (3 G
 """
 
 from dataclasses import dataclass, field
-from brazilian_rps_sim.core.domain.aggregates.SatelliteAggregate import SatelliteAggregate
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.SatelliteAggregate import SatelliteAggregate
 from brazilian_rps_sim.core.domain.astrodynamics.value_objects.KeplerianElementsVO import KeplerianElementsVO
 
 @dataclass

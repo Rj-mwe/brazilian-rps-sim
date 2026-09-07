@@ -1,6 +1,6 @@
 import math
 from brazilian_rps_sim.astrodynamics import load_simulation_config
-from brazilian_rps_sim.core.domain.aggregates.ConstellationAggregate import ConstellationAggregate
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
 
 def test_constellation_from_yaml_and_24h_orbit_closure():
     cfg = load_simulation_config()

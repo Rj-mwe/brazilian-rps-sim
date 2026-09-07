@@ -1,5 +1,5 @@
 import math
-from brazilian_rps_sim.core.domain.services.KeplerSolverService import KeplerSolverService
+from brazilian_rps_sim.core.domain.astrodynamics.services.KeplerSolverService import KeplerSolverService
 
 def test_kepler_solver_convergence():
     # Testa para várias excentricidades e anomalias médias

@@ -1,9 +1,9 @@
 import pytest
 import math
-from brazilian_rps_sim.core.domain.value_objects.Vector3DVO import Vector3DVO
-from brazilian_rps_sim.core.domain.value_objects.QuaternionVO import QuaternionVO
-from brazilian_rps_sim.core.domain.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.value_objects.KeplerianElementsVO import KeplerianElementsVO
+from brazilian_rps_sim.core.domain.shared.value_objects.Vector3DVO import Vector3DVO
+from brazilian_rps_sim.core.domain.shared.value_objects.QuaternionVO import QuaternionVO
+from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
+from brazilian_rps_sim.core.domain.astrodynamics.value_objects.KeplerianElementsVO import KeplerianElementsVO
 
 def test_vector3d_vo_operations():
     v1 = Vector3DVO(3.0, 4.0, 0.0)

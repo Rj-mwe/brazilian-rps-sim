@@ -8,15 +8,15 @@ import rclpy
 from rclpy.node import Node
 
 from brazilian_rps_sim.astrodynamics import load_simulation_config, find_config_file
-from brazilian_rps_sim.core.domain.aggregates.ConstellationAggregate import ConstellationAggregate
-from brazilian_rps_sim.core.domain.aggregates.CelestialSystemAggregate import CelestialSystemAggregate
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.CelestialSystemAggregate import CelestialSystemAggregate
 from brazilian_rps_sim.core.application.services.PropagateConstellationUseCase import PropagateConstellationUseCase
 from brazilian_rps_sim.core.application.dtos.SimulationDTOs import SimulationStepRequestDTO
 from brazilian_rps_sim.adapters.outbound.Ros2TelemetryOutboundAdapter import Ros2TelemetryOutboundAdapter
 
 from brazilian_rps_sim.core.application.services.CalculateGroundStationDopUseCase import CalculateGroundStationDopUseCase
-from brazilian_rps_sim.core.domain.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
-from brazilian_rps_sim.core.domain.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
 
 class Ros2ConstellationNode(Node):
     def __init__(self):

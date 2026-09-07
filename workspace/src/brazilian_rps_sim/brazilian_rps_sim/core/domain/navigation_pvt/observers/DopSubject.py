@@ -5,7 +5,7 @@ Gerencia o registro, cancelamento e despacho de notificações para observadores
 """
 
 from typing import List
-from brazilian_rps_sim.core.domain.observers.IDopObserver import IDopObserver
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.IDopObserver import IDopObserver
 from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
 from brazilian_rps_sim.core.domain.navigation_pvt.value_objects.DopResultVO import DopResultVO
 

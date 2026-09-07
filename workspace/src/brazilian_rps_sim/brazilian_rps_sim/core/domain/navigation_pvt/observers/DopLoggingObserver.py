@@ -4,7 +4,7 @@ Concrete Observer: DopLoggingObserver
 Gera registros de log estruturados e formatados sobre as métricas de cobertura DOP.
 """
 
-from brazilian_rps_sim.core.domain.observers.IDopObserver import IDopObserver
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.IDopObserver import IDopObserver
 from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
 from brazilian_rps_sim.core.domain.navigation_pvt.value_objects.DopResultVO import DopResultVO
 

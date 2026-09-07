@@ -91,3 +91,13 @@ A transição entre os três níveis é operacionalizada por padrões de projeto
 * **Clareza Semântica:** A árvore de diretórios espelha a física aeroespacial real sem metáforas burocráticas artificiais.
 * **Máximo Desempenho:** Eliminação de intermediários e serializações entre cálculos de órbita e propagação de sinal.
 * **Evolutividade Segura:** O projeto adota hoje o **Nível 2**, garantindo a fundação técnica exata para evoluir pontualmente para o **Nível 3** nas fases de PVT e RAIM.
+
+---
+
+## 6. Protocolo de Transição e Migração entre Níveis (Expand & Contract)
+
+Para assegurar que a transição entre os Níveis de Maturidade ocorra sem paralisar o desenvolvimento ou introduzir regressões silenciosas, adota-se o protocolo sistemático de **Expansão e Contração**:
+
+1. **Fase 1 (Expansão):** Criação dos subdomínios canônicos (`astrodynamics/`, `signal_propagation/`, `navigation_pvt/`, `shared/`) mantendo fachadas provisórias de uma linha nos caminhos antigos. Todos os testes passam a 100% de imediato.
+2. **Fase 2 (Convergência):** Atualização mecânica de todos os consumidores internos (Casos de Uso da camada de `application/`, Adaptadores de infraestrutura como os nós ROS 2, e suíte de testes unitários/integrados do `tests/`) para importarem exclusivamente das rotas canônicas de Nível 2.
+3. **Fase 3 (Contração):** Depreciação formal e eliminação física das árvores legadas de fachadas na versão programada, purificando o repositório de qualquer ambiguidade de importação (*Split-Brain*).

@@ -2,7 +2,7 @@
 Mapper responsável pela conversão bidirecional entre Agregados de Domínio e DTOs de Aplicação.
 """
 
-from brazilian_rps_sim.core.domain.aggregates.SatelliteAggregate import SatelliteAggregate
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.SatelliteAggregate import SatelliteAggregate
 from brazilian_rps_sim.core.application.dtos.SimulationDTOs import SatelliteTelemetryResponseDTO
 
 class TelemetryMapper:

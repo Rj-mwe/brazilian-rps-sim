@@ -4,12 +4,12 @@ Testes Unitários para o Padrão Observer de Notificação de Métricas DOP.
 """
 
 import pytest
-from brazilian_rps_sim.core.domain.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.value_objects.DopResultVO import DopResultVO
-from brazilian_rps_sim.core.domain.observers.DopSubject import DopSubject
-from brazilian_rps_sim.core.domain.observers.DopLoggingObserver import DopLoggingObserver
-from brazilian_rps_sim.core.domain.observers.DopAlertThresholdObserver import DopAlertThresholdObserver
-from brazilian_rps_sim.core.domain.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
+from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
+from brazilian_rps_sim.core.domain.navigation_pvt.value_objects.DopResultVO import DopResultVO
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopSubject import DopSubject
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopLoggingObserver import DopLoggingObserver
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopAlertThresholdObserver import DopAlertThresholdObserver
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopTelemetryBufferObserver import DopTelemetryBufferObserver
 
 
 def test_dop_subject_attach_detach():

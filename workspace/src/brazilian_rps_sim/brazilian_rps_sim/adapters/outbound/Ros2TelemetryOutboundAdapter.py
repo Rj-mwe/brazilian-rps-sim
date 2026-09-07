@@ -9,9 +9,9 @@ from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
 
 from brazilian_rps_sim.core.domain.interfaces.ITelemetryOutboundPort import ITelemetryOutboundPort
-from brazilian_rps_sim.core.domain.value_objects.Vector3DVO import Vector3DVO
-from brazilian_rps_sim.core.domain.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.value_objects.QuaternionVO import QuaternionVO
+from brazilian_rps_sim.core.domain.shared.value_objects.Vector3DVO import Vector3DVO
+from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
+from brazilian_rps_sim.core.domain.shared.value_objects.QuaternionVO import QuaternionVO
 
 class Ros2TelemetryOutboundAdapter(ITelemetryOutboundPort):
     def __init__(self, node: Node, total_satellites: int = 7, render_scale: float = 0.001):

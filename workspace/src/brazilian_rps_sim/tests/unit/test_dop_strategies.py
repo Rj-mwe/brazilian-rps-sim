@@ -7,10 +7,10 @@ import math
 import numpy as np
 import pytest
 
-from brazilian_rps_sim.core.domain.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
-from brazilian_rps_sim.core.domain.strategies.ElevationMaskDopStrategy import ElevationMaskDopStrategy
-from brazilian_rps_sim.core.domain.strategies.WeightedElevationDopStrategy import WeightedElevationDopStrategy
+from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.ElevationMaskDopStrategy import ElevationMaskDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.WeightedElevationDopStrategy import WeightedElevationDopStrategy
 
 
 def test_standard_dop_insufficient_satellites_returns_invalid():

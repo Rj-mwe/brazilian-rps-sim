@@ -8,7 +8,7 @@ para simular a operação real de receptores em cenários urbanos/canions ou com
 from typing import Dict
 import numpy as np
 
-from brazilian_rps_sim.core.domain.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
 from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
 from brazilian_rps_sim.core.domain.navigation_pvt.value_objects.DopResultVO import DopResultVO
 

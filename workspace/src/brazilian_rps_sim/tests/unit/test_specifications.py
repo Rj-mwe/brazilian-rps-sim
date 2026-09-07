@@ -1,4 +1,4 @@
-from brazilian_rps_sim.core.domain.specifications.ZenithVisibilitySpec import ZenithVisibilitySpec
+from brazilian_rps_sim.core.domain.astrodynamics.specifications.ZenithVisibilitySpec import ZenithVisibilitySpec
 
 def test_zenith_visibility_spec():
     spec = ZenithVisibilitySpec(min_elevation_deg=60.0)

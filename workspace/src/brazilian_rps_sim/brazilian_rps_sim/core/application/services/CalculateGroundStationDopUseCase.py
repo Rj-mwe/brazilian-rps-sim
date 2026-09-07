@@ -8,12 +8,12 @@ integrando os padrões Strategy (algoritmo de DOP) e Observer (notificação de 
 from typing import Dict, Optional
 import numpy as np
 
-from brazilian_rps_sim.core.domain.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.value_objects.DopResultVO import DopResultVO
-from brazilian_rps_sim.core.domain.strategies.IDopCalculationStrategy import IDopCalculationStrategy
-from brazilian_rps_sim.core.domain.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
-from brazilian_rps_sim.core.domain.observers.DopSubject import DopSubject
-from brazilian_rps_sim.core.domain.observers.IDopObserver import IDopObserver
+from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
+from brazilian_rps_sim.core.domain.navigation_pvt.value_objects.DopResultVO import DopResultVO
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.IDopCalculationStrategy import IDopCalculationStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.strategies.StandardLeastSquaresDopStrategy import StandardLeastSquaresDopStrategy
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.DopSubject import DopSubject
+from brazilian_rps_sim.core.domain.navigation_pvt.observers.IDopObserver import IDopObserver
 
 
 # Estações terrestres de referência no Brasil para monitoramento da constelação RPS-BR
