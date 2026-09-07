@@ -7,7 +7,7 @@ Conecta o relógio /clock ao UseCase de propagação do Domínio seguindo o prin
 import rclpy
 from rclpy.node import Node
 
-from brazilian_rps_sim.astrodynamics import load_simulation_config, find_config_file
+from brazilian_rps_sim.infrastructure.config.config_loader import load_simulation_config, find_config_file
 from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
 from brazilian_rps_sim.core.domain.astrodynamics.aggregates.CelestialSystemAggregate import CelestialSystemAggregate
 from brazilian_rps_sim.core.application.services.PropagateConstellationUseCase import PropagateConstellationUseCase

@@ -19,10 +19,10 @@ import numpy as np
 import yaml
 
 try:
-    from brazilian_rps_sim.color_palette import resolve_color
-    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
+    from brazilian_rps_sim.adapters.outbound.visualization.color_palette import resolve_color
+    from brazilian_rps_sim.adapters.outbound.visualization.gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
 except ImportError:
-    from color_palette import resolve_color
+    from brazilian_rps_sim.adapters.outbound.visualization.color_palette import resolve_color
     from gltf_builder import GltfMeshBuilder, build_smooth_rmf_tube
 
 

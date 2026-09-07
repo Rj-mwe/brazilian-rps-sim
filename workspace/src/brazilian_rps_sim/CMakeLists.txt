@@ -62,11 +62,11 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
     scripts/rps_constellation_node
-    ${PROJECT_NAME}/ground_track_plotter.py
-    ${PROJECT_NAME}/satellite_mesh_generator.py
-    ${PROJECT_NAME}/world_generator.py
-    ${PROJECT_NAME}/marker_mesh_generator.py
-    ${PROJECT_NAME}/camera_auto_focus.py
+    ${PROJECT_NAME}/tools/ground_track_plotter.py
+    ${PROJECT_NAME}/adapters/outbound/visualization/satellite_mesh_generator.py
+    ${PROJECT_NAME}/adapters/outbound/visualization/world_generator.py
+    ${PROJECT_NAME}/adapters/outbound/visualization/marker_mesh_generator.py
+    ${PROJECT_NAME}/tools/camera_auto_focus.py
     DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -9,7 +9,7 @@ import math
 import numpy as np
 
 try:
-    from brazilian_rps_sim.gltf_builder import GltfMeshBuilder
+    from brazilian_rps_sim.adapters.outbound.visualization.gltf_builder import GltfMeshBuilder
 except ImportError:
     from gltf_builder import GltfMeshBuilder
 

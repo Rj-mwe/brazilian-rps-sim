@@ -12,9 +12,9 @@ import os
 import yaml
 
 try:
-    from brazilian_rps_sim.color_palette import resolve_color
+    from brazilian_rps_sim.adapters.outbound.visualization.color_palette import resolve_color
 except ImportError:
-    from color_palette import resolve_color
+    from brazilian_rps_sim.adapters.outbound.visualization.color_palette import resolve_color
 
 def generate_world_sdf(config_path: str = None, output_path: str = None):
     if not config_path or not os.path.exists(config_path):

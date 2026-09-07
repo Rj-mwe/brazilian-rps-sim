@@ -1,4 +1,4 @@
-from brazilian_rps_sim.astrodynamics import load_simulation_config
+from brazilian_rps_sim.infrastructure.config.config_loader import load_simulation_config
 from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
 from brazilian_rps_sim.core.domain.interfaces.ITelemetryOutboundPort import ITelemetryOutboundPort
 from brazilian_rps_sim.core.domain.shared.value_objects.Vector3DVO import Vector3DVO
