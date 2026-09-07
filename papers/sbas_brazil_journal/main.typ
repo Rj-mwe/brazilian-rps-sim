@@ -34,7 +34,7 @@
   ]
   #v(1.2em)
   #text(size: 11pt, weight: "medium")[
-    Roger J. Gamito #super[1]
+    Roger J. G. Gamito #super[1]
   ]
   #v(0.5em)
   #text(size: 9pt, style: "italic", fill: luma(80))[
