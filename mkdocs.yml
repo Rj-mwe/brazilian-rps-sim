@@ -66,6 +66,7 @@ nav:
       - "0002 - Builder Pattern glTF 2.0": "adr/0002-gltf-builder-pattern.md"
       - "0003 - Métricas DOP (Strategy & Observer)": "adr/0003-dop-strategy-observer.md"
       - "0004 - Docs-as-Code & Typst": "adr/0004-docs-as-code-and-typst.md"
+      - "0005 - Níveis de Maturidade do Hexágono": "adr/0005_hexagonal_architecture_maturity_levels.md"
   - "📋 Especificações & Normas":
       - "Requisitos de Missão": "specifications/mission_requirements.md"
       - "Conformidade RTCA & ICAO": "specifications/standards_compliance.md"

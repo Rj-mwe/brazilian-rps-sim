@@ -3,9 +3,9 @@ Porta de Saída (Contrato abstrato) para publicação/despacho de telemetria orb
 """
 
 from abc import ABC, abstractmethod
-from brazilian_rps_sim.core.domain.value_objects.Vector3DVO import Vector3DVO
-from brazilian_rps_sim.core.domain.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
-from brazilian_rps_sim.core.domain.value_objects.QuaternionVO import QuaternionVO
+from brazilian_rps_sim.core.domain.shared.value_objects.Vector3DVO import Vector3DVO
+from brazilian_rps_sim.core.domain.shared.value_objects.GeodeticCoordinatesVO import GeodeticCoordinatesVO
+from brazilian_rps_sim.core.domain.shared.value_objects.QuaternionVO import QuaternionVO
 
 class ITelemetryOutboundPort(ABC):
     @abstractmethod
