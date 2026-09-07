@@ -68,9 +68,14 @@ def generate_launch_description():
     except Exception as e:
         pass
 
-    focus_script = os.path.join(pkg_share, 'lib', 'brazilian_rps_sim', 'camera_auto_focus.py')
-    if not os.path.exists(focus_script):
-        focus_script = '/home/rjgamito/ros2_ws/install/brazilian_rps_sim/lib/brazilian_rps_sim/camera_auto_focus.py'
+    # Localização do script auxiliar de foco automático da câmera
+    focus_candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(pkg_share)), 'lib', 'brazilian_rps_sim', 'camera_auto_focus.py'),
+        '/home/rjgamito/ros2_ws/install/brazilian_rps_sim/lib/brazilian_rps_sim/camera_auto_focus.py',
+        '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/brazilian_rps_sim/tools/camera_auto_focus.py',
+        os.path.join(pkg_share, '..', '..', 'src', 'brazilian_rps_sim', 'brazilian_rps_sim', 'tools', 'camera_auto_focus.py'),
+    ]
+    focus_script = next((p for p in focus_candidates if os.path.exists(p)), focus_candidates[1])
 
     return LaunchDescription([
         # 1. Atualização procedural a quente dos parâmetros visuais, órbitas e do mundo
