@@ -24,11 +24,13 @@ def build_world_and_markers(context, *args, **kwargs):
     world_path = os.path.join(pkg_share, 'worlds', 'solar_system_brazilian_rps.sdf')
 
     try:
-        from brazilian_rps_sim.marker_mesh_generator import generate_all_marker_assets
-        from brazilian_rps_sim.orbit_mesh_generator import generate_all_orbit_rings
-        from brazilian_rps_sim.world_generator import generate_world_sdf
-        from brazilian_rps_sim.earth_globe_generator import generate_all_earth_assets
-        from brazilian_rps_sim.celestial_mesh_generator import generate_all_celestial_assets
+        from brazilian_rps_sim.adapters.outbound.visualization import (
+            generate_all_marker_assets,
+            generate_all_orbit_rings,
+            generate_world_sdf,
+            generate_all_earth_assets,
+            generate_all_celestial_assets,
+        )
 
         # Garante que as malhas da Terra, corpos celestes, marcadores e órbitas estão sincronizadas
         generate_all_earth_assets(mesh_dir)
@@ -50,11 +52,13 @@ def generate_launch_description():
 
     # Executa a geração procedural no momento do carregamento
     try:
-        from brazilian_rps_sim.marker_mesh_generator import generate_all_marker_assets
-        from brazilian_rps_sim.orbit_mesh_generator import generate_all_orbit_rings
-        from brazilian_rps_sim.world_generator import generate_world_sdf
-        from brazilian_rps_sim.earth_globe_generator import generate_all_earth_assets
-        from brazilian_rps_sim.celestial_mesh_generator import generate_all_celestial_assets
+        from brazilian_rps_sim.adapters.outbound.visualization import (
+            generate_all_marker_assets,
+            generate_all_orbit_rings,
+            generate_world_sdf,
+            generate_all_earth_assets,
+            generate_all_celestial_assets,
+        )
 
         generate_all_earth_assets(mesh_dir)
         generate_all_celestial_assets(mesh_dir)
