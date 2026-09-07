@@ -143,14 +143,14 @@ def test_coefficients_validation():
 
 
 def test_level2_subdomain_import_accessibility():
-    """Verifica se os módulos podem ser importados tanto diretamente via subdomínio quanto via facade."""
+    """Verifica se os módulos podem ser importados tanto no nível do subdomínio quanto de seus subpacotes."""
     from brazilian_rps_sim.core.domain.signal_propagation import (
-        IonosphereKlobucharService as DirectSvc,
-        KlobucharCoefficientsVO as DirectVo,
-        IonosphericDelayVO as DirectDelay,
+        IonosphereKlobucharService as SubdomainSvc,
+        KlobucharCoefficientsVO as SubdomainVo,
+        IonosphericDelayVO as SubdomainDelay,
     )
-    from brazilian_rps_sim.core.domain.services import IonosphereKlobucharService as FacadeSvc
-    from brazilian_rps_sim.core.domain.value_objects import KlobucharCoefficientsVO as FacadeVo
+    from brazilian_rps_sim.core.domain.signal_propagation.services.IonosphereKlobucharService import IonosphereKlobucharService as PackageSvc
+    from brazilian_rps_sim.core.domain.signal_propagation.value_objects.KlobucharCoefficientsVO import KlobucharCoefficientsVO as PackageVo
 
-    assert DirectSvc is FacadeSvc
-    assert DirectVo is FacadeVo
+    assert SubdomainSvc is PackageSvc
+    assert SubdomainVo is PackageVo
