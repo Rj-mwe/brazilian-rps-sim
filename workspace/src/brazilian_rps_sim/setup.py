@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rps_constellation_node = brazilian_rps_sim.adapters.inbound.Ros2ConstellationNode:main',
+            'rps_constellation_node = brazilian_rps_sim.adapters.ros2.Ros2ConstellationNode:main',
         ],
     },
 )

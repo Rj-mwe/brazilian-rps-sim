@@ -16,11 +16,11 @@ import numpy as np
 import yaml
 
 try:
-    from brazilian_rps_sim.adapters.outbound.visualization.color_palette import resolve_color
-    from brazilian_rps_sim.adapters.outbound.visualization.gltf_builder import GltfMeshBuilder
+    from brazilian_rps_sim.adapters.shared.color_palette import resolve_color
+    from brazilian_rps_sim.adapters.gazebo.gltf_builder import GltfMeshBuilder
 except ImportError:
-    from brazilian_rps_sim.adapters.outbound.visualization.color_palette import resolve_color
-    from gltf_builder import GltfMeshBuilder
+    from ..shared.color_palette import resolve_color
+    from .gltf_builder import GltfMeshBuilder
 
 
 def build_smooth_rmf_tube(pts: np.ndarray, radius: float = 0.12, radial_segs: int = 8):

@@ -24,7 +24,7 @@ def build_world_and_markers(context, *args, **kwargs):
     world_path = os.path.join(pkg_share, 'worlds', 'solar_system_brazilian_rps.sdf')
 
     try:
-        from brazilian_rps_sim.adapters.outbound.visualization import (
+        from brazilian_rps_sim.adapters.gazebo import (
             generate_all_marker_assets,
             generate_all_orbit_rings,
             generate_world_sdf,
@@ -52,7 +52,7 @@ def generate_launch_description():
 
     # Executa a geração procedural no momento do carregamento
     try:
-        from brazilian_rps_sim.adapters.outbound.visualization import (
+        from brazilian_rps_sim.adapters.gazebo import (
             generate_all_marker_assets,
             generate_all_orbit_rings,
             generate_world_sdf,
@@ -72,8 +72,9 @@ def generate_launch_description():
     focus_candidates = [
         os.path.join(os.path.dirname(os.path.dirname(pkg_share)), 'lib', 'brazilian_rps_sim', 'camera_auto_focus.py'),
         '/home/rjgamito/ros2_ws/install/brazilian_rps_sim/lib/brazilian_rps_sim/camera_auto_focus.py',
+        '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/brazilian_rps_sim/adapters/gazebo/camera_auto_focus.py',
+        os.path.join(pkg_share, '..', '..', 'src', 'brazilian_rps_sim', 'brazilian_rps_sim', 'adapters', 'gazebo', 'camera_auto_focus.py'),
         '/home/rjgamito/ros2_ws/src/brazilian_rps_sim/brazilian_rps_sim/tools/camera_auto_focus.py',
-        os.path.join(pkg_share, '..', '..', 'src', 'brazilian_rps_sim', 'brazilian_rps_sim', 'tools', 'camera_auto_focus.py'),
     ]
     focus_script = next((p for p in focus_candidates if os.path.exists(p)), focus_candidates[1])
 

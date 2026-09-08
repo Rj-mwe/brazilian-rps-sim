@@ -9,9 +9,9 @@ import math
 import numpy as np
 
 try:
-    from brazilian_rps_sim.adapters.outbound.visualization.gltf_builder import GltfMeshBuilder
+    from brazilian_rps_sim.adapters.gazebo.gltf_builder import GltfMeshBuilder
 except ImportError:
-    from gltf_builder import GltfMeshBuilder
+    from .gltf_builder import GltfMeshBuilder
 
 
 def generate_sphere_mesh(radius: float, lat_segs: int = 64, lon_segs: int = 128):

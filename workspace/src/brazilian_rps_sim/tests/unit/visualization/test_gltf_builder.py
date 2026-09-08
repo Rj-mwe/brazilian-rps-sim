@@ -8,7 +8,7 @@ import os
 import struct
 import numpy as np
 import pytest
-from brazilian_rps_sim.adapters.outbound.visualization.gltf_builder import GltfMeshBuilder
+from brazilian_rps_sim.adapters.gazebo.gltf_builder import GltfMeshBuilder
 
 def test_gltf_builder_triangle_glb(tmp_path):
     """Testa a geração de um triângulo básico em GLB binário."""

@@ -11,30 +11,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import matplotlib.pyplot as plt
 
-try:
-    from brazilian_rps_sim.astrodynamics import (
-        get_brazilian_rps_constellation,
-        propagate_orbit_eci,
-        eci_to_ecef,
-        ecef_to_lat_lon_alt,
-        SIDEREAL_DAY
-    )
-except ImportError:
-    from astrodynamics import (
-        get_brazilian_rps_constellation,
-        propagate_orbit_eci,
-        eci_to_ecef,
-        ecef_to_lat_lon_alt,
-        SIDEREAL_DAY
-    )
+from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
+from brazilian_rps_sim.infrastructure.config.config_loader import load_simulation_config, find_config_file
 
-def generate_ground_track_plot(output_file: str = None):
+SIDEREAL_DAY = 86164.0905
+
+def generate_ground_track_plot(output_file: str = None, config_path: str = None):
     if output_file is None:
         # Salva na pasta do workspace
         ws_dir = os.path.expanduser("~/ros2_ws") if os.path.exists(os.path.expanduser("~/ros2_ws")) else "."
         output_file = os.path.join(ws_dir, "rps_ground_track_2d.png")
 
-    constellation = get_brazilian_rps_constellation()
+    if config_path is None:
+        config_path = find_config_file()
+
+    cfg = load_simulation_config(config_path)
+    constellation = ConstellationAggregate.from_config(cfg.get('constellation', {}))
     num_points = 500
     t_seconds = np.linspace(0, SIDEREAL_DAY, num_points)
 
@@ -69,15 +61,13 @@ def generate_ground_track_plot(output_file: str = None):
     colors = ['#f59e0b', '#06b6d4', '#ec4899', '#10b981']
     markers = ['s', 'o', '^', 'D']
 
-    for idx, sat in enumerate(constellation):
+    for idx, sat in enumerate(constellation.satellites):
         lats = []
         lons = []
         for t in t_seconds:
-            r_eci = propagate_orbit_eci(sat, t)
-            r_ecef = eci_to_ecef(r_eci, t)
-            lat, lon, alt = ecef_to_lat_lon_alt(r_ecef)
-            lats.append(lat)
-            lons.append(lon)
+            sat.propagate_to(float(t))
+            lats.append(sat.geodetic.latitude_deg)
+            lons.append(sat.geodetic.longitude_deg)
 
         c = colors[idx % len(colors)]
         m = markers[idx % len(markers)]
