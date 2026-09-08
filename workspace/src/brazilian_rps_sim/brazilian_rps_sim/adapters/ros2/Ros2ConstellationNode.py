@@ -11,6 +11,7 @@ from brazilian_rps_sim.infrastructure.config.config_loader import load_simulatio
 from brazilian_rps_sim.core.domain.astrodynamics.aggregates.ConstellationAggregate import ConstellationAggregate
 from brazilian_rps_sim.core.domain.astrodynamics.aggregates.CelestialSystemAggregate import CelestialSystemAggregate
 from brazilian_rps_sim.core.application.services.PropagateConstellationUseCase import PropagateConstellationUseCase
+from brazilian_rps_sim.core.application.dtos.SimulationDTOs import SimulationStepRequestDTO
 from .Ros2TelemetryOutboundAdapter import Ros2TelemetryOutboundAdapter
 
 from brazilian_rps_sim.core.application.services.CalculateGroundStationDopUseCase import CalculateGroundStationDopUseCase

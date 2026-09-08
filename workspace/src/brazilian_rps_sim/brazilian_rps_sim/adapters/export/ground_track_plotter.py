@@ -96,5 +96,8 @@ def generate_ground_track_plot(output_file: str = None, config_path: str = None)
     plt.close()
     print(f"✅ Gráfico do Ground-Track 2D salvo com sucesso em: {output_file}")
 
+# Alias amigável
+plot_ground_track = generate_ground_track_plot
+
 if __name__ == '__main__':
     generate_ground_track_plot()
