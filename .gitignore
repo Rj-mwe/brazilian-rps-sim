@@ -1,7 +1,9 @@
-# ROS 2 Build Artifacts
-workspace/build/
-workspace/install/
-workspace/log/
+# ROS 2 & Colcon Build Artifacts
+.colcon_ws/
+build/
+install/
+log/
+workspace/
 
 # Python Bytecode & Cache
 __pycache__/

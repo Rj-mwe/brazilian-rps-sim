@@ -1,0 +1,989 @@
+<?xml version="1.0" ?>
+<!--
+  ==============================================================================
+  Projeto: Brazilian RPS Sim (Sistema de Posicionamento e Aumento Brasileiro)
+  Arquivo: solar_system_brazilian_rps.sdf
+  Descrição: Mundo SDFormat gerado dinamicamente a partir de config/simulation_parameters.yaml
+             Implementa Injeção de Dependências via SDFormat para todos os Plugins C++.
+  ==============================================================================
+-->
+<sdf version="1.8">
+  <world name="solar_system_rps_world">
+    <physics name="physics_60hz" type="ignored">
+      <max_step_size>0.016666667</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <gravity>0 0 0</gravity>
+
+    <!-- 🌌 Vácuo Espacial -->
+    <scene>
+      <ambient>0.0 0.0 0.0 1.0</ambient>
+      <background>0.0005 0.0005 0.002 1.0</background>
+      <grid>false</grid>
+      <shadows>false</shadows>
+    </scene>
+
+    <!-- Plugins Fundamentais do Gazebo Sim -->
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
+      <state_hertz>60</state_hertz>
+    </plugin>
+
+    <!-- 🌟 Cúpula Celeste: Starfield Hipparcos 360° -->
+    <model name="celestial_skydome">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="starfield_link">
+        <visual name="v_stars">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/celestial_skydome.glb</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ☀️ Luz Solar Heliocêntrica -->
+    <light name="sun_radial_light" type="point">
+      <pose>0 0 0 0 0 0</pose>
+      <cast_shadows>false</cast_shadows>
+      <diffuse>1.0 0.98 0.94 1.0</diffuse>
+      <specular>0.8 0.78 0.75 1.0</specular>
+      <attenuation>
+        <range>500000.0</range>
+        <constant>1.0</constant>
+        <linear>0.0</linear>
+        <quadratic>0.0</quadratic>
+      </attenuation>
+    </light>
+
+    <!-- O Sol: Esfera com Fotosfera SDO PBR 2K -->
+    <model name="sun">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="sun_link">
+        <visual name="sun_photosphere">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <sphere><radius>45.0</radius></sphere>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.95 0.8 1.0</diffuse>
+            <pbr>
+              <metal>
+                <albedo_map>package://rps_br/materials/textures/sun_photosphere_2k.jpg</albedo_map>
+                <emissive_map>package://rps_br/materials/textures/sun_photosphere_2k.jpg</emissive_map>
+                <roughness>0.1</roughness>
+                <metalness>0.0</metalness>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>sun</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- Trilha Visual da Órbita da Terra ao redor do Sol -->
+    <model name="earth_orbit_trail">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="trail_link">
+        <visual name="v_earth_orbit_ring">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <mesh><uri>package://rps_br/meshes/earth_orbit_ring.gltf</uri></mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.75 0.1 1.0</diffuse>
+            <ambient>1.0 0.75 0.1 1.0</ambient>
+            <emissive>1.0 0.75 0.1 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>earth_trail</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- ======================================================================= -->
+    <!-- 🌍 A TERRA: CORPO SÓLIDO COM MALHA GLB PARAMÉTRICA (+Z POLAR)           -->
+    <!-- ======================================================================= -->
+    <model name="earth">
+      <pose>1200.0 0 0 0 0 0</pose>
+      <link name="earth_link">
+        <collision name="earth_col">
+          <geometry><sphere><radius>6.378</radius></sphere></geometry>
+        </collision>
+
+        <visual name="earth_surface">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/earth_globe.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
+            <specular>0.8 0.8 0.8 1.0</specular>
+            <pbr>
+              <metal>
+                <albedo_map>package://rps_br/materials/textures/earth_day_albedo_2k.jpg</albedo_map>
+                <emissive_map>package://rps_br/materials/textures/earth_night_lights_2k.jpg</emissive_map>
+                <roughness>0.6</roughness>
+                <metalness>0.0</metalness>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+
+        <!-- Camada Atmosférica de Nuvens Dinâmicas -->
+        <visual name="earth_clouds">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/earth_clouds.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
+            <pbr>
+              <metal>
+                <albedo_map>package://rps_br/materials/textures/earth_clouds_2k.png</albedo_map>
+                <roughness>0.9</roughness>
+                <metalness>0.0</metalness>
+              </metal>
+            </pbr>
+            <render_order>1</render_order>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>earth</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- ======================================================================= -->
+    <!-- 🌕 A LUA: ESFERA COM TEXTURA LRO PBR 2K (+Z POLAR)                      -->
+    <!-- ======================================================================= -->
+    <model name="moon">
+      <pose>1584.4 0 0 0 0 0</pose>
+      <link name="moon_link">
+        <collision name="moon_col">
+          <geometry><sphere><radius>1.737</radius></sphere></geometry>
+        </collision>
+
+        <visual name="moon_surface">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <sphere><radius>1.737</radius></sphere>
+          </geometry>
+          <material>
+            <diffuse>1.0 1.0 1.0 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+            <pbr>
+              <metal>
+                <albedo_map>package://rps_br/materials/textures/moon_day_albedo_2k.jpg</albedo_map>
+                <normal_map>package://rps_br/materials/textures/moon_normal_2k.jpg</normal_map>
+                <roughness>0.9</roughness>
+                <metalness>0.0</metalness>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>moon</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- Trilha Visual da Órbita da Lua ao redor da Terra -->
+    <model name="moon_orbit_trail">
+      <static>true</static>
+      <pose>1200.0 0 0 0 0 0</pose>
+      <link name="moon_trail_link">
+        <visual name="v_moon_orbit_ring">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <mesh><uri>package://rps_br/meshes/moon_orbit_ring.gltf</uri></mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.85 1.0 1.0</diffuse>
+            <ambient>0.0 0.85 1.0 1.0</ambient>
+            <emissive>0.0 0.85 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>moon_trail</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- Anel Orbital Equatorial GEO -->
+    <model name="constellation_orbit_geo">
+      <static>true</static>
+      <pose>1200.0 0 0 0 0 0</pose>
+      <link name="geo_ring_link">
+        <visual name="v_orbit_geo">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <mesh><uri>package://rps_br/meshes/orbit_geo.gltf</uri></mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.9 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>constellation_geo_ring</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- Trajetória 3D da Figura-8 dos IGSOs (Fixa sobre o Brasil) -->
+    <model name="constellation_orbit_igso">
+      <static>true</static>
+      <pose>1200.0 0 0 0 0 0</pose>
+      <link name="igso_ring_link">
+        <visual name="v_orbit_igso">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <mesh><uri>package://rps_br/meshes/orbit_igso.gltf</uri></mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>1.0 0.8 0.1 1.0</emissive>
+            <double_sided>true</double_sided>
+          </material>
+        </visual>
+      </link>
+      <plugin filename="libCelestialMechanicsPlugin.so" name="celestial_sim::CelestialMechanicsPlugin">
+        <body_type>constellation_igso_trail</body_type>
+        <time_scale>3600.0</time_scale>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <dist_earth_moon>384.4</dist_earth_moon>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <clouds_drift_factor>1.035</clouds_drift_factor>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_month_sec>2360591.51</sidereal_month_sec>
+        <moon_inclination_deg>5.145</moon_inclination_deg>
+      </plugin>
+    </model>
+
+    <!-- ======================================================================= -->
+    <!-- 🛰️ CONSTELAÇÃO DINÂMICA DO RPS-BR (INJEÇÃO DE DEPENDÊNCIAS VIA SDF)     -->
+    <!-- ======================================================================= -->
+
+    <!-- Satélite 1: RPS-GEO-1 (Norte/Manaus) [GEO] -->
+    <model name="rps_sat_1">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_1_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.7200000000000001 0.8 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.765 0.85 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.95 0.95 1.0 1.0</diffuse>
+            <ambient>0.95 0.95 1.0 1.0</ambient>
+            <emissive>0.95 0.95 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.000000</eccentricity>
+        <inclination_deg>0.000000</inclination_deg>
+        <raan_deg>0.000000</raan_deg>
+        <arg_perigee_deg>0.000000</arg_perigee_deg>
+        <mean_anomaly_deg>300.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+    <!-- Satélite 2: RPS-GEO-2 (Centro/BSB) [GEO] -->
+    <model name="rps_sat_2">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_2_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.7200000000000001 0.8 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.765 0.85 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.95 0.95 1.0 1.0</diffuse>
+            <ambient>0.95 0.95 1.0 1.0</ambient>
+            <emissive>0.95 0.95 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.000000</eccentricity>
+        <inclination_deg>0.000000</inclination_deg>
+        <raan_deg>0.000000</raan_deg>
+        <arg_perigee_deg>0.000000</arg_perigee_deg>
+        <mean_anomaly_deg>312.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+    <!-- Satélite 3: RPS-GEO-3 (Leste/Costa) [GEO] -->
+    <model name="rps_sat_3">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_3_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.7200000000000001 0.8 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.0 0.9 1.0 1.0</diffuse>
+            <ambient>0.0 0.9 1.0 1.0</ambient>
+            <emissive>0.0 0.765 0.85 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>10</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_geo.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>0.95 0.95 1.0 1.0</diffuse>
+            <ambient>0.95 0.95 1.0 1.0</ambient>
+            <emissive>0.95 0.95 1.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.000000</eccentricity>
+        <inclination_deg>0.000000</inclination_deg>
+        <raan_deg>0.000000</raan_deg>
+        <arg_perigee_deg>0.000000</arg_perigee_deg>
+        <mean_anomaly_deg>324.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+    <!-- Satélite 4: RPS-IGSO-1 (Sul/Apogeu) [IGSO] -->
+    <model name="rps_sat_4">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_4_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>42.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>180.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+    <!-- Satélite 5: RPS-IGSO-2 (Descida Sul) [IGSO] -->
+    <model name="rps_sat_5">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_5_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>312.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>270.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+    <!-- Satélite 6: RPS-IGSO-3 (Norte/Perigeu) [IGSO] -->
+    <model name="rps_sat_6">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_6_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>222.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>0.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+    <!-- Satélite 7: RPS-IGSO-4 (Subida Norte) [IGSO] -->
+    <model name="rps_sat_7">
+      <pose>1242.164 0 0 0 0 0</pose>
+      <link name="rps_sat_7_link">
+        <collision name="col">
+          <geometry><sphere><radius>0.2</radius></sphere></geometry>
+        </collision>
+
+        <!-- 1. Malha 3D Fotorrealista PBR do Satélite Small GEO -->
+        <visual name="v_satellite_pbr">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/satellite_navsat.glb</uri>
+              <scale>0.08 0.08 0.08</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+        <!-- 2. Marcador Visual: Retículo Holográfico Radiante Neon -->
+        <visual name="v_locator_ring">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/locator_ring_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.85 0.68 0.085 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>15</render_order>
+          </material>
+        </visual>
+
+        <!-- 3a. Marcador Visual: Gaiola Holográfica Externa / Pegada 2D -->
+        <visual name="v_nadir_cage">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_cage_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.8 0.1 1.0</diffuse>
+            <ambient>1.0 0.8 0.1 1.0</ambient>
+            <emissive>0.95 0.76 0.095 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>12</render_order>
+          </material>
+        </visual>
+
+        <!-- 3b. Marcador Visual: Feixe Central Laser Boresight & Mira -->
+        <visual name="v_nadir_boresight">
+          <cast_shadows>false</cast_shadows>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>package://rps_br/meshes/nadir_boresight_igso.glb</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1.0 0.18 0.0 1.0</diffuse>
+            <ambient>1.0 0.18 0.0 1.0</ambient>
+            <emissive>1.0 0.18 0.0 1.0</emissive>
+            <double_sided>true</double_sided>
+            <render_order>14</render_order>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Plugin C++ de Propagação Orbital no Gazebo (Dependency Injection via SDF) -->
+      <plugin filename="libOrbitalMotionPlugin.so" name="brazilian_rps::OrbitalMotionPlugin">
+        <semi_major_axis>42.164140</semi_major_axis>
+        <eccentricity>0.040000</eccentricity>
+        <inclination_deg>25.000000</inclination_deg>
+        <raan_deg>132.000000</raan_deg>
+        <arg_perigee_deg>90.000000</arg_perigee_deg>
+        <mean_anomaly_deg>90.000000</mean_anomaly_deg>
+        <time_scale>3600.0</time_scale>
+        <heliocentric>true</heliocentric>
+        <dist_sun_earth>1200.0</dist_sun_earth>
+        <obliquity_deg>23.43928</obliquity_deg>
+        <sidereal_year_sec>31558149.76</sidereal_year_sec>
+        <sidereal_day_sec>86164.0905</sidereal_day_sec>
+      </plugin>
+    </model>
+
+  </world>
+</sdf>
