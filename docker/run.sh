@@ -12,9 +12,10 @@ IMAGE_NAME="ros2-jazzy-gazebo:latest"
 USER_ID="$(id -u)"
 USER_NAME="$(id -un)"
 
-mkdir -p "${REPO_ROOT}/.colcon_ws/build"
-mkdir -p "${REPO_ROOT}/.colcon_ws/install"
-mkdir -p "${REPO_ROOT}/.colcon_ws/log"
+CONTAINER_WS="${HOME}/Contêineres e VM's/brazilian-rps-sim"
+mkdir -p "${CONTAINER_WS}/build"
+mkdir -p "${CONTAINER_WS}/install"
+mkdir -p "${CONTAINER_WS}/log"
 
 INTERACTIVE_OPTS=()
 if [ -t 0 ]; then
@@ -39,15 +40,15 @@ PODMAN_ARGS=(
     -e QSG_RENDER_LOOP=basic
     -e QT_QPA_PLATFORM=xcb
     -e QT_X11_NO_MITSHM=1
-    -e GZ_SIM_RESOURCE_PATH="/home/${USER_NAME}/ros2_ws/install/rps_br/share:/home/${USER_NAME}/ros2_ws/install/rps_br/share/rps_br:/home/${USER_NAME}/ros2_ws/install/brazilian_rps_sim/share"
-    -e GZ_SIM_SYSTEM_PLUGIN_PATH="/home/${USER_NAME}/ros2_ws/install/rps_br/lib:/home/${USER_NAME}/ros2_ws/install/brazilian_rps_sim/lib"
-    -e LD_LIBRARY_PATH="/home/${USER_NAME}/ros2_ws/install/rps_br/lib:/home/${USER_NAME}/ros2_ws/install/brazilian_rps_sim/lib"
+    -e GZ_SIM_RESOURCE_PATH="/home/${USER_NAME}/ros2_ws/install/rps_br/share:/home/${USER_NAME}/ros2_ws/install/rps_br/share/rps_br"
+    -e GZ_SIM_SYSTEM_PLUGIN_PATH="/home/${USER_NAME}/ros2_ws/install/rps_br/lib"
+    -e LD_LIBRARY_PATH="/home/${USER_NAME}/ros2_ws/install/rps_br/lib"
     -e XDG_RUNTIME_DIR="/run/user/${USER_ID}"
     -v "/run/user/${USER_ID}:/run/user/${USER_ID}:rw"
     -v "${REPO_ROOT}:/home/${USER_NAME}/ros2_ws/src/rps_br:Z"
-    -v "${REPO_ROOT}/.colcon_ws/build:/home/${USER_NAME}/ros2_ws/build:Z"
-    -v "${REPO_ROOT}/.colcon_ws/install:/home/${USER_NAME}/ros2_ws/install:Z"
-    -v "${REPO_ROOT}/.colcon_ws/log:/home/${USER_NAME}/ros2_ws/log:Z"
+    -v "${CONTAINER_WS}/build:/home/${USER_NAME}/ros2_ws/build:Z"
+    -v "${CONTAINER_WS}/install:/home/${USER_NAME}/ros2_ws/install:Z"
+    -v "${CONTAINER_WS}/log:/home/${USER_NAME}/ros2_ws/log:Z"
 )
 
 if [ -n "${XAUTHORITY}" ] && [ -e "${XAUTHORITY}" ]; then

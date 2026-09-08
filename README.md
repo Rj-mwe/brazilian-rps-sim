@@ -86,12 +86,14 @@ graph TD
 
 ### 1. Inicializar a Simulação Física Completa (ROS 2 + Gazebo)
 ```bash
-./run.sh ros2 launch brazilian_rps_sim unified_sim.launch.py
+./run.sh ros2 launch rps_br unified_sim.launch.py
 ```
 
 ### 2. Executar a Suíte de Testes Automatizados (TDD)
 ```bash
-./run.sh pytest src/brazilian_rps_sim/tests -v
+pytest
+# Ou dentro do contêiner:
+# ./run.sh pytest
 ```
 
 ### 3. Compilar a Documentação Localmente (MkDocs com UV)
