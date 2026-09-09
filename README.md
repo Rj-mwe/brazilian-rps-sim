@@ -107,6 +107,23 @@ uv run mkdocs serve
 typst compile docs/papers/sbas_brazil_journal/main.typ docs/papers/sbas_brazil_journal/paper_sbas_brazil.pdf
 ```
 
+### ⚙️ Configuração do Ambiente de Contêiner (`docker/container.env`)
+
+O diretório do host onde o Podman/Docker armazena os artefatos de compilação do ROS 2 (`build/`, `install/`, `log/`) é configurável por ambiente:
+
+1. Copie o arquivo de exemplo para criar sua configuração local:
+   ```bash
+   cp docker/container.env.example docker/container.env
+   ```
+2. Ajuste `docker/container.env` conforme necessário (padrão: `~/Contêineres e VM's/brazilian-rps-sim`):
+   ```bash
+   CONTAINER_WS="${HOME}/Contêineres e VM's/brazilian-rps-sim"
+   ```
+3. É possível também sobrescrever pontualmente via linha de comando:
+   ```bash
+   RPS_CONTAINER_WS="/tmp/meu_workspace" ./run.sh
+   ```
+
 ---
 
 ## 📜 Licenciamento Híbrido

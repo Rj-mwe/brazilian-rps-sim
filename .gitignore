@@ -4,6 +4,7 @@ build/
 install/
 log/
 workspace/
+docker/container.env
 
 # Python Bytecode & Cache
 __pycache__/

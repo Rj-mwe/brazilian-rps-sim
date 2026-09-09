@@ -8,11 +8,22 @@ else
     REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 fi
 
-IMAGE_NAME="ros2-jazzy-gazebo:latest"
+# Carrega configurações locais do arquivo de ambiente se existir
+if [ -f "${SCRIPT_DIR}/container.env" ]; then
+    # shellcheck disable=SC1090
+    source "${SCRIPT_DIR}/container.env"
+elif [ -f "${REPO_ROOT}/docker/container.env" ]; then
+    # shellcheck disable=SC1090
+    source "${REPO_ROOT}/docker/container.env"
+fi
+
+IMAGE_NAME="${RPS_IMAGE_NAME:-${IMAGE_NAME:-ros2-jazzy-gazebo:latest}}"
 USER_ID="$(id -u)"
 USER_NAME="$(id -un)"
 
-CONTAINER_WS="${HOME}/Contêineres e VM's/brazilian-rps-sim"
+# Resolução com hierarquia: Variável CLI > container.env > Fallback Padrão
+DEFAULT_CONTAINER_WS="${HOME}/Contêineres e VM's/brazilian-rps-sim"
+CONTAINER_WS="${RPS_CONTAINER_WS:-${CONTAINER_WS:-$DEFAULT_CONTAINER_WS}}"
 mkdir -p "${CONTAINER_WS}/build"
 mkdir -p "${CONTAINER_WS}/install"
 mkdir -p "${CONTAINER_WS}/log"

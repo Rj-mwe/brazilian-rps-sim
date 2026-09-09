@@ -13,7 +13,10 @@ class ConstellationAggregate:
     @classmethod
     def from_config(cls, constellation_cfg: dict) -> 'ConstellationAggregate':
         """Instancia a constelação a partir do dicionário de configuração declarativo."""
-        sats_list = constellation_cfg.get('satellites', [])
+        if 'constellation' in constellation_cfg:
+            sats_list = constellation_cfg['constellation'].get('satellites', [])
+        else:
+            sats_list = constellation_cfg.get('satellites', [])
         satellites = []
         for s in sats_list:
             elem = KeplerianElementsVO.from_degrees(
