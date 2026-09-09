@@ -65,9 +65,19 @@ function initChart() {
       labels: [],
       datasets: [
         {
+          label: 'GDOP (Geométrico)',
+          borderColor: '#f59e0b',
+          borderDash: [4, 4],
+          data: [],
+          borderWidth: 1.5,
+          tension: 0.3,
+          pointRadius: 0
+        },
+        {
           label: 'PDOP (Posição 3D)',
           borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          fill: true,
           data: [],
           borderWidth: 2,
           tension: 0.3,
@@ -106,8 +116,9 @@ function initChart() {
           grid: { color: 'rgba(51, 65, 85, 0.3)' }
         },
         y: {
-          min: 0,
-          max: 8,
+          beginAtZero: true,
+          suggestedMin: 0,
+          suggestedMax: 12,
           ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
           grid: { color: 'rgba(51, 65, 85, 0.3)' }
         }
@@ -155,11 +166,34 @@ function updateDashboard(data) {
   const sats = data.satellites;
   const atm = data.atmospheric;
 
-  // Atualiza Relógio
+  // Atualiza Relógio e Estado de Execução
   document.getElementById('sim-time').innerText = sim.time_str;
   document.getElementById('sim-multiplier').innerText = `${sim.multiplier}x`;
   isPaused = sim.is_paused;
-  document.getElementById('btn-pause').innerText = isPaused ? '▶️ Retomar' : '⏸️ Pausar';
+  
+  const pauseBtn = document.getElementById('btn-pause');
+  if (isPaused) {
+    pauseBtn.innerHTML = '▶️ Retomar';
+    pauseBtn.className = "px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-xs font-semibold text-white border border-emerald-500 shadow-lg shadow-emerald-700/30 transition";
+  } else {
+    pauseBtn.innerHTML = '⏸️ Pausar';
+    pauseBtn.className = "px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition";
+  }
+
+  const modeBadge = document.getElementById('sim-mode-badge');
+  if (modeBadge) {
+    if (sim.mode === 'MASTER_GAZEBO') {
+      modeBadge.innerText = isPaused ? '⏸️ GAZEBO (PAUSADO)' : '🛰️ MASTER: GAZEBO';
+      modeBadge.className = isPaused
+        ? 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800 font-bold'
+        : 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold';
+    } else {
+      modeBadge.innerText = isPaused ? '⏸️ AUTÔNOMO (PAUSADO)' : '⚡ STANDALONE';
+      modeBadge.className = isPaused
+        ? 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800'
+        : 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800';
+    }
+  }
 
   // Atualiza Estações no Dropdown se ainda não populadas
   if (!stationsPopulated && data.stations) {
@@ -213,12 +247,13 @@ function updateDashboard(data) {
     badge.className = "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-950 text-rose-300 border border-rose-800";
   }
 
-  // Atualiza Histórico do Gráfico
+  // Atualiza Histórico do Gráfico (GDOP, PDOP, HDOP, VDOP)
   if (data.history && data.history.length > 0) {
     dopChart.data.labels = data.history.map(h => h.time_str);
-    dopChart.data.datasets[0].data = data.history.map(h => h.pdop);
-    dopChart.data.datasets[1].data = data.history.map(h => h.hdop);
-    dopChart.data.datasets[2].data = data.history.map(h => h.vdop);
+    dopChart.data.datasets[0].data = data.history.map(h => (h.gdop !== undefined ? h.gdop : 0));
+    dopChart.data.datasets[1].data = data.history.map(h => h.pdop);
+    dopChart.data.datasets[2].data = data.history.map(h => h.hdop);
+    dopChart.data.datasets[3].data = data.history.map(h => h.vdop);
     dopChart.update();
   }
 

@@ -13,6 +13,7 @@ from .earth_globe_generator import generate_all_earth_assets
 from .celestial_mesh_generator import generate_all_celestial_assets
 from .satellite_mesh_generator import generate_satellite_glb
 from .camera_auto_focus import focus_camera
+from .GazeboWorldControlAdapter import GazeboWorldControlAdapter
 
 import sys
 # Alias de retrocompatibilidade para o antigo submódulo visualization
@@ -28,5 +29,6 @@ __all__ = [
     "generate_all_celestial_assets",
     "generate_satellite_glb",
     "focus_camera",
+    "GazeboWorldControlAdapter",
     "visualization",
 ]

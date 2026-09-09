@@ -35,9 +35,13 @@ else
     INTERACTIVE_OPTS+=("-i")
 fi
 
+CONTAINER_NAME="${RPS_CONTAINER_NAME:-rps_sim}"
+podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+
 PODMAN_ARGS=(
     --rm
     "${INTERACTIVE_OPTS[@]}"
+    --name "${CONTAINER_NAME}"
     --hostname "ros2-gazebo"
     --net=host
     --ipc=host

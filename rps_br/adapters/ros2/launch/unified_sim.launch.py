@@ -112,7 +112,16 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 5. Ajuste automático da câmera do Gazebo com visão panorâmica sobre a Terra e satélites
+        # 5. Gateway Hexagonal de Relógio Master (Gazebo /clock -> Core da Aplicação)
+        Node(
+            package='rps_br',
+            executable='rps_web_bridge_node',
+            name='rps_web_bridge_node',
+            parameters=[{'use_sim_time': True}],
+            output='screen'
+        ),
+
+        # 6. Ajuste automático da câmera do Gazebo com visão panorâmica sobre a Terra e satélites
         ExecuteProcess(
             cmd=['python3', focus_script, 'earth'],
             output='screen'

@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'rps_constellation_node = rps_br.adapters.ros2.Ros2ConstellationNode:main',
+            'rps_web_bridge_node = rps_br.adapters.web.web_node:main',
         ],
     },
 )

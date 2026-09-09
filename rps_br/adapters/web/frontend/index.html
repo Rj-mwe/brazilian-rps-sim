@@ -44,7 +44,10 @@
       <!-- Relógio e Multiplicador de Tempo -->
       <div class="flex items-center gap-4 bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800">
         <div class="text-center">
-          <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Tempo de Simulação</div>
+          <div class="flex items-center justify-center gap-1.5">
+            <span class="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Tempo Virtual</span>
+            <span id="sim-mode-badge" class="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold">STANDALONE</span>
+          </div>
           <div id="sim-time" class="font-mono text-base font-bold text-cyan-300">00:00:00</div>
         </div>
         <div class="h-6 w-px bg-slate-800"></div>
@@ -182,7 +185,7 @@
           <p class="text-xs text-slate-400 mb-3">
             Cálculo determinístico em tempo real do atraso por satélite visível para a estação base:
           </p>
-          <div id="tropo-cards" class="grid grid-cols-2 gap-2.5 max-h-[190px] overflow-y-auto pr-1">
+          <div id="tropo-cards" class="grid grid-cols-2 gap-2.5 max-h-[220px] overflow-y-auto pr-1 pb-1">
             <!-- Preenchido dinamicamente -->
           </div>
         </div>

@@ -23,6 +23,12 @@ from rps_br.core.application.services.CalculateGroundStationDopUseCase import (
 )
 from rps_br.core.domain.signal_propagation.services.TroposphereSaastamoinenService import TroposphereSaastamoinenService
 from rps_br.core.domain.signal_propagation.value_objects.TroposphericWeatherVO import TroposphericWeatherVO
+from rps_br.core.application.services.SimulationSessionService import SimulationSessionService
+from rps_br.core.application.dtos.SimulationDTOs import (
+    SimulationClockTickDTO,
+    PauseSimulationRequestDTO,
+    SetTimeMultiplierRequestDTO,
+)
 
 
 # Estações terrestres expandidas com o ITA (São José dos Campos) e Alcântara
@@ -53,13 +59,16 @@ class TelemetryHub:
         # Agregado do Domínio
         self.constellation = ConstellationAggregate.from_config(self.config)
         
-        # Parâmetros de Simulação
+        # Parâmetros de Simulação e Serviço do Core
         sim_cfg = self.config.get("simulation", {})
         self.time_multiplier = float(sim_cfg.get("time_multiplier", 1.0))
-        self.sim_time_sec = 0.0
-        self.is_paused = False
-        self.elevation_mask_deg = 5.0
-        self.selected_station_name = "São José dos Campos (ITA / SP)"
+        self.session_service = SimulationSessionService.get_instance(initial_multiplier=self.time_multiplier)
+        
+        core_state = self.session_service.get_state()
+        self.sim_time_sec = core_state.sim_time_sec
+        self.is_paused = core_state.is_paused
+        self.elevation_mask_deg = core_state.elevation_mask_deg
+        self.selected_station_name = core_state.selected_station_name
         
         # Serviços de Domínio
         self.coord_service = CoordinateTransformService()
@@ -90,41 +99,63 @@ class TelemetryHub:
 
     def set_time_multiplier(self, multiplier: float) -> None:
         with self.lock:
-            self.time_multiplier = max(0.1, min(multiplier, 86400.0))
+            self.session_service.set_time_multiplier(SetTimeMultiplierRequestDTO(multiplier=multiplier))
+            self.time_multiplier = self.session_service.get_state().time_multiplier
+            self._recompute_state()
 
-    def set_paused(self, paused: bool) -> None:
+    def set_paused(self, paused: bool) -> bool:
         with self.lock:
-            self.is_paused = paused
+            ok = self.session_service.pause(PauseSimulationRequestDTO(paused=paused))
+            self.is_paused = self.session_service.get_state().is_paused
+            self._recompute_state()
+            return ok
 
     def set_elevation_mask(self, mask_deg: float) -> None:
         with self.lock:
-            self.elevation_mask_deg = max(0.0, min(mask_deg, 45.0))
+            self.session_service.set_elevation_mask(mask_deg)
+            self.elevation_mask_deg = self.session_service.get_state().elevation_mask_deg
             self.dop_use_case.set_strategy(ElevationMaskDopStrategy(mask_angle_deg=self.elevation_mask_deg))
             self._recompute_state()
 
     def set_station(self, station_name: str) -> bool:
         with self.lock:
             if station_name in BRAZILIAN_GROUND_STATIONS:
+                self.session_service.set_station_name(station_name)
                 self.selected_station_name = station_name
                 self._recompute_state()
                 return True
             return False
 
     def step(self, dt_wall_sec: float) -> None:
-        """Avança o relógio de simulação e recalcula a astrodinâmica."""
+        """Avança o relógio se estiver em modo autônomo e recalcula a astrodinâmica."""
         with self.lock:
-            if not self.is_paused:
-                self.sim_time_sec += dt_wall_sec * self.time_multiplier
+            advanced = self.session_service.advance_standalone_clock(dt_wall_sec)
+            if advanced:
                 self._recompute_state()
 
-    def update_sim_time(self, sim_time_sec: float) -> None:
-        """Atualiza o relógio a partir de uma fonte externa (ex: /clock do ROS 2 ou Gazebo)."""
+    def sync_with_session(self) -> None:
+        """Sincroniza imediatamente com o estado atualizado do SimulationSessionService."""
         with self.lock:
-            self.sim_time_sec = sim_time_sec
+            self._recompute_state()
+
+    def update_sim_time(self, sim_time_sec: float, is_paused: bool = False) -> None:
+        """Atualiza o relógio a partir de uma fonte externa (Master Clock do Gazebo ou ROS 2)."""
+        with self.lock:
+            self.session_service.ingest_clock_tick(SimulationClockTickDTO(
+                sim_time_sec=sim_time_sec,
+                is_paused=is_paused
+            ))
             self._recompute_state()
 
     def _recompute_state(self) -> None:
         """Propaga a constelação e atualiza todas as métricas analíticas em $O(N)$."""
+        core_state = self.session_service.get_state()
+        self.sim_time_sec = core_state.sim_time_sec
+        self.is_paused = core_state.is_paused
+        self.time_multiplier = core_state.time_multiplier
+        self.elevation_mask_deg = core_state.elevation_mask_deg
+        self.selected_station_name = core_state.selected_station_name
+
         # 1. Posições dos Satélites
         ecef_dict: Dict[str, np.ndarray] = {}
         sats_info: List[Dict[str, Any]] = []
@@ -208,17 +239,19 @@ class TelemetryHub:
                 "visible_count": 0, "status": "Sem Cobertura"
             }
 
-        # Armazena histórico DOP
+        # Armazena histórico DOP se o tempo avançou pelo menos 0.5s ou for o primeiro ponto
         hours = self.sim_time_sec / 3600.0
         time_label = f"{int(hours):02d}:{int((self.sim_time_sec % 3600) / 60):02d}:{int(self.sim_time_sec % 60):02d}"
-        self.dop_history.append({
-            "time_sec": round(self.sim_time_sec, 1),
-            "time_str": time_label,
-            "pdop": dop_snapshot["pdop"],
-            "hdop": dop_snapshot["hdop"],
-            "vdop": dop_snapshot["vdop"],
-            "sats": dop_snapshot["visible_count"]
-        })
+        if not self.dop_history or abs(self.sim_time_sec - self.dop_history[-1]["time_sec"]) >= 0.5:
+            self.dop_history.append({
+                "time_sec": round(self.sim_time_sec, 1),
+                "time_str": time_label,
+                "gdop": dop_snapshot["gdop"],
+                "pdop": dop_snapshot["pdop"],
+                "hdop": dop_snapshot["hdop"],
+                "vdop": dop_snapshot["vdop"],
+                "sats": dop_snapshot["visible_count"]
+            })
 
         self.last_snapshot = {
             "simulation": {
@@ -226,6 +259,7 @@ class TelemetryHub:
                 "time_str": time_label,
                 "multiplier": self.time_multiplier,
                 "is_paused": self.is_paused,
+                "mode": core_state.mode,
                 "elevation_mask_deg": self.elevation_mask_deg,
                 "station_name": self.selected_station_name,
                 "station_lat": station_vo.latitude_deg,

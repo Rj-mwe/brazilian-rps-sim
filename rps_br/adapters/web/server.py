@@ -21,11 +21,19 @@ from rps_br.adapters.web.routes.telemetry import router as telemetry_router
 from rps_br.adapters.web.routes.navigation import router as navigation_router
 from rps_br.adapters.web.routes.atmosphere import router as atmosphere_router
 from rps_br.adapters.web.routes.control import router as control_router
+from rps_br.adapters.web.routes.internal import router as internal_router
+from rps_br.core.application.services.SimulationSessionService import SimulationSessionService
+from rps_br.adapters.gazebo.GazeboWorldControlAdapter import GazeboWorldControlAdapter
 
 
 # Gerenciador de Ciclo de Vida (Lifespan)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Registra o adaptador de controle de saída do Gazebo no Core da aplicação
+    session = SimulationSessionService.get_instance()
+    gazebo_ctrl = GazeboWorldControlAdapter()
+    session.register_control_outbound_port(gazebo_ctrl)
+
     task = asyncio.create_task(simulation_stepper_loop())
     yield
     task.cancel()
@@ -62,6 +70,7 @@ app.include_router(telemetry_router)
 app.include_router(navigation_router)
 app.include_router(atmosphere_router)
 app.include_router(control_router)
+app.include_router(internal_router)
 
 # Diretório Frontend estático
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
