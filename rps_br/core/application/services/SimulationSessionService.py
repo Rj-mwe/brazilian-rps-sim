@@ -149,3 +149,15 @@ class SimulationSessionService:
                 elevation_mask_deg=self._elevation_mask_deg,
                 selected_station_name=self._selected_station_name,
             )
+
+    def reset(self) -> None:
+        """Reinicia o estado da sessão para os valores padrão."""
+        with self._lock:
+            self._sim_time_sec = 0.0
+            self._is_paused = False
+            self._time_multiplier = 1.0
+            self._mode = "STANDALONE_AUTONOMOUS"
+            self._elevation_mask_deg = 5.0
+            self._selected_station_name = "São José dos Campos (ITA / SP)"
+            self._control_outbound_ports.clear()
+

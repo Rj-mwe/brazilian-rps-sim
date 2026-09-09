@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# CLI Autônomo de Controle e Telemetria do RPS-BR (Execução sem Gazebo)
+# ==============================================================================
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
+exec python3 -m rps_br.adapters.cli "$@"

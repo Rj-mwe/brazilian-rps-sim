@@ -31,16 +31,8 @@ from rps_br.core.application.dtos.SimulationDTOs import (
 )
 
 
-# Estações terrestres expandidas com o ITA (São José dos Campos) e Alcântara
-BRAZILIAN_GROUND_STATIONS = {
-    "São José dos Campos (ITA / SP)": GeodeticCoordinatesVO(-23.2128, -45.8755, 0.600),
-    "Brasília (DF - Centro)": GeodeticCoordinatesVO(-15.7975, -47.8633, 1.172),
-    "Alcântara (CLA / MA)": GeodeticCoordinatesVO(-2.3731, -44.3964, 0.045),
-    "Manaus (AM - Norte)": GeodeticCoordinatesVO(-3.1190, -60.0217, 0.092),
-    "Rio de Janeiro (RJ - Sudeste)": GeodeticCoordinatesVO(-22.9068, -43.1729, 0.005),
-    "Porto Alegre (RS - Sul)": GeodeticCoordinatesVO(-30.0346, -51.2177, 0.010),
-    "Fortaleza (CE - Nordeste)": GeodeticCoordinatesVO(-3.7172, -38.5433, 0.016),
-}
+# Estações terrestres de referência (importadas diretamente do Use Case como fonte única da verdade)
+BRAZILIAN_GROUND_STATIONS = DEFAULT_BRAZILIAN_GROUND_STATIONS
 
 
 class TelemetryHub:

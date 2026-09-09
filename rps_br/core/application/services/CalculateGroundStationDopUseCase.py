@@ -18,7 +18,9 @@ from rps_br.core.domain.navigation_pvt.observers.IDopObserver import IDopObserve
 
 # Estações terrestres de referência no Brasil para monitoramento da constelação RPS-BR
 DEFAULT_BRAZILIAN_GROUND_STATIONS = {
+    "São José dos Campos (ITA / SP)": GeodeticCoordinatesVO(-23.2128, -45.8755, 0.600),
     "Brasília (DF - Centro)": GeodeticCoordinatesVO(-15.7975, -47.8633, 1.172),
+    "Alcântara (CLA / MA)": GeodeticCoordinatesVO(-2.3731, -44.3964, 0.045),
     "Manaus (AM - Norte)": GeodeticCoordinatesVO(-3.1190, -60.0217, 0.092),
     "Rio de Janeiro (RJ - Sudeste)": GeodeticCoordinatesVO(-22.9068, -43.1729, 0.005),
     "Porto Alegre (RS - Sul)": GeodeticCoordinatesVO(-30.0346, -51.2177, 0.010),

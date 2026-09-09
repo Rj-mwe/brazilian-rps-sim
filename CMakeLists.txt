@@ -67,6 +67,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
     scripts/rps_constellation_node
+    scripts/rps_web_bridge_node
     rps_br/adapters/export/ground_track_plotter.py
     rps_br/adapters/gazebo/satellite_mesh_generator.py
     rps_br/adapters/gazebo/world_generator.py
