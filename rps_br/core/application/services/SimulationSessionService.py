@@ -29,11 +29,19 @@ class SimulationSessionService:
     _instance: Optional['SimulationSessionService'] = None
     _singleton_lock = threading.Lock()
 
-    def __init__(self, initial_multiplier: float = 1.0):
+    def __init__(self, initial_multiplier: Optional[float] = None):
         self._lock = threading.RLock()
         self._sim_time_sec: float = 0.0
         self._is_paused: bool = False
-        self._time_multiplier: float = max(0.1, float(initial_multiplier))
+        if initial_multiplier is not None:
+            self._time_multiplier = max(0.1, float(initial_multiplier))
+        else:
+            try:
+                from rps_br.infrastructure.config.config_loader import load_simulation_config, find_config_file
+                cfg = load_simulation_config(find_config_file())
+                self._time_multiplier = float(cfg.get("simulation", {}).get("time_multiplier", 3600.0))
+            except Exception:
+                self._time_multiplier = 3600.0
         self._mode: str = "STANDALONE_AUTONOMOUS"  # Muda para MASTER_GAZEBO ao receber ticks
         self._elevation_mask_deg: float = 5.0
         self._selected_station_name: str = "São José dos Campos (ITA / SP)"
@@ -155,9 +163,15 @@ class SimulationSessionService:
         with self._lock:
             self._sim_time_sec = 0.0
             self._is_paused = False
-            self._time_multiplier = 1.0
+            try:
+                from rps_br.infrastructure.config.config_loader import load_simulation_config, find_config_file
+                cfg = load_simulation_config(find_config_file())
+                self._time_multiplier = float(cfg.get("simulation", {}).get("time_multiplier", 3600.0))
+            except Exception:
+                self._time_multiplier = 3600.0
             self._mode = "STANDALONE_AUTONOMOUS"
             self._elevation_mask_deg = 5.0
             self._selected_station_name = "São José dos Campos (ITA / SP)"
             self._control_outbound_ports.clear()
+
 

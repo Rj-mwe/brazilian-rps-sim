@@ -19,7 +19,7 @@ from rps_br.core.domain.interfaces.ISimulationControlOutboundPort import (
 
 
 class GazeboWorldControlAdapter(ISimulationControlOutboundPort):
-    """Adaptador de saída para despacho de comandos WorldControl para o Gazebo Sim Harmonic."""
+    """Adaptador de saída para despacho de comandos WorldControl e Physics para o Gazebo Sim Harmonic."""
 
     def __init__(
         self,
@@ -28,17 +28,26 @@ class GazeboWorldControlAdapter(ISimulationControlOutboundPort):
     ):
         self.world_name = world_name
         self.container_name = container_name or os.environ.get("RPS_CONTAINER_NAME", "rps_sim")
-        self.service_name = f"/world/{self.world_name}/control"
+        self.control_service_name = f"/world/{self.world_name}/control"
+        self.physics_service_name = f"/world/{self.world_name}/set_physics"
 
-    def _call_gz_service(self, req_text: str, timeout_sec: float = 1.0) -> bool:
+    def _call_gz_service(
+        self,
+        req_text: str,
+        service_name: Optional[str] = None,
+        req_type: str = "gz.msgs.WorldControl",
+        rep_type: str = "gz.msgs.Boolean",
+        timeout_sec: float = 1.0
+    ) -> bool:
         """Invoca o comando 'gz service' no ambiente disponível (nativo ou via Podman)."""
+        target_service = service_name or self.control_service_name
         # 1. Se gz estiver disponível nativamente (ex: dentro do contêiner)
         if shutil.which("gz"):
             cmd = [
                 "gz", "service",
-                "-s", self.service_name,
-                "--reqtype", "gz.msgs.WorldControl",
-                "--reptype", "gz.msgs.Boolean",
+                "-s", target_service,
+                "--reqtype", req_type,
+                "--reptype", rep_type,
                 "--timeout", str(int(timeout_sec * 1000)),
                 "--req", req_text
             ]
@@ -47,9 +56,9 @@ class GazeboWorldControlAdapter(ISimulationControlOutboundPort):
             cmd = [
                 "podman", "exec", self.container_name,
                 "gz", "service",
-                "-s", self.service_name,
-                "--reqtype", "gz.msgs.WorldControl",
-                "--reptype", "gz.msgs.Boolean",
+                "-s", target_service,
+                "--reqtype", req_type,
+                "--reptype", rep_type,
                 "--timeout", str(int(timeout_sec * 1000)),
                 "--req", req_text
             ]
@@ -83,5 +92,12 @@ class GazeboWorldControlAdapter(ISimulationControlOutboundPort):
             return self._call_gz_service(f"multi_step: {steps}")
 
     def set_simulation_rate(self, multiplier: float) -> bool:
-        """O Gazebo Harmonic define RTF principalmente pelo physics block, mas aceita step/rate."""
-        return True
+        """Ajusta dinamicamente a taxa de física (real_time_factor) no Gazebo Sim."""
+        # Multiplicador base 3600x corresponde a RTF 1.0 no Gazebo Harmonic
+        rtf = max(0.001, float(multiplier) / 3600.0)
+        return self._call_gz_service(
+            f"real_time_factor: {rtf:.4f}",
+            service_name=self.physics_service_name,
+            req_type="gz.msgs.Physics",
+        )
+
