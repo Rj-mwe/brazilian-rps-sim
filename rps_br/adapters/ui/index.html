@@ -98,8 +98,10 @@
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Estação Solo</span>
           </div>
         </div>
-        <div id="map-container" class="w-full h-[440px] rounded-xl overflow-hidden border border-slate-800 relative z-0"></div>
-        <iframe id="cesium-frame" src="/cesium/viewer" class="w-full h-[440px] rounded-xl overflow-hidden border border-slate-800 hidden relative z-0"></iframe>
+        <div class="relative w-full h-[440px] rounded-xl overflow-hidden border border-slate-800">
+          <div id="map-container" class="w-full h-full relative z-10 transition-opacity duration-200"></div>
+          <iframe id="cesium-frame" src="about:blank" data-src="/cesium/viewer" class="w-full h-full absolute inset-0 z-0 opacity-0 pointer-events-none transition-opacity duration-200"></iframe>
+        </div>
       </div>
 
       <!-- QUADRANTE 2: QUALIDADE PVT E MÉTRICAS DOP -->

@@ -362,17 +362,27 @@ function setGeoView(mode) {
   const btn3d = document.getElementById('btn-view-3d');
 
   if (mode === '3d') {
-    mapContainer.classList.add('hidden');
-    cesiumFrame.classList.remove('hidden');
+    mapContainer.className = 'w-full h-full absolute inset-0 z-0 opacity-0 pointer-events-none transition-opacity duration-200';
+    cesiumFrame.className = 'w-full h-full relative z-10 opacity-100 pointer-events-auto transition-opacity duration-200';
     btn3d.className = 'px-3 py-1 text-xs font-semibold rounded-lg bg-slate-800 text-amber-300 transition';
     btn2d.className = 'px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
+
+    // Carrega o visualizador Cesium 3D sob demanda no primeiro acionamento
+    const currentSrc = cesiumFrame.getAttribute('src');
+    if (!currentSrc || currentSrc === 'about:blank' || cesiumFrame.src.endsWith('about:blank')) {
+      cesiumFrame.src = '/cesium/viewer';
+    } else {
+      try {
+        cesiumFrame.contentWindow?.postMessage('resize', '*');
+      } catch (e) {}
+    }
   } else {
-    cesiumFrame.classList.add('hidden');
-    mapContainer.classList.remove('hidden');
+    cesiumFrame.className = 'w-full h-full absolute inset-0 z-0 opacity-0 pointer-events-none transition-opacity duration-200';
+    mapContainer.className = 'w-full h-full relative z-10 opacity-100 pointer-events-auto transition-opacity duration-200';
     btn2d.className = 'px-3 py-1 text-xs font-semibold rounded-lg bg-slate-800 text-cyan-300 transition';
     btn3d.className = 'px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
     if (map) {
-      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 50);
     }
   }
 }

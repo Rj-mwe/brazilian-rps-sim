@@ -29,6 +29,8 @@ from rps_br.adapters.api.rest import (
 from rps_br.adapters.api.streaming import ws_router, simulation_stepper_loop
 from rps_br.adapters.api.nmea import nmea_router
 from rps_br.adapters.cesium import cesium_router
+from rps_br.core.application.services.SimulationSessionService import SimulationSessionService
+from rps_br.adapters.gazebo.GazeboWorldControlAdapter import GazeboWorldControlAdapter
 
 background_task = None
 
@@ -37,6 +39,10 @@ background_task = None
 async def lifespan(app: FastAPI):
     """Gerencia o ciclo de vida do motor de simulação e streaming em segundo plano."""
     global background_task
+    session = SimulationSessionService.get_instance()
+    gazebo_adapter = GazeboWorldControlAdapter()
+    session.register_control_outbound_port(gazebo_adapter)
+
     background_task = asyncio.create_task(simulation_stepper_loop())
     yield
     if background_task:
@@ -45,6 +51,7 @@ async def lifespan(app: FastAPI):
             await background_task
         except asyncio.CancelledError:
             pass
+    session.unregister_control_outbound_port(gazebo_adapter)
 
 
 app = FastAPI(

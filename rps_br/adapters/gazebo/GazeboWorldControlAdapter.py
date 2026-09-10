@@ -55,12 +55,8 @@ class GazeboWorldControlAdapter(ISimulationControlOutboundPort):
         elif shutil.which("podman"):
             cmd = [
                 "podman", "exec", self.container_name,
-                "gz", "service",
-                "-s", target_service,
-                "--reqtype", req_type,
-                "--reptype", rep_type,
-                "--timeout", str(int(timeout_sec * 1000)),
-                "--req", req_text
+                "bash", "-c",
+                f"source /opt/ros/jazzy/setup.bash 2>/dev/null; gz service -s {target_service} --reqtype {req_type} --reptype {rep_type} --timeout {int(timeout_sec * 1000)} --req '{req_text}'"
             ]
         else:
             return False

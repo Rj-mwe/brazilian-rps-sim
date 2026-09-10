@@ -7,6 +7,7 @@ observadores deste serviço, preservando o princípio da Fonte Única da Verdade
 """
 
 import threading
+import time
 from typing import List, Optional
 
 from rps_br.core.application.dtos.SimulationDTOs import (
@@ -81,13 +82,19 @@ class SimulationSessionService:
             self._mode = "MASTER_GAZEBO"
             self._sim_time_sec = float(tick.sim_time_sec)
             self._is_paused = bool(tick.is_paused)
+            self._last_tick_time_wall = time.time()
 
     def advance_standalone_clock(self, dt_wall_sec: float) -> bool:
         """
         Avança o tempo se e somente se o Core estiver operando em modo autônomo (sem Master Clock externo).
+        Se o Gazebo não enviar ticks por mais de 5s, degrada suavemente de volta para modo autônomo.
         Retorna True se o tempo avançou.
         """
         with self._lock:
+            if self._mode == "MASTER_GAZEBO" and self._last_tick_time_wall > 0:
+                if time.time() - self._last_tick_time_wall > 5.0:
+                    self._mode = "STANDALONE_AUTONOMOUS"
+
             if self._mode == "STANDALONE_AUTONOMOUS" and not self._is_paused:
                 self._sim_time_sec += dt_wall_sec * self._time_multiplier
                 return True

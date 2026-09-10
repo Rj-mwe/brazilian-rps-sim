@@ -18,4 +18,4 @@ echo "⚡  Documentação Swagger:      http://localhost:${PORT}/docs"
 echo "📡  API NMEA 0183 (u-center):   http://localhost:${PORT}/api/nmea/sentences"
 echo "===================================================================="
 
-exec python3 -m uvicorn rps_br.adapters.api.server:app --host "${HOST}" --port "${PORT}" "$@"
+exec python3 -m uvicorn rps_br.adapters.api.server:app --host "${HOST}" --port "${PORT}" --reload "$@"

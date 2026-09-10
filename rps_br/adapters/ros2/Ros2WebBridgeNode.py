@@ -80,9 +80,15 @@ class Ros2WebBridgeNode(Node):
     def _check_pause_state(self):
         """Detecta quando o Gazebo teve a simulação pausada (ausência de avanço do /clock)."""
         now_wall = time.time()
-        if self._last_raw_clock >= 0.0 and (now_wall - self._last_post_wall >= 0.6):
+        if self._last_raw_clock >= 0.0 and (now_wall - self._last_post_wall >= 0.5):
+            # Se ainda não marcamos como pausado, despacha imediatamente
             if not self._last_paused_state:
                 self._last_paused_state = True
+                self._last_post_wall = now_wall
+                self._post_clock_tick(self._last_sim_sec, is_paused=True)
+            # Se continua pausado, envia batimento periódico a cada 2s para manter o status MASTER_GAZEBO
+            elif now_wall - self._last_post_wall >= 2.0:
+                self._last_post_wall = now_wall
                 self._post_clock_tick(self._last_sim_sec, is_paused=True)
 
     def _post_clock_tick(self, sim_sec: float, is_paused: bool):

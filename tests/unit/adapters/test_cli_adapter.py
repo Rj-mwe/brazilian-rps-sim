@@ -21,8 +21,9 @@ from rps_br.core.application.services.SimulationSessionService import Simulation
 
 
 @pytest.fixture(autouse=True)
-def reset_session():
-    """Garante estado limpo do SimulationSessionService antes e depois de cada teste."""
+def reset_session(monkeypatch):
+    """Garante estado limpo do SimulationSessionService e isolamento da CLI contra servidores externos."""
+    monkeypatch.setattr("rps_br.adapters.cli.cli._fetch_api", lambda *args, **kwargs: None)
     session = SimulationSessionService.get_instance()
     session.reset()
     yield session

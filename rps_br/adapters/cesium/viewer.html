@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RPS-BR // Visualizador Geoespacial 3D (CesiumJS)</title>
   
+  <!-- Configuração do Base URL DEVE preceder a inclusão do script Cesium.js -->
+  <script>
+    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/";
+  </script>
+
   <!-- CesiumJS CSS & Script -->
   <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css">
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
@@ -56,49 +61,72 @@
 
   <!-- Script de Inicialização da Cena 3D -->
   <script>
-    // Inicialização do Globo 3D Cesium sem Ion Token (usa camadas públicas abertas)
-    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/";
-
-    const viewer = new Cesium.Viewer('cesiumContainer', {
-      imageryProvider: new Cesium.TileMapServiceImageryProvider({
-        url: Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
-      }),
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      sceneModePicker: true,
-      navigationHelpButton: false,
-      infoBox: true,
-      selectionIndicator: true,
-      animation: true,
-      timeline: true,
-      fullscreenButton: true,
-      shouldAnimate: true
-    });
-
-    // Configurações Físicas e Atmosféricas
-    viewer.scene.globe.enableLighting = true; // Iluminação solar realista
-    viewer.scene.globe.atmosphereBrightnessShift = 0.1;
-    viewer.scene.highDynamicRange = true;
-
-    // Carrega o documento CZML dinâmico gerado pelo backend
+    let viewer = null;
     let czmlSource = null;
     let showPaths = true;
 
-    Cesium.CzmlDataSource.load('/cesium/constellation.czml')
-      .then(function(dataSource) {
-        czmlSource = dataSource;
-        viewer.dataSources.add(dataSource);
-        
-        // Posição inicial da câmera: visão orbital inclinada sobre a América do Sul
-        focusConstellation();
-      })
-      .catch(function(error) {
-        console.error("Erro ao carregar CZML da constelação:", error);
-      });
+    async function initCesium() {
+      const container = document.getElementById('cesiumContainer');
+      if (!container) return;
+
+      try {
+        // Carrega a camada base NaturalEarthII compatível com Cesium 1.119+
+        let baseLayer = false;
+        try {
+          const tmsProvider = await Cesium.TileMapServiceImageryProvider.fromUrl(
+            Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
+          );
+          baseLayer = new Cesium.ImageryLayer(tmsProvider);
+        } catch (imageryErr) {
+          console.warn("Aviso ao carregar camada NaturalEarthII, usando camada padrão:", imageryErr);
+        }
+
+        viewer = new Cesium.Viewer('cesiumContainer', {
+          baseLayer: baseLayer,
+          baseLayerPicker: false,
+          geocoder: false,
+          homeButton: false,
+          sceneModePicker: true,
+          navigationHelpButton: false,
+          infoBox: true,
+          selectionIndicator: true,
+          animation: true,
+          timeline: true,
+          fullscreenButton: true,
+          shouldAnimate: true
+        });
+
+        // Configurações Físicas e Atmosféricas
+        viewer.scene.globe.enableLighting = true; // Iluminação solar realista
+        viewer.scene.globe.atmosphereBrightnessShift = 0.1;
+        viewer.scene.highDynamicRange = true;
+
+        // Suprime o modal de interrupção em caso de erro transitório de frame
+        viewer.scene.renderError.addEventListener((scene, error) => {
+          console.warn("⚠️ Aviso de renderização Cesium (recuperado):", error);
+        });
+
+        // Carrega o documento CZML dinâmico gerado pelo backend
+        Cesium.CzmlDataSource.load('/cesium/constellation.czml')
+          .then(function(dataSource) {
+            czmlSource = dataSource;
+            if (viewer && !viewer.isDestroyed()) {
+              viewer.dataSources.add(dataSource);
+              focusConstellation();
+            }
+          })
+          .catch(function(error) {
+            console.error("Erro ao carregar CZML da constelação:", error);
+          });
+
+      } catch (err) {
+        console.error("Erro na inicialização do Cesium Viewer:", err);
+      }
+    }
 
     // Funções de Câmera e Visualização
     function focusBrazil() {
+      if (!viewer || viewer.isDestroyed()) return;
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(-50.0, -15.0, 12000000.0),
         orientation: {
@@ -111,6 +139,7 @@
     }
 
     function focusConstellation() {
+      if (!viewer || viewer.isDestroyed()) return;
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(-48.0, -10.0, 75000000.0),
         orientation: {
@@ -131,6 +160,25 @@
           entities[i].path.show = showPaths;
         }
       }
+    }
+
+    // Ouvintes de redimensionamento e sincronização com iframe pai
+    window.addEventListener('resize', () => {
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.resize();
+      }
+    });
+
+    window.addEventListener('message', (event) => {
+      if (event.data === 'resize' && viewer && !viewer.isDestroyed()) {
+        viewer.resize();
+      }
+    });
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initCesium);
+    } else {
+      initCesium();
     }
   </script>
 </body>
