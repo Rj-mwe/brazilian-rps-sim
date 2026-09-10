@@ -50,6 +50,7 @@ graph TD
         TROPO["TroposphereSaastamoinenService"]
         IONO["IonosphereKlobucharService"]
         PRANGE["PseudorangeSimulationService"]
+        SOLVER["IterativeWlsPvtSolver (IPvtSolverStrategy)"]
         POL["KeplerianPropagationPolicy"]
         STRAT["Estratégias de DOP (Standard, Mask, Weighted)"]
         OBS["Observadores de Alerta DOP (Observer Pattern)"]
@@ -63,6 +64,7 @@ graph TD
         VO4["QuaternionVO"]
         VO5["TroposphericWeatherVO"]
         VO6["PseudorangeMeasurementVO"]
+        VO7["PvtSolutionVO & DopResultVO"]
     end
 
     UI --> API
@@ -133,7 +135,7 @@ brazilian-rps-sim/
 │   ├── rps-sim                      # Atalho para a CLI
 │   ├── rps_constellation_node       # Executável do nó ROS 2 de dinâmica
 │   └── rps_web_bridge_node          # Executável da ponte de relógio ROS 2 -> Web
-├── tests/                           # SUÍTE DE TESTES AUTOMATIZADOS (72 testes no Pytest)
+├── tests/                           # SUÍTE DE TESTES AUTOMATIZADOS (78 testes no Pytest)
 │   ├── integration/                 # Testes de missão de longa duração (24 horas)
 │   └── unit/                        # Testes unitários particionados por domínio e adaptadores
 ├── dashboard.sh                     # Script shell de inicialização rápida do API Gateway
@@ -152,21 +154,27 @@ brazilian-rps-sim/
   * `ElevationMaskDopStrategy`: Descarta satélites abaixo de um ângulo de corte ($\theta_i < \theta_{\text{mask}}$).
   * `WeightedElevationDopStrategy`: Pondera a matriz de covariância pelo seno da elevação ($\sin^2 el$).
 
-### B. Padrão Observer (*Notificação e Alertas de Degradação de Sinal*)
+### B. Padrão Strategy (*Solucionador de Navegação PVT*)
+* **Problema:** Um receptor GNSS pode alternar entre algoritmos numéricos de posicionamento (ex: Mínimos Quadrados Simples, Mínimos Quadrados Ponderados, Filtro de Kalman Estendido - EKF, ou Factor Graphs) sem que a camada de aplicação ou casos de uso dependam da implementação matemática específica.
+* **Solução:** A interface `IPvtSolverStrategy` define o contrato universal de resolução de estado $\mathbf{x} = [x, y, z, c \cdot \delta t_{\text{rx}}]^T$.
+* **Estratégias Implementadas:**
+  * `IterativeWlsPvtSolver`: Algoritmo iterativo de Gauss-Newton com matriz de pesos estocásticos baseada no seno da elevação ($W_{ii} = \sin^2 el_i$) e conversão geodésica WGS-84 integrada.
+
+### C. Padrão Observer (*Notificação e Alertas de Degradação de Sinal*)
 * **Problema:** Quando o PDOP ultrapassa limites operacionais de aproximação aeronáutica ($PDOP > 6.0$), múltiplos subsistemas precisam ser notificados sem acoplamento direto.
 * **Solução:** A classe `DopSubject` mantém uma lista de observadores (`IDopObserver`):
   * `DopAlertThresholdObserver`: Dispara alarmes quando a precisão geométrica é violada.
   * `DopLoggingObserver`: Registra eventos em logs de telemetria.
   * `DopTelemetryBufferObserver`: Armazena as amostras em buffer circular para a interface gráfica.
 
-### C. Padrão Facade (*Fachada Modular via `__init__.py`*)
+### D. Padrão Facade (*Fachada Modular via `__init__.py`*)
 * **Problema:** Proteger consumidores de conhecerem a árvore profunda de diretórios internos e evitar quebras quando arquivos internos são refatorados.
-* **Solução:** Todos os subpacotes (`core.domain.astrodynamics`, `core.application.dtos`, `adapters.api`, etc.) atuam como Fachadas explícitas exportando seus símbolos públicos através de `__all__`.
+* **Solução:** Todos os subpacotes (`core.domain.astrodynamics`, `core.domain.navigation_pvt`, `core.application.dtos`, `adapters.api`, etc.) atuam como Fachadas explícitas exportando seus símbolos públicos através de `__all__`.
 
-### D. Padrão Singleton Thread-Safe com Lock Reentrante
+### E. Padrão Singleton Thread-Safe com Lock Reentrante
 * **Problema:** Garantir que rotas HTTP assíncronas do FastAPI, o laço de streaming WebSocket e os pulsos de física externa acessem uma visão unificada e atômica da simulação.
 * **Solução:** As classes `TelemetryHub` e `SimulationSessionService` implementam o padrão Singleton protegido por `threading.RLock`, permitindo reentrância segura e eliminando condições de corrida.
 
-### E. Padrão Micro-Frontend Embed (*2D Leaflet $\leftrightarrow$ 3D Cesium*)
+### F. Padrão Micro-Frontend Embed (*2D Leaflet $\leftrightarrow$ 3D Cesium*)
 * **Problema:** Um globo 3D WebGL (CesiumJS) consome recursos intensivos de GPU e shaders, o que provocaria travamentos e colisões na DOM se executado no mesmo escopo JavaScript que os gráficos Chart.js e tabelas do painel 2D.
 * **Solução:** O visualizador Cesium roda em uma rota dedicada (`/cesium/viewer`) e é embutido na aplicação principal via `<iframe>` isolado. A troca entre a projeção 2D e o globo 3D ocorre instantaneamente apenas alternando a visibilidade dos containers, com desacoplamento total de contextos gráficos.

@@ -59,7 +59,7 @@ class PseudorangeSimulationService:
         """
         # 1. Ângulos topocêntricos e distância puramente geométrica Euclidiana
         elevation_deg, azimuth_deg, range_km = CoordinateTransformService.compute_topocentric_look_angles(
-            r_sat_ecef.to_numpy(), user_coords.latitude_deg, user_coords.longitude_deg
+            r_sat_ecef.to_numpy(), user_coords.latitude_deg, user_coords.longitude_deg, alt_gs_km=user_coords.altitude_km
         )
         geometric_range_m = range_km * 1000.0
         transit_time_sec = geometric_range_m / cls.SPEED_OF_LIGHT
@@ -169,7 +169,7 @@ class PseudorangeSimulationService:
         for sat in constellation.satellites:
             # Avaliação prévia de visibilidade
             el, az, _ = CoordinateTransformService.compute_topocentric_look_angles(
-                sat.r_ecef.to_numpy(), user_coords.latitude_deg, user_coords.longitude_deg
+                sat.r_ecef.to_numpy(), user_coords.latitude_deg, user_coords.longitude_deg, alt_gs_km=user_coords.altitude_km
             )
             if el < elevation_mask_deg:
                 continue

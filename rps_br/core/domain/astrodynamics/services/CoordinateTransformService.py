@@ -46,6 +46,7 @@ class CoordinateTransformService:
 
     @classmethod
     def compute_topocentric_look_angles(cls, r_sat_ecef: np.ndarray, lat_gs_deg: float, lon_gs_deg: float,
+                                        alt_gs_km: float = 0.0,
                                         r_earth: float = R_EARTH_DEFAULT, flattening: float = FLATTENING_DEFAULT) -> tuple[float, float, float]:
         """Calcula Ângulo de Elevação (°), Azimute (°) e Distância Slant-Range (km) a partir de uma estação de solo."""
         lat_rad = math.radians(lat_gs_deg)
@@ -54,9 +55,9 @@ class CoordinateTransformService:
         e2 = 2.0 * flattening - flattening**2
         N = r_earth / math.sqrt(1.0 - e2 * math.sin(lat_rad)**2)
         r_gs = np.array([
-            N * math.cos(lat_rad) * math.cos(lon_rad),
-            N * math.cos(lat_rad) * math.sin(lon_rad),
-            N * (1.0 - e2) * math.sin(lat_rad)
+            (N + alt_gs_km) * math.cos(lat_rad) * math.cos(lon_rad),
+            (N + alt_gs_km) * math.cos(lat_rad) * math.sin(lon_rad),
+            (N * (1.0 - e2) + alt_gs_km) * math.sin(lat_rad)
         ], dtype=np.float64)
 
         rho_ecef = r_sat_ecef - r_gs
