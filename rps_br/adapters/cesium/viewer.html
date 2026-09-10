@@ -57,6 +57,17 @@
         <span>↗</span>
       </a>
     </div>
+    <div class="h-6 w-px bg-slate-800"></div>
+    <div class="flex items-center space-x-2 text-xs font-mono">
+      <div class="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700/80">
+        <span class="text-slate-400">Tempo:</span>
+        <span id="cesium-time-text" class="text-white font-bold">00:00:00</span>
+      </div>
+      <div id="cesium-status-badge" class="px-2 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-800/60 flex items-center space-x-1">
+        <span id="cesium-status-indicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="cesium-status-text">SINCRONIZANDO</span>
+      </div>
+    </div>
   </div>
 
   <!-- Script de Inicialização da Cena 3D -->
@@ -64,6 +75,90 @@
     let viewer = null;
     let czmlSource = null;
     let showPaths = true;
+    let lastTelemetryState = null;
+    const simulationEpoch = Cesium.JulianDate.fromIso8601("2026-09-09T00:00:00Z");
+
+    function syncCesiumClock(simTimeSec, isPaused, multiplier, mode) {
+      if (!viewer || viewer.isDestroyed()) return;
+
+      const targetJulian = Cesium.JulianDate.addSeconds(simulationEpoch, simTimeSec, new Cesium.JulianDate());
+
+      // 1. Atualiza HUD
+      const timeEl = document.getElementById('cesium-time-text');
+      if (timeEl) {
+        const hours = Math.floor(simTimeSec / 3600);
+        const mins = Math.floor((simTimeSec % 3600) / 60);
+        const secs = Math.floor(simTimeSec % 60);
+        timeEl.innerText = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+
+      const statusBadge = document.getElementById('cesium-status-badge');
+      const statusInd = document.getElementById('cesium-status-indicator');
+      const statusText = document.getElementById('cesium-status-text');
+
+      // 2. Controla o relógio interno do Cesium
+      if (isPaused) {
+        viewer.clock.shouldAnimate = false;
+        viewer.clock.currentTime = targetJulian;
+
+        if (statusBadge) statusBadge.className = "px-2 py-1 rounded-lg bg-rose-950/80 text-rose-300 font-bold border border-rose-800/60 flex items-center space-x-1";
+        if (statusInd) statusInd.className = "w-2 h-2 rounded-full bg-rose-400";
+        if (statusText) statusText.innerText = mode === 'MASTER_GAZEBO' ? '⏸️ GAZEBO PAUSADO' : '⏸️ PAUSADO';
+      } else {
+        viewer.clock.multiplier = multiplier || 3600.0;
+        viewer.clock.shouldAnimate = true;
+
+        // Correção de deriva entre o relógio Cesium e o Core
+        const currentClockTime = viewer.clock.currentTime;
+        const diffSec = Math.abs(Cesium.JulianDate.secondsDifference(currentClockTime, targetJulian));
+        if (diffSec > 1.5) {
+          viewer.clock.currentTime = targetJulian;
+        }
+
+        if (statusBadge) statusBadge.className = "px-2 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-800/60 flex items-center space-x-1";
+        if (statusInd) statusInd.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        if (statusText) statusText.innerText = `${multiplier || 3600}x ${mode === 'MASTER_GAZEBO' ? '(GAZEBO)' : '(CORE)'}`;
+      }
+    }
+
+    function connectTelemetryWs() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:8000';
+      const wsUrl = `${protocol}//${host}/ws/telemetry`;
+
+      let ws = null;
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        console.warn("Aviso ao conectar WS de telemetria no Cesium:", e);
+        return;
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload && payload.simulation) {
+            lastTelemetryState = payload.simulation;
+            syncCesiumClock(
+              payload.simulation.time_sec,
+              payload.simulation.is_paused,
+              payload.simulation.multiplier,
+              payload.simulation.mode
+            );
+          }
+        } catch (err) {
+          console.warn("Erro ao desserializar telemetria no Cesium:", err);
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectTelemetryWs, 2000);
+      };
+
+      ws.onerror = () => {
+        try { ws.close(); } catch(e) {}
+      };
+    }
 
     async function initCesium() {
       const container = document.getElementById('cesiumContainer');
@@ -93,7 +188,7 @@
           animation: true,
           timeline: true,
           fullscreenButton: true,
-          shouldAnimate: true
+          shouldAnimate: false // Inicialmente congelado até sincronizar com o Core
         });
 
         // Configurações Físicas e Atmosféricas
@@ -112,12 +207,23 @@
             czmlSource = dataSource;
             if (viewer && !viewer.isDestroyed()) {
               viewer.dataSources.add(dataSource);
+              if (lastTelemetryState) {
+                syncCesiumClock(
+                  lastTelemetryState.time_sec,
+                  lastTelemetryState.is_paused,
+                  lastTelemetryState.multiplier,
+                  lastTelemetryState.mode
+                );
+              }
               focusConstellation();
             }
           })
           .catch(function(error) {
             console.error("Erro ao carregar CZML da constelação:", error);
           });
+
+        // Inicia conexão WebSocket para escuta de telemetria
+        connectTelemetryWs();
 
       } catch (err) {
         console.error("Erro na inicialização do Cesium Viewer:", err);
@@ -172,6 +278,12 @@
     window.addEventListener('message', (event) => {
       if (event.data === 'resize' && viewer && !viewer.isDestroyed()) {
         viewer.resize();
+      } else if (event.data && event.data.type === 'telemetry' && event.data.data) {
+        const sim = event.data.data.simulation || event.data.data;
+        if (sim && typeof sim.time_sec === 'number') {
+          lastTelemetryState = sim;
+          syncCesiumClock(sim.time_sec, sim.is_paused, sim.multiplier, sim.mode);
+        }
       }
     });
 

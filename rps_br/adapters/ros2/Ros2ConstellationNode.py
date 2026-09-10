@@ -88,12 +88,18 @@ def main(args=None):
     node = Ros2ConstellationNode()
     try:
         rclpy.spin(node)
-    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
+    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException, RuntimeError):
         pass
     finally:
-        if rclpy.ok():
+        try:
             node.destroy_node()
-            rclpy.shutdown()
+        except Exception:
+            pass
+        try:
+            rclpy.try_shutdown()
+        except Exception:
+            pass
+
 
 if __name__ == '__main__':
     main()

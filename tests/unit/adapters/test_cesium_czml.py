@@ -60,6 +60,8 @@ def test_cesium_routes(client):
     assert res_viewer.status_code == 200
     assert "Cesium.js" in res_viewer.text or "Cesium" in res_viewer.text
     assert "constellation.czml" in res_viewer.text
+    assert "syncCesiumClock" in res_viewer.text
+    assert "/ws/telemetry" in res_viewer.text
 
     # 2. Endpoint CZML
     res_czml = client.get("/cesium/constellation.czml")
@@ -68,3 +70,5 @@ def test_cesium_routes(client):
     assert isinstance(czml_data, list)
     assert len(czml_data) >= 8  # 1 doc + 7 sats + estações
     assert czml_data[0]["id"] == "document"
+    assert "clock" in czml_data[0]
+    assert "multiplier" in czml_data[0]["clock"]

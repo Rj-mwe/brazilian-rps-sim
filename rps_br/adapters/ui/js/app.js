@@ -170,6 +170,14 @@ function updateDashboard(data) {
   document.getElementById('sim-time').innerText = sim.time_str;
   document.getElementById('sim-multiplier').innerText = `${sim.multiplier}x`;
   isPaused = sim.is_paused;
+
+  // Sincroniza o visualizador Cesium 3D via postMessage imediato
+  const cesiumFrame = document.getElementById('cesium-frame');
+  if (cesiumFrame && cesiumFrame.contentWindow) {
+    try {
+      cesiumFrame.contentWindow.postMessage({ type: 'telemetry', data: sim }, '*');
+    } catch (e) {}
+  }
   
   const pauseBtn = document.getElementById('btn-pause');
   if (isPaused) {

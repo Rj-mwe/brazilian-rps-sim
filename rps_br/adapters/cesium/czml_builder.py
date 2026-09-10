@@ -16,6 +16,9 @@ from rps_br.core.domain.astrodynamics.aggregates.ConstellationAggregate import C
 from rps_br.core.application.services.CalculateGroundStationDopUseCase import DEFAULT_BRAZILIAN_GROUND_STATIONS
 
 
+from rps_br.core.application.services.SimulationSessionService import SimulationSessionService
+
+
 class CzmlConstellationBuilder:
     """Tradutor de modelo astrodinâmico para pacotes CZML (Cesium Language)."""
 
@@ -39,6 +42,17 @@ class CzmlConstellationBuilder:
         end_iso = "2026-09-10T00:00:00Z"
         interval = f"{epoch_iso}/{end_iso}"
 
+        # Obtém estado soberano da sessão de simulação para inicializar relógio alinhado
+        session = SimulationSessionService.get_instance()
+        state = session.get_state()
+        multiplier = float(state.time_multiplier)
+        current_time_iso = epoch_iso
+        if state.sim_time_sec > 0:
+            from datetime import datetime, timedelta
+            base_dt = datetime.fromisoformat(epoch_iso.replace("Z", "+00:00"))
+            curr_dt = base_dt + timedelta(seconds=float(state.sim_time_sec))
+            current_time_iso = curr_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
         # 1. Pacote de Documento Mestre
         czml_packets.append({
             "id": "document",
@@ -46,8 +60,8 @@ class CzmlConstellationBuilder:
             "version": "1.0",
             "clock": {
                 "interval": interval,
-                "currentTime": epoch_iso,
-                "multiplier": 3600.0,
+                "currentTime": current_time_iso,
+                "multiplier": multiplier,
                 "range": "LOOP_STOP",
                 "step": "SYSTEM_CLOCK_MULTIPLIER"
             }
