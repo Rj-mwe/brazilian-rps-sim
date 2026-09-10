@@ -59,7 +59,14 @@ graph TD
 * **Autorização (AuthZ — *O que você pode fazer?*):** O *middleware* de rede valida o token e constrói um contexto de identidade confiável (`SecurityContext` com papéis do usuário).
 * A Camada de Aplicação (`core.application`) valida se o papel associado à requisição possui permissão para disparar o Caso de Uso solicitado (ex: pausar a simulação ou injetar anomalias).
 
-### C. Código Seguro é Transversal a Todo o Código (*Secure Coding Everywhere*)
+### C. Auditoria e Contabilização (Auditing / Accounting — *O que foi feito e quando?*)
+* O terceiro pilar do **modelo clássico AAA** garante a rastreabilidade forense e o **não-repúdio (*non-repudiation*)**, essenciais para investigações pós-incidente em aviação e missões espaciais.
+* Na Arquitetura Hexagonal, a auditoria é estruturada como uma **Porta de Saída (*Driven Outbound Port*)**:
+  * **Porta Abstrata:** `IAuditLogOutboundPort` definida na camada de aplicação, invocada sempre que uma ação de controle ou anomalia é despachada.
+  * **Value Object Imutável:** `SecurityAuditEventVO` com carimbo de tempo UTC, tempo da simulação, ator, ação executada (`PAUSE`, `SPEED_CHANGE`, `INJECT_FAULT`), status (`SUCCESS` ou `DENIED`), IP do cliente e hash criptográfico SHA-256 do payload.
+  * **Adaptadores Concretos:** `FileAuditLogAdapter` (registro em arquivo *append-only* com permissão Unix restrita `600`), `SqliteAuditAdapter` e `SyslogAdapter` para centros de operações.
+
+### D. Código Seguro é Transversal a Todo o Código (*Secure Coding Everywhere*)
 O Core puro não precisa de bibliotecas de rede nem de senhas, mas implementa **segurança de software por construção**:
 * **Imutabilidade Inegociável:** Value Objects são blindados (`@dataclass(frozen=True)`), impedindo alteração indevida de estados orbitais após a criação.
 * **Validação de Invariantes em `__post_init__`:** Impossibilidade de instanciar satélites com anomalias físicas (ex: excentricidades negativas $e < 0$ ou altitudes abaixo do raio da Terra).
