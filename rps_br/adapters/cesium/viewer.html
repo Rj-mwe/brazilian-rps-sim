@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-950">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPS-BR // Visualizador Geoespacial 3D (CesiumJS)</title>
+  
+  <!-- CesiumJS CSS & Script -->
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    html, body, #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    /* Estilização da barra de animação do Cesium */
+    .cesium-viewer-animationContainer, .cesium-viewer-timelineContainer {
+      display: block !important;
+    }
+    .cesium-timeline-main {
+      border-top: 1px solid rgba(51, 65, 85, 0.6) !important;
+      background: rgba(15, 23, 42, 0.85) !important;
+    }
+  </style>
+</head>
+<body class="h-full font-sans text-slate-200 antialiased select-none">
+
+  <!-- Container Principal 3D -->
+  <div id="cesiumContainer"></div>
+
+  <!-- HUD Flutuante Superior -->
+  <div class="absolute top-4 left-4 z-50 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 p-3.5 rounded-2xl shadow-2xl flex items-center space-x-4">
+    <div class="flex items-center space-x-2.5">
+      <span class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></span>
+      <div>
+        <h1 class="text-xs font-bold tracking-wider text-white uppercase">RPS-BR // 3D Orbit Globe</h1>
+        <p class="text-[10px] text-slate-400 font-mono">CesiumJS WGS84 • 3 GEO + 4 IGSO</p>
+      </div>
+    </div>
+    <div class="h-6 w-px bg-slate-800"></div>
+    <div class="flex items-center space-x-1.5 text-xs font-mono">
+      <button onclick="focusBrazil()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold transition border border-slate-700">🇧🇷 Focar Brasil</button>
+      <button onclick="focusConstellation()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold transition border border-slate-700">🛰️ Constelação</button>
+      <button onclick="toggleOrbits()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700">Linhas</button>
+      <a href="/" target="_blank" class="px-2.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 font-semibold transition border border-cyan-800/60 flex items-center space-x-1">
+        <span>Painel Telemetria</span>
+        <span>↗</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Script de Inicialização da Cena 3D -->
+  <script>
+    // Inicialização do Globo 3D Cesium sem Ion Token (usa camadas públicas abertas)
+    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/";
+
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      imageryProvider: new Cesium.TileMapServiceImageryProvider({
+        url: Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
+      }),
+      baseLayerPicker: false,
+      geocoder: false,
+      homeButton: false,
+      sceneModePicker: true,
+      navigationHelpButton: false,
+      infoBox: true,
+      selectionIndicator: true,
+      animation: true,
+      timeline: true,
+      fullscreenButton: true,
+      shouldAnimate: true
+    });
+
+    // Configurações Físicas e Atmosféricas
+    viewer.scene.globe.enableLighting = true; // Iluminação solar realista
+    viewer.scene.globe.atmosphereBrightnessShift = 0.1;
+    viewer.scene.highDynamicRange = true;
+
+    // Carrega o documento CZML dinâmico gerado pelo backend
+    let czmlSource = null;
+    let showPaths = true;
+
+    Cesium.CzmlDataSource.load('/cesium/constellation.czml')
+      .then(function(dataSource) {
+        czmlSource = dataSource;
+        viewer.dataSources.add(dataSource);
+        
+        // Posição inicial da câmera: visão orbital inclinada sobre a América do Sul
+        focusConstellation();
+      })
+      .catch(function(error) {
+        console.error("Erro ao carregar CZML da constelação:", error);
+      });
+
+    // Funções de Câmera e Visualização
+    function focusBrazil() {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(-50.0, -15.0, 12000000.0),
+        orientation: {
+          heading: Cesium.Math.toRadians(0.0),
+          pitch: Cesium.Math.toRadians(-85.0),
+          roll: 0.0
+        },
+        duration: 2.0
+      });
+    }
+
+    function focusConstellation() {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(-48.0, -10.0, 75000000.0),
+        orientation: {
+          heading: Cesium.Math.toRadians(0.0),
+          pitch: Cesium.Math.toRadians(-90.0),
+          roll: 0.0
+        },
+        duration: 2.5
+      });
+    }
+
+    function toggleOrbits() {
+      if (!czmlSource) return;
+      showPaths = !showPaths;
+      const entities = czmlSource.entities.values;
+      for (let i = 0; i < entities.length; i++) {
+        if (entities[i].path) {
+          entities[i].path.show = showPaths;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
