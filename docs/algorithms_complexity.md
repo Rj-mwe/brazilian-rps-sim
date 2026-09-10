@@ -20,6 +20,7 @@ Em engenharia de sistemas aeroespaciais e radionavegação de missão crítica, 
 | **Inversão da Matriz Normal $(G^T G)^{-1}$** | `StandardLeastSquaresDopStrategy` | $O(1)$ | $O(1)$ (dimensão fixa $4 \times 4$) | $O(1)$ | Cholesky / LU $4 \times 4$ com guarda de posto |
 | **Retardo Troposférico Saastamoinen** | `TroposphereSaastamoinenService` | $O(1)$ | $O(1)$ | $O(1)$ | Corte seguro para $el < 1.0^\circ$ |
 | **Retardo Ionosférico Klobuchar** | `IonosphereKlobucharService` | $O(1)$ | $O(1)$ | $O(1)$ | Cosseno truncado com piso noturno |
+| **Gerador de Pseudodistâncias Brutas** | `PseudorangeSimulationService` | $O(M)$ | $O(M)$ ($M \le N = 7$ satélites visíveis) | $O(M)$ | Determinístico com semente estocástica |
 | **Buffer Circular de Telemetria DOP** | `DopTelemetryBufferObserver` | $O(1)$ | $O(1)$ (inserção amortizada) | $O(K)$ ($K = 120$) | Memória estática limitada (`collections.deque`) |
 
 ---
@@ -74,6 +75,22 @@ $$G = \begin{bmatrix}
 ### D. Modelagem de Atrasos Atmosféricos ($O(1)$)
 * **Troposfera (Saastamoinen):** Avaliação de polinômios com pressão, temperatura, umidade e elevação. Não envolve laços ou integrações numéricas. Complexidade: $O(1)$.
 * **Ionosfera (Klobuchar):** Cálculo da latitude geomagnética do IPP (Ionospheric Pierce Point), ângulo de fase solar e expansão em cosseno truncada. Complexidade: $O(1)$.
+
+---
+
+### E. Geração de Observáveis de Pseudodistância ($O(M)$)
+A classe `PseudorangeSimulationService` sintetiza as medições brutas de rádio que chegam à antena do receptor:
+
+$$\rho_i = R_i + c \cdot (\delta t_{\text{rx}} - \delta t_{\text{sat}}) + I_i + T_i + \Delta_{\text{rel}, i} + \epsilon_i$$
+
+1. **Range Geométrico ($R_i$):** Cálculo analítico da norma Euclidiana $\|\mathbf{r}_{\text{sat}, i} - \mathbf{r}_{\text{rx}}\|$ em tempo $O(1)$.
+2. **Correção Relativística Orbital ($\Delta_{\text{rel}, i}$):** Produto escalar no referencial inercial $\Delta_{\text{rel}} = -2 \frac{\mathbf{r}_{\text{eci}} \cdot \mathbf{v}_{\text{eci}}}{c}$ executado em $O(1)$ (nulo para GEOs circulares e não-nulo para IGSOs).
+3. **Retardos Físicos e Desvios de Relógio:** Avaliação de Klobuchar ($O(1)$), Saastamoinen ($O(1)$) e viés do oscilador local ($O(1)$).
+4. **Ruído Térmico Gaussiano ($\epsilon_i$):** Geração de variável aleatória normal com ponderação por elevação ($\sigma_i = \sigma_0 / \sin(el_i)$) via algoritmo de Box-Muller em $O(1)$.
+* **Complexidade Total por Satélite:** $O(1)$.
+* **Complexidade para a Constelação ($M$ satélites visíveis):**
+  $$T_{\rho} = \sum_{i=1}^M O(1) = O(M)$$
+  Para $M \le 7$, o tempo de execução total da síntese de pseudodistâncias é inferior a **$15\ \mu\text{s}$**, perfeitamente determinístico.
 
 ---
 

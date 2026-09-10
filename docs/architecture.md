@@ -49,6 +49,7 @@ graph TD
         KEPLER["KeplerSolverService (Newton-Raphson)"]
         TROPO["TroposphereSaastamoinenService"]
         IONO["IonosphereKlobucharService"]
+        PRANGE["PseudorangeSimulationService"]
         POL["KeplerianPropagationPolicy"]
         STRAT["Estratégias de DOP (Standard, Mask, Weighted)"]
         OBS["Observadores de Alerta DOP (Observer Pattern)"]
@@ -61,6 +62,7 @@ graph TD
         VO3["KeplerianElementsVO"]
         VO4["QuaternionVO"]
         VO5["TroposphericWeatherVO"]
+        VO6["PseudorangeMeasurementVO"]
     end
 
     UI --> API
@@ -131,7 +133,7 @@ brazilian-rps-sim/
 │   ├── rps-sim                      # Atalho para a CLI
 │   ├── rps_constellation_node       # Executável do nó ROS 2 de dinâmica
 │   └── rps_web_bridge_node          # Executável da ponte de relógio ROS 2 -> Web
-├── tests/                           # SUÍTE DE TESTES AUTOMATIZADOS (65 testes no Pytest)
+├── tests/                           # SUÍTE DE TESTES AUTOMATIZADOS (72 testes no Pytest)
 │   ├── integration/                 # Testes de missão de longa duração (24 horas)
 │   └── unit/                        # Testes unitários particionados por domínio e adaptadores
 ├── dashboard.sh                     # Script shell de inicialização rápida do API Gateway
