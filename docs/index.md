@@ -47,6 +47,7 @@ graph TD
 
     H --> H1["[Estratégia & Pirâmide de Testes](testing.md)"]
     H --> H2["[Qualidade, Confiabilidade & Segurança (DO-178C)](quality_safety.md)"]
+    H --> H3["[Cibersegurança & Proteção de Interfaces](cybersecurity.md)"]
 
     E --> E1["[Manuscrito Typst (papers/)](../papers/sbas_brazil_journal/main.typ)"]
 ```
@@ -57,6 +58,7 @@ graph TD
 
 * 🏛️ **[Arquitetura do Sistema, Árvore do Projeto e Decisões de Design](architecture.md)**
 * 🧮 **[Análise de Algoritmos, Complexidade Estrutural e Estruturas de Dados](algorithms_complexity.md)**
+* 🔒 **[Arquitetura de Cibersegurança e Proteção de Interfaces](cybersecurity.md)**
 * 🌐 **[Documentação da Interface API (REST, WebSocket, NMEA 0183, Cesium 3D)](api.md)**
 * 💻 **[Documentação da Interface de Linha de Comando (CLI `rps-sim`)](cli.md)**
 * 🧪 **[Engenharia e Estratégia de Testes de Software](testing.md)**
