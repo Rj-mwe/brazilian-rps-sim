@@ -158,7 +158,7 @@ brazilian-rps-sim/
 * **Problema:** Um receptor GNSS pode alternar entre algoritmos numéricos de posicionamento (ex: Mínimos Quadrados Simples, Mínimos Quadrados Ponderados, Filtro de Kalman Estendido - EKF, ou Factor Graphs) sem que a camada de aplicação ou casos de uso dependam da implementação matemática específica.
 * **Solução:** A interface `IPvtSolverStrategy` define o contrato universal de resolução de estado $\mathbf{x} = [x, y, z, c \cdot \delta t_{\text{rx}}]^T$.
 * **Estratégias Implementadas:**
-  * `IterativeWlsPvtSolver`: Algoritmo iterativo de Gauss-Newton com matriz de pesos estocásticos baseada no seno da elevação ($W_{ii} = \sin^2 el_i$) e conversão geodésica WGS-84 integrada.
+  * `IterativeWlsPvtSolver`: Algoritmo iterativo de Gauss-Newton com matriz de pesos estocásticos baseada no seno da elevação e conversão geodésica WGS-84 integrada (para a formulação matemática rigorosa das equações de pseudodistância e convergência de mínimos quadrados, consulte [`docs/math_theory/pvt_least_squares.md`](math_theory/pvt_least_squares.md)).
 
 ### C. Padrão Observer (*Notificação e Alertas de Degradação de Sinal*)
 * **Problema:** Quando o PDOP ultrapassa limites operacionais de aproximação aeronáutica ($PDOP > 6.0$), múltiplos subsistemas precisam ser notificados sem acoplamento direto.
@@ -178,3 +178,124 @@ brazilian-rps-sim/
 ### F. Padrão Micro-Frontend Embed (*2D Leaflet $\leftrightarrow$ 3D Cesium*)
 * **Problema:** Um globo 3D WebGL (CesiumJS) consome recursos intensivos de GPU e shaders, o que provocaria travamentos e colisões na DOM se executado no mesmo escopo JavaScript que os gráficos Chart.js e tabelas do painel 2D.
 * **Solução:** O visualizador Cesium roda em uma rota dedicada (`/cesium/viewer`) e é embutido na aplicação principal via `<iframe>` isolado. A troca entre a projeção 2D e o globo 3D ocorre instantaneamente apenas alternando a visibilidade dos containers, com desacoplamento total de contextos gráficos.
+
+---
+
+## 🧩 5. Teoria dos Adaptadores Inteligentes e Arquitetura Hexagonal Fractal
+
+### A. A Dicotomia: *Thin Adapters* vs. *Smart Adapters*
+Nem todo adaptador em uma Arquitetura Hexagonal necessita da mesma densidade estrutural. A complexidade do adaptador é estritamente proporcional à complexidade de estado do agente externo com o qual ele se comunica:
+
+1. **Adaptadores Finos (*Thin / Passive Adapters*):**
+   * Adequados para protocolos *stateless*, canais unidirecionais simples ou serializadores imediatos (ex.: exportador CSV/JSON em lote, logger textual, endpoints REST simples de leitura).
+   * Operam apenas como conversores de tipos: $\text{DTO}_{\text{Core}} \to \text{Payload}_{\text{Externo}}$. Não possuem máquinas de estado, laços temporais ou ciclo de vida autônomo.
+2. **Adaptadores Inteligentes (*Smart / Rich Adapters*):**
+   * Mandatórios quando o sistema periférico possui **seu próprio relógio de execução, ciclo de vida de nós, concorrência interna ou restrições rígidas de sincronismo** (ex.: CesiumJS com WebGL render loop, Gazebo Sim com motor físico ODE/OGRE 2, ROS 2 com DDS/rmw e Ngspice com solver transiente analógico).
+   * Um adaptador fino falha perante esses sistemas porque o sistema externo tem vida própria e tenderá a divergir silenciosamente (como observado quando o Cesium animava órbitas com a simulação pausada).
+
+### B. A Estrutura em Três Camadas de um *Smart Adapter*
+Para evitar que a complexidade do mundo externo contamine o Core e garantir que os contratos sejam respeitados, o *Smart Adapter* decompõe-se internamente em três camadas:
+
+```text
+[ Core do Sistema (Domínio & Casos de Uso) ]
+                     ▲
+                     │ Porta Soberana (IClockPort, ITelemetryPort, IControlPort)
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 ADAPTADOR INTELIGENTE (SMART ADAPTER)        │
+│                                                             │
+│  1. Adapter Application Layer                               │
+│     ├── Orquestrador de Ciclo de Vida (Init / Teardown)     │
+│     ├── Gerenciador de Sincronismo Temporal & Anti-Deriva  │
+│     ├── Detecção de Pausa & Watchdogs de Heartbeat          │
+│     └── Tradutor de Intenção e Comandos de Controle         │
+│                                                             │
+│  2. Adapter Domain Layer                                    │
+│     ├── Modelo Conceitual do Protocolo Externo              │
+│     │   (Ex: Netlist AST no Ngspice, Scene Graph no Cesium, │
+│     │    QoS Profiles no ROS 2, Sentenças NMEA 0183)        │
+│     └── Invariantes & Validações da Tecnologia Específica   │
+│                                                             │
+│  3. Adapter Driver / Transport Layer                        │
+│     ├── Sockets Web (WebSocket / TCP / UDP)                 │
+│     ├── Subprocess IPC (stdio pipes / POSIX signals)        │
+│     └── Bindings C++/Middleware (rclpy / DDS)               │
+└─────────────────────────────────────────────────────────────┘
+                     ▲
+                     ▼
+[ Sistema ou Engine Externa (CesiumJS, Gazebo, ROS 2, Ngspice) ]
+```
+
+* **Adapter Application Layer:** Responsável por governar a ponte de controle entre a sessão do Core e a sessão externa. Implementa políticas de tolerância a falhas, reconexão, amortecimento de jitter de rede e sincronização de relógio.
+* **Adapter Domain Layer:** Representa a ontologia da tecnologia externa. O Core de radionavegação não deve conhecer o que é uma *directive `.tran`*, um *nó SPICE*, um *pacote CZML* ou um *perfil de QoS Transient Local*. Esse vocabulário pertence legitimamente ao Domínio do Adaptador.
+* **Adapter Driver / Transport Layer:** O código de baixo nível que lida com I/O de rede, pipes de sistema operacional ou chamadas nativas C/C++.
+
+### C. A Natureza Fractal da Arquitetura Hexagonal (*Fractal Hexagons*)
+Conforme formulado por Alistair Cockburn, a Arquitetura Hexagonal é **recursiva e fractal**:
+> *"Cada hexágono representa um Bounded Context. Ao ampliarmos uma das arestas (um Adaptador), descobrimos no seu interior um outro hexágono completo."*
+
+O adaptador não é um mero script "colado" na borda; ele é um **micro-sistema autônomo** com suas próprias portas internas:
+* Uma porta interna voltada para a aplicação do Core;
+* Seu próprio domínio de protocolo/tecnologia;
+* Portas de saída secundárias conectadas aos drivers de comunicação física.
+
+Essa separação fractal impede o vazamento de abstrações (*leaky abstractions*), permitindo substituir, por exemplo, o CesiumJS por Unreal Engine 5, ou o Ngspice por Xyce/LTspice, sem alterar uma única linha do Core do RPS-BR.
+
+### D. Regulação Temporal Formal (Conformidade com IEEE 1516 / HLA)
+Para simulações distribuídas em engenharia aeroespacial, o tempo não é um parâmetro trivial de transporte. Adotamos os princípios da norma **IEEE 1516 (High Level Architecture - HLA)**:
+* **Time-Regulating Entity:** O Core atua como regulador soberano do relógio virtual em modo *Standalone*.
+* **Time-Constrained Entity:** Todos os *Smart Adapters* de visualização ou co-simulação (Cesium, Dashboard, Displays) são entidades estritamente restritas pelo tempo, proibidas de avançar o estado sem a respectiva autorização temporal (*Time Advance Grant*).
+* **Master Co-Simulation Mode:** Quando o Gazebo Sim é ativado, o Gazebo assume temporariamente a regulação da física de corpo rígido, transmitindo pulsos `/clock` que o Core ingere e redistribui para os demais federados escravos.
+
+---
+
+## ⚡ 6. Subsistema de Co-Simulação Eletrônica com Ngspice
+
+### A. Conveniência e Relevância do Ngspice para o Projeto RPS-BR
+O **Ngspice** é o simulador de circuitos analógicos, digitais e de sinais mistos em nível de componentes (*SPICE*) padrão da indústria e da academia. Em uma missão aeroespacial de posicionamento regional como o RPS-BR, o Core governa a cinemática de alto nível e a geometria de sinal, mas a **física do hardware embarcado no satélite e nas estações terrestres** exige fidelidade eletroeletrônica:
+
+```mermaid
+flowchart TD
+    subgraph "Core Astrodinâmico & Rádio"
+        Orbit["Propagação Kepleriana / WGS84"] --> Eclipse["Detector de Eclipse Solar (Umbra/Penumbra)<br/>E_s(t) [W/m²]"]
+        Orbit --> Dist["Alcance Inclinado (Slant Range)<br/>d(t) [km]"]
+    end
+
+    subgraph "Smart Adapter Ngspice (Fractal)"
+        Eclipse --> NetlistGen["Gerador Dinâmico de Netlist SPICE<br/>(Células Fotovoltaicas + Baterias + MPPT)"]
+        NetlistGen --> NgspiceProcess["Motor Ngspice Headless (ngspice -b)<br/>Simulação Transiente (.tran)"]
+        NgspiceProcess --> RawParser["Parser de Formato Binário .raw"]
+        RawParser --> PowerState["Status de Potência do Satélite<br/>V_bus(t) & P_tx(t)"]
+    end
+
+    subgraph "Canal de Rádio & Navegação"
+        PowerState --> LinkBudget["Equação do Enlace (Link Budget)<br/>C/N_0 = P_tx + G_tx + G_rx - L_fs - L_atm"]
+        LinkBudget --> SigmaRho["Variância do Ruído de Pseudodistância<br/>σ_ρ² = f(C/N_0)"]
+        SigmaRho --> WLS["IterativeWlsPvtSolver (Matriz W)"]
+    end
+```
+
+### B. Os Três Pontos Críticos de Integração Elétrica
+1. **Subsistema de Energia Elétrica (EPS - Electrical Power System):**
+   * **Cenário Físico:** Durante as passagens dos 4 satélites IGSO e 3 GEO pela sombra da Terra (eclipses de equinócio), os painéis solares deixam de produzir corrente ($I_{\text{pv}} \to 0$). O barramento primário passa a ser alimentado exclusivamente pelos bancos de baterias de Lítio.
+   * **Papel do Ngspice:** Simulação do circuito conversor chaveado Buck/Boost, regulação MPPT e cinética eletroquímica equivalente da bateria ($R_{\text{int}}, C_{\text{cap}}$). O Ngspice calcula a queda de tensão no barramento $V_{\text{bus}}(t)$.
+2. **Amplificador de Alta Potência da Carga Útil (Payload HPA / SSPA):**
+   * **Cenário Físico:** Se a tensão do barramento $V_{\text{bus}}$ sofre subtensão durante um eclipse severo, os amplificadores de potência de RF em banda L perdem ponto de quiescência, reduzindo a potência efetiva isotrópica radiada (EIRP).
+   * **Papel do Ngspice:** Simulação transiente não-linear do estágio de potência RF. A potência real de saída $P_{\text{tx}}(t)$ é re-injetada no Core para atualizar a relação portadora-ruído $C/N_0$ e a matriz estocástica de pesos do solver PVT.
+3. **Front-End Analógico do Receptor Terrestre (LNA & Filtros RF):**
+   * **Cenário Físico:** Na estação de monitoramento de solo (ex.: ITA / São José dos Campos), o sinal chega na antena com potência de apenas $\approx -160\text{ dBW}$. O front-end precisa amplificar com baixíssimo ruído.
+   * **Papel do Ngspice:** Modelagem da figura de ruído ($NF$), ruído térmico de Johnson-Nyquist ($4 k_B T B$) e resposta em frequência do filtro passa-faixa em banda L1/L5.
+
+### C. O Adaptador Ngspice como *Smart Adapter*
+O adaptador para Ngspice seguirá rigorosamente o modelo fractal:
+* **NgspiceNetlistDomain:** Modelos de componentes (resistores, capacitores, fontes controladas, transistores GaN/LDMOS, subcircuitos de bateria);
+* **NgspiceExecutionCoordinatorService (Application):** Recebe o passo de tempo e as condições de iluminação do Core, sintetiza a netlist proceduralmente, orquestra a execução de `ngspice -b circuit.cir -r output.raw`, extrai os dados analíticos via parser binário nativo e entrega um DTO padronizado (`SatellitePowerTelemetryDTO`) ao Core;
+* **NgspiceProcessDriver (Transport):** Gerencia a invocação segura do binário no SO ou contêiner via pipes POSIX assíncronos.
+
+### D. Orquestração Multi-Agente Autônoma (Integração AutoGen + LangGraph)
+Esta arquitetura fractal viabiliza a orquestração por agentes autônomos de Inteligência Artificial:
+* **AutoGen (Camada Operacional / Tool-Use):** Agentes de engenharia elétrica especializados (ex.: *CircuitDesignerAgent*, *SpiceSimulationAgent*, *DiagnosticsAgent*) realizam síntese de circuitos, dimensionamento de componentes e análise de convergência numérica em netlists SPICE.
+* **LangGraph (Camada de Governança e Grafo Cíclico):** Implementa a máquina de estados determinística da missão:
+  $$\text{Passo Orbital (Core)} \longrightarrow \text{Avaliação de Eclipse} \longrightarrow \text{Disparo Ngspice} \longrightarrow \text{Telemetria Elétrica} \longrightarrow \text{Balanço de Link RF}$$
+  Caso ocorra anomalia elétrica (ex.: subtensão crítica de bateria no Ngspice), o LangGraph comuta a constelação para modo de sobrevivência (*Safe Mode*), desliga cargas secundárias e notifica o operador via alertas da Camada de Aplicação do Core.
+
