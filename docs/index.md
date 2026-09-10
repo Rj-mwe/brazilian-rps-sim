@@ -12,7 +12,7 @@ A documentação deste repositório é tratada com o mesmo rigor, versionamento 
 * **Arquitetura Hexagonal (Ports & Adapters)**: Desacoplamento absoluto entre formulações matemáticas de domínio puro e frameworks externos (ROS 2 / Gazebo Sim).
 * **Rastreabilidade Bidirecional**: Cada modelo implementado responde a uma especificação teórica formal e a um requisito operacional rastreável no [GitHub Projects](https://github.com/users/Rj-mwe/projects/2).
 * **Test-Driven Development (TDD)**: Toda equação é validada por casos de teste com tolerâncias analíticas estritas antes da integração.
-* **Artigos em Typst**: Produção científica rápida, reprodutível e versionável em código-fonte puro.
+* **Artigos em Typst**: Produção científica rápida, reprodutível e versionável em código-fonte puro na pasta de topo [`papers/`](../papers/).
 
 ---
 
@@ -23,7 +23,9 @@ graph TD
     A["Documentação da Missão"] --> B["🏛️ Decisões de Arquitetura (ADRs)"]
     A --> C["📋 Especificações & Normas"]
     A --> D["📐 Formulações Teóricas & Físicas"]
-    A --> E["📄 Artigos & Publicações (Typst)"]
+    A --> G["🔌 Interfaces & Adaptadores"]
+    A --> H["🧪 Engenharia de Qualidade & Testes"]
+    A --> E["📄 Artigo Científico (Typst)"]
     A --> F["📓 Folhas de Cálculo (Notebooks)"]
 
     B --> B1["0001: Arquitetura Hexagonal"]
@@ -37,7 +39,25 @@ graph TD
     D --> D1["Astrodinâmica & Perturbação J2"]
     D --> D2["Retardos Atmosféricos (Iono/Tropo)"]
     D --> D3["Solucionador PVT de Mínimos Quadrados"]
+
+    G --> G1["[API Gateway (REST / WS / NMEA / Cesium)](api.md)"]
+    G --> G2["[Interface CLI (rps-sim)](cli.md)"]
+
+    H --> H1["[Estratégia & Pirâmide de Testes](testing.md)"]
+    H --> H2["[Qualidade, Confiabilidade & Segurança (DO-178C)](quality_safety.md)"]
+
+    E --> E1["[Manuscrito Typst (papers/)](../papers/sbas_brazil_journal/main.typ)"]
 ```
+
+---
+
+## 📚 Guias Técnicos Rápidos
+
+* 🌐 **[Documentação da Interface API (REST, WebSocket, NMEA 0183, Cesium 3D)](api.md)**
+* 💻 **[Documentação da Interface de Linha de Comando (CLI `rps-sim`)](cli.md)**
+* 🧪 **[Engenharia e Estratégia de Testes de Software](testing.md)**
+* 🛡️ **[Qualidade, Confiabilidade e Segurança de Software (DO-178C, ECSS, ISO/IEC 25010)](quality_safety.md)**
+* 📄 **[Artigo Científico em Typst (`papers/sbas_brazil_journal/`)](../papers/sbas_brazil_journal/)**
 
 ---
 
