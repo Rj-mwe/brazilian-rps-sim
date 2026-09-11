@@ -281,6 +281,46 @@ Quando um adaptador atinge o Nível 2 ou 3, sua camada de aplicação reproduz d
 * Elementos como **Agregados, Entidades e Repositórios** só devem ser criados no domínio do adaptador quando a tecnologia externa tiver um **modelo de dados estruturado e mutável** (como o grafo de uma netlist de circuito no Ngspice ou o grafo de nós de cena em uma engine 3D).
 * Para a maioria dos adaptadores de Nível 2, **Value Objects imutáveis e Serviços de Domínio puros** (ex.: validadores de sintaxe de pacote, cálculos de deriva temporal) são mais do que suficientes para garantir robustez sem incorrer em sobre-engenharia (*YAGNI - You Aren't Gonna Need It*).
 
+### G. A Camada de Driver / Transporte do Adaptador (*Adapter Driver / Transport Layer*)
+A terceira camada de um *Smart Adapter* é a **fronteira física de contato com o ambiente hospedeiro**. Ela é responsável por interagir diretamente com o Sistema Operacional, protocolos de rede de baixo nível, bibliotecas C nativas ou hardware físico.
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                 ADAPTER APPLICATION LAYER                   │
+│         (Orquestração, Máquina de Estados, Mappers)         │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+               usa interface   ▼
+┌─────────────────────────────────────────────────────────────┐
+│              INTERFACE DE DRIVER (Porta Interna)            │
+│               ex: INgspiceProcessDriver                     │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+         implementada por      ▼
+┌─────────────────────────────────────────────────────────────┐
+│           ADAPTER DRIVER / TRANSPORT IMPLEMENTATION         │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 1. Gestão de Processos & Sinais POSIX (SIGTERM/KILL)  │  │
+│  │ 2. Streams Assíncronos sem Deadlock (stdin/stdout)    │  │
+│  │ 3. Timeouts Rígidos de Execução (Evita Hangs de CPU)  │  │
+│  │ 4. Memória Compartilhada / I/O em /dev/shm            │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+              [ Binário Externo / SO / Hardware ]
+```
+
+#### Princípios de Engenharia da Camada de Driver:
+1. **Inversão de Dependência Interna (DIP):**
+   * A camada de aplicação do adaptador nunca deve invocar diretamente funções como `subprocess.Popen()`, `socket.connect()` ou chamadas de sistema operacional. Ela sempre consome uma interface abstrata (ex.: `INgspiceProcessDriver` ou `IWebSocketTransportDriver`).
+2. **Testabilidade Hermética com Mocks de Driver:**
+   * Graças à interface de driver, é possível executar testes unitários do adaptador em milissegundos injetando um `InMemoryMockNgspiceDriver`, sem necessitar do binário compilado do Ngspice instalado no ambiente de CI/CD e sem criar arquivos reais em disco.
+3. **Resiliência e Salvaguardas em Nível de SO:**
+   * **Prevenção de *Pipe Deadlocks*:** Leitura e escrita assíncronas via streams não-bloqueantes (`asyncio.StreamReader/StreamWriter`), impedindo que o processo filho trave por saturação do buffer de saída do SO ($64\text{ KB}$ padrão Linux).
+   * **Timeouts Rígidos:** Toda invocação externa é protegida por um temporizador máximo (ex.: $2.0\text{ s}$). Se o solver externo entrar em laço infinito de convergência, o driver despacha um `SIGTERM` seguido de `SIGKILL`.
+   * **I/O Otimizado em RAM:** Netlists e arquivos de resultados transientes são gravados preferencialmente em diretórios de memória compartilhada (`/dev/shm` ou `tmpfs`), evitando desgaste de SSD e latências de disco.
+
 ---
 
 ## ⚡ 6. Subsistema de Co-Simulação Eletrônica com Ngspice
@@ -320,13 +360,40 @@ flowchart TD
    * **Cenário Físico:** Na estação de monitoramento de solo (ex.: ITA / São José dos Campos), o sinal chega na antena com potência de apenas $\approx -160\text{ dBW}$. O front-end precisa amplificar com baixíssimo ruído.
    * **Papel do Ngspice:** Modelagem da figura de ruído ($NF$), ruído térmico de Johnson-Nyquist ($4 k_B T B$) e resposta em frequência do filtro passa-faixa em banda L1/L5.
 
-### C. O Adaptador Ngspice como *Smart Adapter*
-O adaptador para Ngspice seguirá rigorosamente o modelo fractal:
-* **NgspiceNetlistDomain:** Modelos de componentes (resistores, capacitores, fontes controladas, transistores GaN/LDMOS, subcircuitos de bateria);
-* **NgspiceExecutionCoordinatorService (Application):** Recebe o passo de tempo e as condições de iluminação do Core, sintetiza a netlist proceduralmente, orquestra a execução de `ngspice -b circuit.cir -r output.raw`, extrai os dados analíticos via parser binário nativo e entrega um DTO padronizado (`SatellitePowerTelemetryDTO`) ao Core;
-* **NgspiceProcessDriver (Transport):** Gerencia a invocação segura do binário no SO ou contêiner via pipes POSIX assíncronos.
+### C. A Aplicação dos 8 Elementos Táticos de Domínio no Adaptador Ngspice
+Como um **Smart Adapter de Nível 3 (Fractal)**, o adaptador do Ngspice implementa de forma completa os 8 elementos do Domain-Driven Design para governar a ontologia de circuitos e simulação de hardware:
 
-### D. Orquestração Multi-Agente Autônoma (Integração AutoGen + LangGraph)
+1. **Agregados (*Aggregates*):**
+   * `SatelliteCircuitAggregate`: Raiz de consistência do circuito elétrico do satélite. Encapsula o grafo de conexões (painéis, baterias, reguladores e transmissor). Garante o invariante elétrico fundamental: existência obrigatória de um nó terra de referência comum (nó 0) e ausência de nós flutuantes que causariam singularidade na matriz nodal do SPICE ($G \cdot V = I$).
+2. **Entidades (*Entities*):**
+   * `CircuitNodeEntity`: Representa os nós de interconexão com identidade única (ex.: nó `BUS_28V`, nó `BAT_POS`). Seu estado (tensão instantânea) evolui a cada passo, mas sua identidade na netlist permanece imutável.
+   * `SpiceComponentEntity`: Componentes físicos com parâmetros individuais (ex.: transistor GaN `Q_HPA_1`, célula de bateria `CELL_BATT_3`).
+3. **Objetos de Valor (*Value Objects - VOs*):**
+   * `ResistanceVO`, `CapacitanceVO`, `InductanceVO`: VOs imutáveis com validação de grandezas físicas e unidades no `__post_init__` (rejeitando valores nulos ou negativos incoerentes).
+   * `SpiceDirectiveVO`: Representa comandos de controle de simulação (ex.: `.tran 10u 1s`, `.options reltol=0.001`).
+   * `TransientResultVO`: Amostra temporal congelada de tensões de nós e correntes de ramos resultante da execução do solver.
+4. **Serviços de Domínio (*Domain Services*):**
+   * `NetlistTopologicalValidatorService`: Analisa a topologia do circuito antes da execução para detectar malhas fechadas de fontes de tensão ideais ou ramos indutivos em aberto.
+   * `TransientStepCalculatorService`: Calcula o passo máximo de integração ($\Delta t_{\max} \le \frac{1}{10 f_{\text{sw}}}$) baseado na frequência de chaveamento do regulador para assegurar estabilidade numérica no integrador trapezoidal do SPICE.
+5. **Especificações (*Specifications* - Padrão Specification):**
+   * `BatteryUnderVoltageSpecification`: Verifica se a curva de descarga da bateria violou a margem de segurança operacional ($V_{\text{bus}} < 22.0\text{ V}$).
+   * `ThermalOperatingLimitSpecification`: Avalia se a dissipação de potência de pico no transistor de RF ultrapassa o limite térmico de junção ($T_j > 150^\circ\text{C}$).
+6. **Políticas de Domínio (*Policies*):**
+   * `BatteryDegradationPolicy`: Modela o envelhecimento da bateria, incrementando a resistência interna equivalente ($R_{\text{int}}$) a cada ciclo térmico de eclipse completado na órbita.
+   * `SolverConvergenceRemediationPolicy`: Se o Ngspice falhar com erro de "Timestep too small", esta política comuta o algoritmo de integração numérica de `TRAP` (trapezoidal) para `GEAR` e ajusta as tolerâncias de condutância `gmin` dinamicamente.
+7. **Eventos de Domínio (*Domain Events*):**
+   * `BatteryDepletionWarningEvent`: Disparado internamente no domínio do adaptador quando a bateria atinge $80\%$ de profundidade de descarga (*DoD*).
+   * `PayloadUnderVoltageEvent`: Disparado quando a tensão do barramento afeta a linearidade do transmissor.
+   * *Mapeamento:* A camada de aplicação do adaptador captura esses eventos e os traduz para DTOs de alarme despachados ao Core de controle da missão.
+8. **Fábricas (*Factories*):**
+   * `SatelliteCircuitFactory`: Constrói proceduralmente o agregado `SatelliteCircuitAggregate` a partir das condições de irradiância solar $E_s(t)$ e temperatura fornecidas pelo Core, instanciando os modelos elétricos adequados para satélites GEO (plataformas de alta potência) ou IGSO.
+
+### D. A Camada de Driver do Ngspice
+O acesso ao motor SPICE é blindado pela interface `INgspiceProcessDriver`:
+* `AsyncSubprocessNgspiceDriver`: Implementação de produção que gerencia a invocação do executável `ngspice -b` via processos assíncronos POSIX, redireciona o binário `.raw` para `/dev/shm` e faz o parse vetorial em C/NumPy em tempo real;
+* `InMemoryMockNgspiceDriver`: Implementação de teste hermético que emula as respostas transientes sem depender da presença do binário Ngspice no ambiente de desenvolvimento ou CI/CD.
+
+### E. Orquestração Multi-Agente Autônoma (Integração AutoGen + LangGraph)
 Esta arquitetura fractal viabiliza a orquestração por agentes autônomos de Inteligência Artificial:
 * **AutoGen (Camada Operacional / Tool-Use):** Agentes de engenharia elétrica especializados (ex.: *CircuitDesignerAgent*, *SpiceSimulationAgent*, *DiagnosticsAgent*) realizam síntese de circuitos, dimensionamento de componentes e análise de convergência numérica em netlists SPICE.
 * **LangGraph (Camada de Governança e Grafo Cíclico):** Implementa a máquina de estados determinística da missão:
