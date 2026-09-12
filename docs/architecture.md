@@ -1056,6 +1056,118 @@ Para eliminar quaisquer ambiguidades nominais na árvore do repositório, fixa-s
    * O identificador canônico da pasta física é **`rps_br/infrastructure/`** (no singular).
    * O conceito arquitetural sob o qual seus módulos são projetados é denominado **Substrato Fundamental (*Vanguard Foundation Layer*)**.
 
+---
+
+### L. A Dualidade Simétrica da Edge Network Interface: Porta Inbound vs. Outbound Shim
+
+A questão sobre se a Edge Network Interface (Terminal Gateway) deve ser implementada como a própria **Porta Hexagonal do Core** ou como um **Shim de borda** resolve-se pela **direção do fluxo de controle de execução**:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   A DUALIDADE SIMÉTRICA DA EDGE NETWORK INTERFACE           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   FLUXO 1: INBOUND (De Fora para Dentro - Driving Ports)                    │
+│   [ Cliente Externo / CLI / REST ]                                          │
+│              │ Invocação de método Python simples: session.pause()          │
+│              ▼                                                              │
+│   ┌─────────────────────────────────────────┐                               │
+│   │ PORTA HEXAGONAL DO CORE (Edge Gateway)  │                               │
+│   │ • Recebe chamada procedural limpa;      │                               │
+│   │ • Envelopa intenção em MissionPacket;   │                               │
+│   │ • Injeta pacote no canal VC-Control.    │                               │
+│   └────────────────────┬────────────────────┘                               │
+│                        │ Injeção no NoC                                     │
+│                        ▼                                                    │
+│               ═══════════════════                                           │
+│               NoC TRANSPORT MESH                                            │
+│               ═══════════════════                                           │
+│                        │ Despacho assíncrono                                │
+│                        ▼                                                    │
+│   ┌─────────────────────────────────────────┐                               │
+│   │ OUTBOUND SHIM ADAPTER (Edge Transceiver)│                               │
+│   │ • Subscrito ao canal VC-Telemetry;      │                               │
+│   │ • Desempacota o payload do pacote;      │                               │
+│   │ • Invoca o método do adaptador leigo.   │                               │
+│   └────────────────────┬────────────────────┘                               │
+│                        │ Invocação procedural: repository.save(entity)      │
+│                        ▼                                                    │
+│   [ Adaptador de Saída Leigo / CSV / SQLite ]                               │
+│                                                                             │
+│   FLUXO 2: OUTBOUND (De Dentro para Fora - Driven Ports)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **No Fluxo Inbound (Portas de Entrada - Driving): A Porta Hexagonal do Core É a Edge NI.**
+   * Quando uma CLI ou controlador REST executa uma ação de controle (ex.: `session.step(1)`), o adaptador de entrada não precisa de nenhum shim intermediário.
+   * A Porta Hexagonal no Core recebe a chamada de função Python regular, cria o `MissionPacket` correspondente com prioridade estrita (Prioridade 7) e o injeta na malha do NoC (`VC-Control`).
+2. **No Fluxo Outbound (Portas de Saída - Driven): O Outbound Shim É a Edge NI.**
+   * Componentes de saída leigos (um gerador de CSV, um observador sonoro ou um banco SQLite de Nível 1) apenas implementam métodos procedurais simples (`write_sample(dict)`).
+   * O **Outbound Shim** é o transceiver que se inscreve no canal do NoC (`VC-Telemetry`), intercepta os pacotes e invoca o método do componente leigo de forma transparente.
+3. **Harmonia do Modelo:** **Ambos os mecanismos coexistem de forma simétrica**, garantindo que nenhum adaptador de Nível 1 precise conhecer a malha do NoC para enviar ou receber dados.
+
+---
+
+### M. Arquitetura do Substrato de Persistência: Substrato Unificado com Motores Poliglotas
+
+Ao escalar o armazenamento para múltiplas tecnologias (SQLite para snapshots de missão, DuckDB para séries temporais analíticas de 100 Hz, HDF5 para integração orbital com NASA SPICE e arquivos de efemérides RINEX/SP3), **não se deve pulverizar a infraestrutura em dezenas de substratos isolados nem criar um único arquivo monolítico acoplado**.
+
+Aplica-se o padrão **Substrato de Persistência Unificado com Motores Poliglotas (*Polyglot Persistence Substrate*)**:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│           SUBSTRATO DE PERSISTÊNCIA UNIFICADO COM MOTORES POLIGLOTAS        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   FACHADA DO SUBSTRATO (Visão Canônica do Sistema):                         │
+│   rps_br/infrastructure/database_substrate.py (ou telemetry_vault.py)       │
+│   • Interface de alto nível: store_telemetry(), store_state(), query_pvt()  │
+│   • Roteador semântico de persistência e orquestração de transações         │
+│                                                                             │
+│                         ▼ Roteamento por Natureza do Dado                   │
+│                                                                             │
+│   MOTORES DE ARMAZENAMENTO ESPECIALIZADOS (Engines Intercambiáveis):        │
+│   ┌──────────────────────┬──────────────────────┬─────────────────────────┐ │
+│   │ DuckDbEngine /       │ SqliteEngine         │ Hdf5Engine /            │ │
+│   │ ParquetEngine        │                      │ RinexSp3Exporter        │ │
+│   ├──────────────────────┼──────────────────────┼─────────────────────────┤ │
+│   │ Séries temporais de  │ Estado da máquina,   │ Campanhas orbitais de   │ │
+│   │ alta vazão (100 Hz), │ sessões ativas, logs │ longa duração (24h+),   │ │
+│   │ agregações OLAP e    │ de comandos e metada-│ matrizes binárias densas│ │
+│   │ DOP em colunas.      │ dos transacionais.   │ e interoperabilidade.   │ │
+│   └──────────────────────┴──────────────────────┴─────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+* **Interface Única:** O Core, a Governança e o NoC enxergam apenas o **Substrato de Persistência** (`database_substrate.py`), que oferece contratos orientados a casos de uso de missão.
+* **Motores Especializados (*Storage Engines*):** Internamente, o substrato despacha o dado para a tecnologia física otimizada para o padrão de acesso daquela grandeza (colunar para telemetria, relacional para metadados, HDF5 para matrizes pesadas).
+
+---
+
+### N. Fractais de Nível 3: Adaptadores Internos e Dependência de Substratos Transversais
+
+A natureza de um **Smart Adapter de Nível 3 (Fractal)**, como o módulo do Ngspice, suscita duas regras fundamentais de isolamento e acoplamento:
+
+#### 1. Um Fractal Pode Ter Seus Próprios Adaptadores Internos?
+**Sim, absolutamente.** Essa é a própria essência da propriedade matemática de **Auto-Similaridade (*Fractal Architecture*)**.
+* Como um fractal é um sub-hexágono completo, ele reproduz internamente as três camadas de arquitetura:
+  * Possui seu próprio **Domínio Interno** (`SatelliteCircuitAggregate`, entidades de nós, leis de Kirchhoff);
+  * Possui suas próprias **Portas Internas** (`INgspiceProcessDriver`);
+  * Possui seus **próprios Adaptadores Internos**:
+    * `AsyncSubprocessNgspiceDriver`: Adaptador interno para processo real POSIX `/usr/bin/ngspice`;
+    * `InMemoryMockNgspiceDriver`: Adaptador interno para simulação mock em testes unitários herméticos;
+    * `ShmNgspiceDriver`: Adaptador interno que lê vetores de saída diretamente da memória compartilhada `/dev/shm`.
+* **Escopo:** O fractal permanece dentro do repositório do RPS-BR, respeitando o princípio da Assimetria Adaptativa (ADR 0005) sem a necessidade burocrática de virar um repositório git separado.
+
+#### 2. Um Fractal Pode Consumir os Substratos como Dependência Transversal?
+**Sim, e essa é a regra formal de sustentação do sistema.**
+* Os Substratos em `rps_br/infrastructure/` são **recursos fundacionais transversais (*Cross-Cutting Foundation Substrates*)** por definição:
+  * O adaptador fractal do Ngspice pode e deve consumir o **Substrato de Enlace Físico (`noc_shm_substrate`)** para ler buffers vetoriais em alta velocidade;
+  * O adaptador fractal do Gazebo consome o **Substrato de Configuração (`config_substrate`)** para carregar os parâmetros canônicos de massa e inércia;
+  * Qualquer fractal pode emitir pacotes de auditoria para o **Substrato do Cofre de Telemetria (`telemetry_vault`)** via NoC.
+* **O Invariante Proibitivo:** O que um fractal **NUNCA** pode fazer é depender diretamente de detalhes privados de outros adaptadores (acoplamento lateral) ou importar o Domínio Matemático puro do Core (`astrodynamics`). Consumir a infraestrutura dos Substratos é perfeitamente legítimo e necessário.
+
+
 
 
 
