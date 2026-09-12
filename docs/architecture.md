@@ -400,3 +400,76 @@ Esta arquitetura fractal viabiliza a orquestração por agentes autônomos de In
   $$\text{Passo Orbital (Core)} \longrightarrow \text{Avaliação de Eclipse} \longrightarrow \text{Disparo Ngspice} \longrightarrow \text{Telemetria Elétrica} \longrightarrow \text{Balanço de Link RF}$$
   Caso ocorra anomalia elétrica (ex.: subtensão crítica de bateria no Ngspice), o LangGraph comuta a constelação para modo de sobrevivência (*Safe Mode*), desliga cargas secundárias e notifica o operador via alertas da Camada de Aplicação do Core.
 
+---
+
+## 🌐 7. A Malha de Transporte de Alto Nível: O Paradigma Network on Core (NoC)
+
+### A. Desmistificando o NoC em Software (Da Microeletrônica à Engenharia de Software)
+No projeto **Vanguard** e na concepção de sistemas ciber-físicos aeroespaciais avançados, o conceito de **Network on Core (NoC)** importa o princípio de *Network on Chip* da microeletrônica moderna para resolver um gargalo arquitetural crítico:
+* Em circuitos integrados de muitos núcleos (MPSoCs), o NoC substituiu os barramentos compartilhados e as trilhas dedicadas ponto-a-ponto porque a proliferação de conexões gerava contenção, acoplamento físico e capacitância parasita.
+* No software de grande porte, o problema é estruturalmente idêntico:
+  * À medida que o sistema cresce para comportar dezenas de *Smart Adapters* (CesiumJS, Gazebo Sim, Ngspice, NMEA 0183, REST Gateway, CLI, Agentes de IA), se cada adaptador exigir portas ponto-a-ponto acopladas com o Core ou entre si, o sistema degenera em uma malha espaguete incontrolável ($O(N^2)$ dependências cruzadas).
+  * O **NoC (Network on Core)** é o **middleware e malha de transporte de alto nível do ecossistema de software**, responsável por rotear eventos, comandos e telemetria através de envelopes universais, roteadores semânticos, árbitros de QoS e canais virtuais segregados.
+
+### B. Distinção de Fronteira: NoC (Alto Nível / Intra-Sistema) vs. Adapter Driver (Baixo Nível / Periférico)
+O NoC e a *Adapter Driver Layer* não concorrem nem se anulam; **eles atuam em escalas e fronteiras complementares**:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    CORE DO SISTEMA (DOMÍNIO & CASOS DE USO)                 │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ Soquete NI (Network Interface)
+                                       ▼
+═══════════════════════════════════════════════════════════════════════════════
+  NoC (NETWORK ON CORE) - MALHA DE TRANSPORTE DE ALTO NÍVEL (INTRA-SISTEMA)
+  - Envelope de Roteamento (MissionPacket / Header: Src, Dest, Priority, VC)
+  - Logical Router (Roteamento Semântico baseado em intenção)
+  - Arbiter & QoS (Prioridades estritas para evitar Head-of-Line Blocking)
+  - Virtual Channels (VC-Control, VC-Telemetry, VC-CoSimulation)
+  - Fast-Path Bypass (Latência Zero para chamadas in-process críticas)
+═══════════════════════════════════════════════════════════════════════════════
+        ▲                                                     ▲
+        │ Soquete NI                                          │ Soquete NI
+        ▼                                                     ▼
+┌──────────────────────────────────┐        ┌──────────────────────────────────┐
+│   SMART ADAPTER 1 (Ex: Cesium)   │        │   SMART ADAPTER 2 (Ex: Ngspice)  │
+│                                  │        │                                  │
+│  1. Adapter Application Layer    │        │  1. Adapter Application Layer    │
+│  2. Adapter Domain Layer (CZML)  │        │  2. Adapter Domain Layer (Netlist│
+│                                  │        │                                  │
+│  3. Adapter Driver / Transport   │        │  3. Adapter Driver / Transport   │
+│     (TRANSPORTE DE BAIXO NÍVEL   │        │     (TRANSPORTE DE BAIXO NÍVEL   │
+│      COM O PERIFÉRICO EXTERNO)   │        │      COM O PERIFÉRICO EXTERNO)   │
+│      - Sockets WebSocket / WebGL │        │      - Subprocess POSIX pipes /  │
+│        Context Canvas Driver     │        │        I/O em /dev/shm Driver    │
+└────────────────┬─────────────────┘        └────────────────┬─────────────────┘
+                 │                                           │
+                 ▼                                           ▼
+      [ Navegador / Tela 3D ]                      [ Binário /usr/bin/ngspice ]
+```
+
+1. **O NoC é o Transporte Lógico de Alto Nível (Intra-Sistema / Lógica de Malha):**
+   * Situa-se **dentro do ecossistema de software**, conectando os *Bounded Contexts* (Fractais) e *Smart Adapters* entre si e com o Core;
+   * Padroniza a comunicação via envelopes estruturados (`MissionPacket` / `GoldenPacket`), blindando os componentes contra detalhes de implementação vizinhos;
+   * Evita o acoplamento lateral (*cross-adapter coupling*): dois adaptadores podem colaborar sem que um importe o código do outro, interagindo exclusivamente através da malha do NoC;
+   * Previne a contenção (*Head-of-Line Blocking*) através de **Canais Virtuais**: uma simulação transiente pesada do Ngspice rodando no canal de co-simulação não retém nem atrasa os batimentos críticos do relógio de controle no canal de controle.
+2. **A Adapter Driver Layer é o Transporte Físico de Baixo Nível (Periférica / "PHY"):**
+   * Situa-se **na extremidade exterior de cada Smart Adapter individual**;
+   * É responsável por falar com o "mundo exterior" que não entende o protocolo do NoC (ex.: streams de bytes stdin/stdout de um executável C em `/usr/bin/ngspice`, chamadas WebGL com a GPU no navegador, portas seriais UART físicas ou o barramento DDS do ROS 2).
+
+### C. Os Cinco Pilares Estruturais do NoC em Software
+1. **Envelope de Pacote (`MissionPacket`):**
+   * Encapsula a mensagem com metadados universais de transporte: `source_id`, `destination_id`, `priority` (0 a 7), `virtual_channel`, `timestamp` e `payload`.
+2. **Network Interface (NI):**
+   * O "soquete" formal de acoplamento. O Core e os adaptadores apenas enxergam a NI, depositando e recebendo pacotes sem conhecer a topologia da malha.
+3. **Logical Router:**
+   * Motor de despacho semântico que entrega pacotes baseado em intenção (*Point-to-Point* para comandos específicos ou *Publish/Subscribe* para fluxos de telemetria contínua).
+4. **Arbiter & QoS (Garantia de Qualidade de Serviço):**
+   * Árbitro de tráfego com escalonamento por prioridade estrita. Mensagens de controle de emergência ou pausa imediata furam a fila de pacotes analíticos secundários.
+5. **Canais Virtuais (Virtual Channels - VCs) e Fast-Path:**
+   * **VC-Control:** Canal prioritário de alta garantia para pulsos de relógio, sinais de sincronismo IEEE 1516 e comandos de pausa/retomada;
+   * **VC-Telemetry:** Canal de streaming contínuo para métricas orbitais, DOP e atrasos atmosféricos (1 Hz a 10 Hz);
+   * **VC-CoSimulation:** Canal assíncrono para intercâmbio de dados pesados e simulações transientes (Ngspice, modelos térmicos);
+   * **Fast-Path (Crossbar Virtual de Latência Zero):** Para trechos críticos de alta performance em que emissor e receptor residem no mesmo processo in-memory (ex.: propagação orbital consumida diretamente pelo solver PVT), a NI efetua o *bypass* da serialização e invoca a função destino em linha, atingindo latência zero com máxima velocidade de CPU.
+
+
