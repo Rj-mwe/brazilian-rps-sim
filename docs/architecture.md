@@ -472,4 +472,197 @@ O NoC e a *Adapter Driver Layer* não concorrem nem se anulam; **eles atuam em e
    * **VC-CoSimulation:** Canal assíncrono para intercâmbio de dados pesados e simulações transientes (Ngspice, modelos térmicos);
    * **Fast-Path (Crossbar Virtual de Latência Zero):** Para trechos críticos de alta performance em que emissor e receptor residem no mesmo processo in-memory (ex.: propagação orbital consumida diretamente pelo solver PVT), a NI efetua o *bypass* da serialização e invoca a função destino em linha, atingindo latência zero com máxima velocidade de CPU.
 
+### D. Unificação da Interface de Rede no NoC: A Arquitetura em Duas Camadas (Pilha Lógica vs. Pilha de Enlace)
+A fragmentação da comunicação ocorre quando cada adaptador estabelece contratos ad-hoc e protocolos heterogêneos para conversar com o Core (ex.: um adaptador expõe callbacks síncronos, outro usa RPC assíncrono, outro compartilha referências mutáveis em memória e outro consome sockets diretamente). 
+
+Para **desfragmentar a responsabilidade e padronizar o ecossistema**, o NoC atua como a **Interface Unificada de Comunicação**, organizada internamente em duas camadas concêntricas bem delimitadas:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       DOMÍNIO & CASOS DE USO DO CORE                        │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ INetworkInterface
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. CAMADA DE ALTO NÍVEL (LÓGICA / SEMÂNTICA - NETWORK ON CORE MESH)         │
+│    - Roteamento Semântico e Resolução de Destino por Intenção               │
+│    - Envelope Universal MissionPacket / GoldenPacket                        │
+│    - Gestão de Canais Virtuais (VC-Control, VC-Telemetry, VC-CoSimulation)  │
+│    - Arbitragem de Prioridades (QoS 0 a 7, Prevenção de Head-of-Line Blocking│
+│    - Filtros de Interceptação e Governança de Contrato                     │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ ILinkDriver (Inversão de Dependência)
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. CAMADA DE BAIXO NÍVEL (ENLACE / TRANSPORTE CONCRETO - LINK DRIVERS)      │
+│    ┌────────────────────────┬───────────────────────┬─────────────────────┐ │
+│    │ MemoryLinkDriver       │ ShmIpcLinkDriver      │ NetworkLinkDriver   │ │
+│    │ (In-Process Fast-Path, │ (POSIX Pipes,         │ (WebSocket, DDS/    │ │
+│    │  Zero-Copy, asyncio)   │  /dev/shm, Shared Mem)│  ROS 2, TCP, gRPC)  │ │
+│    └────────────────────────┴───────────────────────┴─────────────────────┘ │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ Sockets / Pipes / Buffers Físicos
+                                       ▼
+                    [ Mundo Exterior / Processos / SO ]
+```
+
+1. **A Camada Superior (Lógica / Semântica - Network Layer):**
+   * Exposta a todos os nós do sistema através do contrato puro `INetworkInterface`.
+   * Fornece primitivas semânticas de comunicação: `send_packet(packet)`, `request(query) -> response`, `subscribe(channel, listener)`.
+   * Desconhece completamente se o destinatário está rodando na mesma thread, em um sub-processo C++ separado ou em uma máquina remota.
+   * Assegura as garantias de qualidade de serviço (QoS), priorização estrita de pacotes de controle sobre pacotes de telemetria e o isolamento de canais virtuais.
+
+2. **A Camada Inferior (Enlace / Transporte Físico - Link Driver Layer):**
+   * Implementa a interface `ILinkDriver` para viabilizar o transporte físico concreto.
+   * Desacopla o mecanismo de I/O da semântica de rede:
+     * **In-Process Memory Driver (Fast-Path):** Utilizado quando emissor e receptor compartilham o mesmo espaço de endereçamento (ex.: Core e solver WLS PVT). O pacote é transferido por referência imutável ou fila thread-safe em memória, alcançando latência de nanossegundos e *zero-copy*.
+     * **POSIX / Shared Memory Driver (`/dev/shm`):** Utilizado para isolar adaptadores de processos externos intensivos (ex.: binário Ngspice ou parsers C++), garantindo alta vazão sem sobrecarregar a rede do sistema operacional.
+     * **Network / Protocol Driver:** Utilizado para atravessar a fronteira do processo ou da rede física (ex.: WebSockets para o CesiumJS no navegador, DDS para nós ROS 2, ou TCP/IP para estações de solo remotas).
+
+---
+
+### E. A Dicotomia Vanguard: NoC Passivo (Local) vs. NoC Ativo (Centralizado)
+Na concepção original do ecossistema **Vanguard** (*Hexágono Dourado*), o NoC foi idealizado em duas modalidades estruturais distintas, correspondendo a diferentes níveis de escala, acoplamento e maturidade do sistema:
+
+| Dimensão Arquitetural | NoC Passivo (Descentralizado / Local) | NoC Ativo (Centralizado / Vanguard Kernel) |
+| :--- | :--- | :--- |
+| **Natureza de Execução** | Reativa (*Event-Driven* / Sob Demanda) | Proativa (*Active Supervisor Daemon*) |
+| **Ciclo de Fundo (Daemon)** | Inexistente (Zero consumo de CPU em repouso) | Execução contínua com relógio de supervisão |
+| **Determinismo Temporal** | Absoluto (reprodutibilidade estrita em testes) | Estocástico / Adaptativo ao tráfego de rede |
+| **Escopo Primário** | Nó local, simulações monoprocesso ou IPC | Federação multi-nó, multi-máquina e distribuída |
+| **Latência Típica** | Latência Zero / Nanosegundos (*In-Process*) | Milissegundos (sobrecarga de rede e telemetria) |
+| **Governança e Compliance** | Interceptores síncronos em pipeline | Árbitro centralizado permanente e dinâmico |
+| **Adequação ao RPS-BR Atual** | **Excelente (Modelo Recomendado)** | Complexidade desnecessária para simulação local |
+
+#### 1. NoC Passivo (Local / Descentralizado / Autônomo)
+* **Princípio Operacional:** O NoC Passivo é uma malha reativa embutida (*in-library / event-driven*). Ele **não executa um daemon ou thread de fundo contínua** quando não há mensagens em trânsito.
+* **Mecanismo de Despacho:** O fluxo de dados só ocorre quando um nó chama explicitamente `send_packet()` na `INetworkInterface` ou quando um ciclo de simulação avança. A entrega para os inscritos ocorre de maneira imediata e determinística através de filas prioritárias locais ou invocações diretas de callbacks protegidos.
+* **Por que é o modelo ideal para a fase atual do RPS-BR?**
+  1. **Determinismo Temporal Rígido:** Não há condições de corrida (*race conditions*) provocadas por escalonadores externos imprevisíveis. Uma simulação orbital passo a passo ($t_0, t_1, \dots, t_n$) produz exatamente o mesmo resultado bit-a-bit em qualquer máquina.
+  2. **Testabilidade Hermética:** Facilita a execução de suítes de testes unitários (`pytest`) em milissegundos, sem necessidade de levantar servidores de mensageria, brokers RabbitMQ/Kafka ou daemons de background.
+  3. **Eficiência e Sobrecarga Zero:** Sem ociosidade de CPU, ideal para ambientes embarcados ou execuções locais de alto desempenho.
+
+#### 2. NoC Ativo (Centralizado / Orquestrado pelo Vanguard Kernel)
+* **Princípio Operacional:** O NoC Ativo possui uma entidade orquestradora centralizada em execução permanente (*Active Mesh Supervisor* ou *Vanguard Orchestrator*), que roda seu próprio relógio de supervisão.
+* **Capacidades Avançadas:**
+  1. **Supervisão Contínua e Heartbeats:** Monitora ativamente o pulso de vida de cada subsistema conectado. Se um nó travar ou entrar em loop infinito, o supervisor detecta a ausência de batimento e aplica medidas de quarentena.
+  2. **Controle Dinâmico de Congestionamento:** Aplica *backpressure* proativo, modulando a taxa de emissão de adaptadores barulhentos antes que os buffers de canais virtuais transbordem.
+  3. **Roteamento Dinâmico Adaptativo:** Capaz de reconfigurar caminhos de pacotes em tempo de execução caso um enlace físico ou nó intermediário falhe.
+  4. **Gestão de Federação Distribuída:** Orquestra a sincronização entre múltiplos processos, contêineres e nós computacionais geograficamente distribuídos.
+
+#### 3. O Caminho de Transição: "Construir Passivo, Preparar para Ativo"
+A engenharia de software de alta resiliência recomenda que o sistema **nasça como um NoC Passivo robusto**, dotado de contratos de interface estritos. Quando o ecossistema Vanguard for ativado:
+* O nó local do RPS-BR continua executando seu NoC Passivo internamente com máxima performance.
+* Um adaptador especializado (**NoC Gateway / Vanguard Uplink**) conecta a malha local ao NoC Ativo da Vanguard, integrando o simulador à federação global sem exigir a alteração de uma única linha de código do Domínio Kepleriano ou dos algoritmos de navegação.
+
+---
+
+### F. Localização Arquitetural do NoC e o Papel do Sub-Core de Governança
+Uma dúvida recorrente em projetos que adotam o Paradigma Hexagonal diz respeito a onde posicionar a malha de rede e os órgãos de controle.
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              SISTEMA RPS-BR                                 │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ SUB-CORE DE GOVERNANÇA (O "PODER JUDICIÁRIO")                         │  │
+│  │ - Validação Constitucional de Contratos e Schemas                     │  │
+│  │ - Mestre do Relógio e Ciclo de Vida da Missão                         │  │
+│  │ - Gestão de Estados Globais (INIT, RUN, PAUSE, SAFE_MODE, TEARDOWN)   │  │
+│  │ - Auditoria, Rastreabilidade e Políticas de Sanção                    │  │
+│  └──────────────────────────────────┬────────────────────────────────────┘  │
+│                                     │ Interceptação / Veto                  │
+│  ┌──────────────────────────────────┴────────────────────────────────────┐  │
+│  │ CAMADA DE APLICAÇÃO DO CORE                                           │  │
+│  │ - Orquestração de Casos de Uso (RunStepUseCase, SolvePvtUseCase)      │  │
+│  │ - Portas Hexagonais: INetworkInterface, INoCArbiter                   │  │
+│  │ - NoC Fabric Service (Malha Lógica de Alto Nível)                     │  │
+│  └──────────────────────────────────┬────────────────────────────────────┘  │
+│                                     │ Dados de Domínio Puros                │
+│  ┌──────────────────────────────────┴────────────────────────────────────┐  │
+│  │ CAMADA DE DOMÍNIO DO CORE (O "PODER EXECUTIVO")                       │  │
+│  │ - Matemática Kepleriana, Modelos Troposféricos/Ionoféricos, WLS PVT    │  │
+│  │ - 100% Livre de conceitos de Rede, Soquetes, Pacotes ou Filas         │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 1. Em Qual Camada Habita o NoC?
+* **O NoC NÃO pertence ao Domínio Puro do Core:** As leis da gravidade de dois corpos, o modelo ionosférico de Klobuchar e o solver WLS PVT operam sobre vetores tridimensionais, matrizes e instantes de tempo físico ($t$). Eles não devem saber o que é um `MissionPacket`, uma porta TCP, uma prioridade de QoS ou um buffer circular.
+* **O NoC habita a Camada de Aplicação do Core / Infraestrutura Compartilhada:**
+  * As **Portas** (`INetworkInterface`, `INoCRouter`) residem em `core/application/ports/noc/`.
+  * Os **Serviços de Aplicação** utilizam essas portas para publicar eventos de missão e orquestrar os fluxos de trabalho.
+  * A **Implementação da Malha** (`NoCFabric`, `LogicalRouter`, `StrictPriorityArbiter`) reside na infraestrutura do Core, orquestrando o tráfego intra-processo e inter-adaptadores.
+
+#### 2. O Sub-Core de Governança: O "Poder Judiciário" do Sistema
+Enquanto a Camada de Aplicação e o Domínio formam o "Poder Executivo" (executam a lógica de satélites e cálculo posicional), o **Sub-Core de Governança** funciona como o **Poder Judiciário e Regulatório**:
+1. **Fiscalização de Conformidade e Schemas (Contract Compliance):**
+   * Nenhum pacote transita pelo NoC sem antes passar pelos censores de governança.
+   * Se um adaptador defeituoso enviar um pacote com coordenadas contendo valores `NaN`, tempos negativos ou comandos fora de ordem, o Sub-Core de Governança **veta o pacote**, emite um alerta de violação de invariante e impede a contaminação do Core.
+2. **Mestre do Relógio e Ciclos de Vida (Clock & Lifecycle Master):**
+   * O Sub-Core de Governança arbitra soberanamente as transições da máquina de estados global:
+     $$\text{INITIALIZING} \longrightarrow \text{READY} \longleftrightarrow \text{RUNNING} \longleftrightarrow \text{PAUSED} \longrightarrow \text{SAFE\_MODE} \longrightarrow \text{TERMINATED}$$
+   * Controla a sincronização temporal determinística (IEEE 1516 / Discrete Event Simulation), assegurando que o Cesium, o Gazebo e o Ngspice avancem em estrito uníssono (*lock-step* ou *time-barrier*).
+3. **Políticas de Sanção e Isolamento de Falhas (Failure Containment):**
+   * Caso um adaptador fractal (ex.: Ngspice) entre em pane numérica ou não responda dentro do limite de tempo (*timeout*), o Sub-Core de Governança sanciona o adaptador:
+     * Comuta o nó para estado isolado (*Quarantine*);
+     * Ativa uma política de contingência (ex.: utiliza o último estado elétrico válido ou um modelo linear simplificado);
+     * Permite que a propagação orbital e a navegação continuem operando de forma resiliente e ininterrupta.
+
+#### 3. Os NoCs dos Adaptadores Fractais São Ativos ou Passivos?
+* Dentro de um Smart Adapter Fractal (Nível 3, como o Ngspice ou o Gazebo), o seu **NoC interno deve ser estritamente PASSIVO**.
+* **Fundamentação:**
+  * Um adaptador fractal não deve instanciar daemons de orquestração concorrentes que disputem o controle de threads com a aplicação principal;
+  * Sua governança interna limita-se a gerenciar os invariantes do próprio subsistema (ex.: ausência de nós flutuantes no circuito SPICE ou integridade do Z-buffer na cena gráfica);
+  * O ciclo de vida do fractal é passivo e subordinado às ordens do Mestre do Relógio da Governança Central.
+
+---
+
+### G. Escalabilidade e Federação Inter-Projetos: O Papel do NoC Ativo no Futuro
+À medida que o simulador RPS-BR expande suas fronteiras e passa a se integrar com outros sistemas e projetos de grande porte (ex.: Simulador de Dinâmica e Controle de Atitude - AOCS, Simuladores de Cargas Úteis de Comunicação, Redes Reais de Rastreamento de Satélites e Sistemas Multi-Agente de IA), a topologia de malha evolui naturalmente:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   FEDERAÇÃO INTER-PROJETOS (VANGUARD MESH)                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│                  ┌────────────────────────────────────────┐                 │
+│                  │        VANGUARD KERNEL / NOC ATIVO     │                 │
+│                  │  - Orquestrador Global de Federação    │                 │
+│                  │  - Roteamento Inter-Projetos (BGP-like)│                 │
+│                  │  - QoS Global e Alocação de Banda      │                 │
+│                  └───────▲────────────────────────▲───────┘                 │
+│                          │                        │                         │
+│           NoC Uplink     │                        │ NoC Uplink              │
+│                          ▼                        ▼                         │
+│     ┌───────────────────────────┐   ┌───────────────────────────┐           │
+│     │    PROJETO RPS-BR         │   │    PROJETO AOCS SIM       │           │
+│     │  - NoC Passivo Local      │   │  - NoC Passivo Local      │           │
+│     │  - Sub-Core de Governança │   │  - Sub-Core de Governança │           │
+│     │  - Fractais Locais        │   │  - Fractais Locais        │           │
+│     └───────────────────────────┘   └───────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Autonomia Local Preservada:** Cada projeto individual preserva seu **NoC Passivo Local**, operando com velocidade de barramento de memória interna, sem sofrer latências desnecessárias de rede distribuída.
+2. **Federação Transparente via NoC Ativo:** O NoC Ativo da Vanguard atua no topo da hierarquia, assumindo o papel de **Roteador de Borda e Árbitro Federado**:
+   * Descobre automaticamente os serviços expostos por cada projeto;
+   * Traduz e roteia pacotes inter-projetos de alta prioridade (ex.: comando do AOCS solicitando manobra corretiva baseado no DOP calculado pelo RPS-BR);
+   * Garante a sincronia de relógio global da federação via protocolos de tempo coordenado (*Distributed Virtual Time*).
+
+---
+
+### H. Diretrizes e Recomendações de Engenharia para o RPS-BR
+Para guiar o desenvolvimento prático do sistema, são fixadas as seguintes diretrizes arquiteturais obrigatórias:
+
+| Diretriz | Regra de Engenharia | Justificativa Arquitetural |
+| :--- | :--- | :--- |
+| **Interface Única** | Todo componente se comunica via `INetworkInterface`. | Elimina o acoplamento ponto-a-ponto e desfragmenta as camadas de comunicação. |
+| **Separação de Camadas** | Separar rigidamente a lógica do NoC (`MissionPacket`, Canais) dos drivers físicos de enlace (`ILinkDriver`). | Permite alternar entre memória local, IPC `/dev/shm` e WebSockets sem alterar a lógica de negócios. |
+| **NoC Base Passivo** | O NoC do RPS-BR deve ser implementado inicialmente no modo **Passivo (Reativo)**. | Garante determinismo total, reprodutibilidade em testes unitários e sobrecarga zero de CPU. |
+| **NoC Fractal Passivo** | Adaptadores fractais (Ngspice, Gazebo) devem usar NoC interno passivo subordinado ao Core. | Evita concorrência e condições de corrida entre múltiplos daemons de orquestração. |
+| **Governança Separada** | Manter o Sub-Core de Governança responsável por Schemas, Relógio e Ciclo de Vida. | Desonera o Domínio puro de preocupações regulatórias e garante contenção de falhas (*fail-safe*). |
+| **Prontidão para Federação** | Projetar os envelopes de pacotes com identificadores universais (`source_id`, `destination_id`, `system_id`). | Viabiliza conexão plug-and-play futura com o NoC Ativo da Vanguard sem necessidade de refatoração. |
+
+
 
