@@ -872,6 +872,89 @@ Essa evolução arquitetural **não quebra** os contratos existentes:
 * O `SimulationSessionService` atual continua existindo como a **Fachada de Caso de Uso** consumida pelos adaptadores REST e CLI;
 * Em vez de gerenciar variáveis de estado imperativas diretamente em memória, o `SimulationSessionService` passa a delegar os comandos de relógio para o `ClockMaster` da Governança e consultar o estado consolidado da missão. As rotas `/api/simulation/pause`, `/step` e `/status` continuam respondendo exatamente aos mesmos contratos.
 
+---
+
+### F. Comparativo Epistemológico: O Modelo Tradicional de Infraestrutura vs. O Modelo Vanguard (Foundation & Substratos)
+
+Ao confrontar o modelo tradicional de engenharia de software corporativa (`/infrastructure/` ou `/infra/`) com o modelo ciber-físico aeroespacial da **Vanguard (*Foundation Layer & Substrates*)**, emergem contrastes de maturidade, robustez e premissas operacionais:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│             CONFRONTO: INFRAESTRUTURA TRADICIONAL vs. VANGUARD              │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│    INFRAESTRUTURA TRADICIONAL        │      VANGUARD FOUNDATION LAYER       │
+│     (/infrastructure/ ou /infra/)    │             (Substratos)             │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ • Origem: DDD / Clean Architecture   │ • Origem: Engenharia de Missão Crí-  │
+│   (software empresarial / web)       │   tica e Sistemas Ciber-Físicos      │
+│ • "A persistência é um mero detalhe" │ • O substrato é o suporte vital      │
+│   (descartável e substituível)       │   (invariantes físicos inegociáveis) │
+│ • Foco: Desacoplamento funcional de  │ • Foco: Garantias não-funcionais     │
+│   bibliotecas externas e bancos      │   (tempo real, jitter, não-repúdio)  │
+│ • Maturidade: Altíssima no ecossis-  │ • Robustez: Superior para sistemas   │
+│   tema de software global            │   críticos e aeroespaciais           │
+│ • Nomenclatura universal padrão      │ • Nomenclatura ontológica profunda   │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+```
+
+#### 1. Qual Teorização é Mais Madura?
+* **O Modelo Tradicional (`/infrastructure/`):** Possui mais de duas décadas de validação empírica em milhares de projetos industriais. É consagrado na literatura de Eric Evans, Alistair Cockburn e Robert C. Martin. Qualquer engenheiro de software no mundo reconhece instantaneamente sua função. Nesse sentido, **o modelo tradicional é mais maduro em termos de ecossistema e adoção comunitária**.
+
+#### 2. Qual Teorização é Mais Robusta?
+* **O Modelo Vanguard (*Foundation Substrates*):** Na engenharia de software tradicional, prega-se dogmaticamente que *"o banco de dados é um mero detalhe descartável"*. Na engenharia aeroespacial e de defesa, essa premissa é ingênua: o meio físico de transmissão, o tempo de acesso à memória não-volátil, a integridade contra radiação (*Single Event Upsets*) e o determinismo de barramento não são "detalhes descartáveis" — são restrições vitais da missão.
+* Portanto, **o modelo Vanguard é conceitualmente mais robusto para sistemas ciber-físicos**, pois trata a fundação como um **substrato que assegura garantias duras (*hard real-time guarantees*, não-repúdio e determinismo nanosegundo)**.
+
+#### 3. Qual é a Melhor Escolha? (A Síntese Harmônica)
+A melhor solução de engenharia não é escolher um em detrimento do outro, mas **unir o melhor dos dois mundos**:
+* **Na árvore de diretórios física:** Adota-se o padrão da indústria **`rps_br/infrastructure/`**. Isso evita burocracia de imports e mantém a base de código amigável a ferramentas de linting, empacotamento e novos desenvolvedores.
+* **Na arquitetura semântica interna:** Organiza-se o diretório rigorosamente conforme os **Quatro Substratos da Vanguard**:
+  * `infrastructure/config/` $\to$ Substrato de Registro Canônico e Parâmetros;
+  * `infrastructure/noc/` $\to$ Substrato Físico de Enlace e Barramento IPC;
+  * `infrastructure/persistence/` $\to$ Substrato do Cofre de Telemetria (*Telemetry Vault*);
+  * `infrastructure/security/` $\to$ Substrato de Raiz de Confiança Criptográfica.
+
+---
+
+### G. Persistência de Dados e a Escala de Maturidade Hexagonal (Graus 0 a 3 - Potencial Fractal)
+
+A persistência de dados em simulações espaciais e de radionavegação difere radicalmente do modelo CRUD tradicional. À medida que o sistema passa a lidar com séries temporais densas (10 Hz a 100 Hz), telemetria contínua de 7 satélites, cálculos analíticos espaciais e múltiplos backends de armazenamento (SQLite, DuckDB, TimescaleDB, HDF5, Parquet, arquivos RINEX e SP3), a persistência pode e deve evoluir pelos **Níveis de Maturidade Hexagonal** (conforme estabelecido no [ADR 0005](adr/0005_hexagonal_architecture_maturity_levels.md)):
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 ESCALA DE MATURIDADE DA PERSISTÊNCIA DE DADOS               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  NÍVEL 0: Persistência Ad-Hoc / I/O Procedural                              │
+│  └── open("telemetry.csv", "w") direto no meio da integração orbital.       │
+│      (Antipadrão proibido em missão crítica: acoplamento e I/O bloqueante)   │
+│                                                                             │
+│  NÍVEL 1: Thin Persistence Adapter (Hexágono Canônico Cockburn)             │
+│  └── Interface ITelemetryRepository no Core -> SqliteTelemetryRepository.   │
+│      (Executa queries diretas; adequado para configurações e snapshots)     │
+│                                                                             │
+│  NÍVEL 2: Smart Persistence Adapter (Três Camadas Coesas)                   │
+│  ├── 1. Adapter Application Layer: Buffer assíncrono em lote (batch flush), │
+│  │   pool de conexões, retries e controle de transação thread-safe.         │
+│  ├── 2. Adapter Domain Layer: Modelos de partição temporal (por dia juliano)│
+│  │   e critérios de janelamento analítico (resampling, bounding boxes).     │
+│  └── 3. Adapter Driver / Transport: Drivers nativos (psycopg2, duckdb, h5py)│
+│                                                                             │
+│  NÍVEL 3: Fractal de Persistência e Telemetria (O "Telemetry Vault" Vanguard│
+│  └── Sub-Hexágono Completo Autônomo com NoC dedicado:                       │
+│      - Tem seu próprio ciclo de vida em background (downsampling contínuo,  │
+│        compactação lossless zstd, exportação para RINEX/SP3 da IGS);        │
+│      - Possui seus próprios Agregados e Serviços de compressão analítica;   │
+│      - Comunica-se exclusivamente via NoC assíncrono (VC-Telemetry),        │
+│        blindando o Core contra qualquer jitter ou latência de disco/rede.   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **A Aplicação Prática no RPS-BR:**
+   * **Fase Atual (Nível 1):** O RPS-BR opera no Nível 1, gravando trajetórias pontuais e gerando séries temporais diretamente em memória (`DopTelemetryBufferObserver`, `ground_track_plotter.py`).
+   * **Fase de Escala (Nível 2):** Conforme missões de 24 horas acumularem milhões de amostras de pseudodistância e ruídos de propagação, o adaptador de persistência é promovido para o Nível 2 (Smart Adapter), introduzindo buffers de escrita assíncrona em lote e separando o modelo relacional/colunar do driver de banco.
+   * **Fase de Missão Crítica / Vanguard (Nível 3 - Fractal):** Quando o sistema integrar o ecossistema completo de voo, a persistência atinge o status de **Fractal Autônomo (*Telemetry Vault*)**, rodando em thread ou processo isolado com NoC dedicado, garantindo gravação de alta vazão com zero impacto na taxa de quadros da física orbital.
+
+
 
 
 
