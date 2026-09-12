@@ -118,12 +118,14 @@ Para navegar em cada dimensão formal da arquitetura, consulte os capítulos ded
 * **A Natureza Fractal:** Auto-similaridade multiescala e conformidade com IEEE 1516 / HLA.
 * **Antipadrão Utilitário:** Por que agrupar funções genéricas em um adaptador quebra a coesão.
 * **Taxonomia de Maturidade:** Níveis 1 a 3 (conforme [ADR 0005](adr/0005_hexagonal_architecture_maturity_levels.md)).
-* **Substratos e Adaptadores Locais em Fractais:** Estrutura física e regra de subsidiariedade.
+* **Anatomia Canônica de um Fractal (Nível 3):** Os 12 Elementos (4 de Aplicação + 8 de Domínio), NoC Edge Interface, Drivers Locais e Substratos Privados.
+* **Isomorfismo Estrutural vs. Auto-Similaridade Semântica:** Preservação do conteúdo plasmático sem hiper-aninhamento estéril.
 
 ### 4. ⚡ [Subsistema de Co-Simulação com Ngspice](architecture/cosimulation_ngspice.md)
 * **Conveniência e Relevância:** Dinâmica de energia do satélite (EPS), amplificadores de potência de RF (HPA) e front-end receptor de solo (LNA).
-* **Os 8 Elementos Táticos DDD:** Aplicação de Aggregates, Entities, VOs, Domain Services, Specs, Policies, Events e Factories no circuito.
+* **Os 12 Elementos Canônicos no Ngspice:** Aplicação de 4 elementos de Aplicação e 8 elementos táticos DDD no circuito.
 * **A Camada de Driver:** Gerenciamento de processos POSIX e I/O de alta velocidade.
+* **Substratos Locais Privados:** Compilador sintático de netlists e cache de modelos de semicondutores.
 * **Orquestração Multi-Agente:** Execução reativa via AutoGen e controle de ciclo de vida e convergência via LangGraph.
 
 ### 5. 🌐 [Network on Core (NoC) & Governança](architecture/network_on_core.md)

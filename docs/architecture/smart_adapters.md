@@ -148,35 +148,241 @@ A terceira camada de um *Smart Adapter* é a **fronteira física de contato com 
 
 ---
 
-## 🧬 8. Adaptadores Fractais de Nível 3: Adaptadores Internos e Substratos Privados
+## 🧬 8. Anatomia Canônica de um Fractal de Nível 3: Os 12 Elementos do Núcleo
 
-Uma característica notável dos Smart Adapters de Nível 3 (como o Ngspice) é que eles **podem possuir seus próprios adaptadores de borda e seus próprios substratos locais privados**:
+Na teoria do **Hexágono Dourado** e da **Clean Fractal Hexagonal Architecture**, um *Smart Adapter de Nível 3 (Fractal)* não é um simples conversor de formatos; ele é um **Bounded Context autônomo** que reproduz com precisão cirúrgica a anatomia formal do Core do sistema.
+
+O núcleo de um fractal de Nível 3 decompõe-se rigorosamente em **12 Elementos Canônicos** (4 na Camada de Aplicação e 8 na Camada de Domínio):
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 OS 12 ELEMENTOS CANÔNICOS DO NÚCLEO FRACTAL                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CAMADA DE APLICAÇÃO DO FRACTAL (4 Elementos Canônicos):                    │
+│  ├── 1. Application Services: Orquestradores de fluxo e casos de uso locais │
+│  ├── 2. Data Transfer Objects (DTOs): Contratos de dados tipados locais     │
+│  ├── 3. Mappers: Tradutores bidirecionais (NoC Envelope <-> DTO <-> Domínio)│
+│  └── 4. Ports / Interfaces: Contratos de entrada (NoC) e saída (Drivers)    │
+│                                                                             │
+│  CAMADA DE DOMÍNIO DO FRACTAL (8 Elementos Táticos DDD):                    │
+│  ├── 5. Aggregates: Raiz de consistência e integridade transacional         │
+│  ├── 6. Entities: Objetos com identidade unívoca e ciclo de vida contínuo   │
+│  ├── 7. Value Objects (VOs): Valores imutáveis com invariantes físicas      │
+│  ├── 8. Domain Services: Lógica de cálculo e física pura do subsistema      │
+│  ├── 9. Specifications: Predicados booleanos isolados para regras de negócio│
+│  ├── 10. Policies: Estratégias de decisão e contingência dinâmica          │
+│  ├── 11. Domain Events: Notificações de eventos e anomalias locais          │
+│  └── 12. Factories: Construtores seguros de agregados e redes complexas     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tabela Descritiva dos 12 Elementos Canônicos no Fractal
+
+| Camada | Elemento | Papel no Fractal | Exemplo Prático (Adaptador Ngspice) |
+| :--- | :--- | :--- | :--- |
+| **Aplicação** | **1. Application Service** | Coordenar o fluxo de integração do passo, transição de estados locais e tratamento de timeout. | `NgspiceCoSimulationService`, `TransceiverMonitoringService` |
+| **Aplicação** | **2. DTOs** | Estruturas imutáveis para transferência de parâmetros elétricos e telemetrias seriais. | `SpiceNetlistParametersDTO`, `CircuitTelemetryOutputDTO` |
+| **Aplicação** | **3. Mappers** | Conversores puros e bidirecionais que isolam o domínio do fractal contra formatos de pacotes. | `SpiceTelemetryMapper`, `CircuitStateMapper` |
+| **Aplicação** | **4. Ports / Interfaces** | Portas abstratas que definem o que a aplicação exige do exterior (inbound e outbound). | `INetworkInterface` (NoC), `INgspiceProcessDriver` |
+| **Domínio** | **5. Aggregates** | Raiz transacional que garante leis fundamentais (ex.: Kirchhoff, conservação de carga). | `SatelliteCircuitAggregate` (unindo painéis, baterias e barramento) |
+| **Domínio** | **6. Entities** | Elementos do circuito cuja identidade perdura ao longo de múltiplos passos temporais. | `CircuitNodeEntity` (nó `BUS_28V`), `TransistorDeviceEntity` |
+| **Domínio** | **7. Value Objects** | Grandezas físicas com validação de limites e unidades no `__post_init__`. | `VoltsVO`, `AmperesVO`, `OhmVO`, `DecibelsVO`, `TransientResultVO` |
+| **Domínio** | **8. Domain Services** | Rotinas que implementam equações e verificações sem pertencer a uma única entidade. | `NetlistTopologicalValidatorService`, `PowerBudgetCalculator` |
+| **Domínio** | **9. Specifications** | Predicados reutilizáveis para checagens de integridade e segurança operacional. | `BatteryUnderVoltageSpecification`, `OperatingPointBoundedSpec` |
+| **Domínio** | **10. Policies** | Regras de comutação comportamental sob anomalias ou regimes operacionais distintos. | `SolverConvergenceRemediationPolicy`, `BatteryAgingPolicy` |
+| **Domínio** | **11. Domain Events** | Disparo de notificações semânticas internas quando ocorrem transições críticas. | `BatteryDepletionWarningEvent`, `TransmitterSagDetectedEvent` |
+| **Domínio** | **12. Factories** | Fábricas que montam grafos complexos a partir de configurações astronômicas do Core. | `SatelliteCircuitFactory`, `GroundStationLnaFactory` |
+
+---
+
+## 🌐 9. A Integração com o NoC e o Verdadeiro Papel dos Drivers Locais
+
+A relação entre o **Network on Core (NoC)** e os **Drivers Locais** no fractal resolve uma confusão conceitual frequente sobre onde reside a fronteira de transporte:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                FLUXO DE COMUNICAÇÃO DO FRACTAL: NoC vs. DRIVERS             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│     MALHA DE ALTO NÍVEL DO NoC (Intra-Sistema: Core, Governança, Outros)   │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                      │                                      │
+│               MissionPacket          │ Canais Virtuais:                     │
+│               (VC-Control / VC-CoSim)│ VC-Control (Passos e Sincronismo)    │
+│                                      │ VC-CoSimulation (Matrizes e Vetores) │
+│                                      ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ 1. PORTA NoC DO FRACTAL (Edge Network Interface do Adaptador)       │   │
+│   │    - Implementa INetworkInterface                                   │   │
+│   │    - Recebe STEP_REQUEST e injeta STEP_CONFIRMED                    │   │
+│   └──────────────────────────────────┬──────────────────────────────────┘   │
+│                                      │ DTOs Desempacotados                  │
+│                                      ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ 2. CAMADA DE APLICAÇÃO & DOMÍNIO DO FRACTAL                         │   │
+│   │    - Os 12 Elementos Canônicos executam a física do subsistema      │   │
+│   │    - Invoca portas internas abstratas: INgspiceProcessDriver        │   │
+│   └──────────────────────────────────┬──────────────────────────────────┘   │
+│                                      │ Comandos Nativos de E/S              │
+│                                      ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ 3. ADAPTER DRIVER / TRANSPORT LAYER (Fronteira com o Mundo Externo) │   │
+│   │    - async_process_driver.py (Subprocesso POSIX /usr/bin/ngspice)   │   │
+│   │    - in_memory_mock_driver.py (Testes herméticos sem SO)            │   │
+│   │    - shm_raw_reader.py (Leitura de binários em /dev/shm)            │   │
+│   └──────────────────────────────────┬──────────────────────────────────┘   │
+│                                      │ Pipes stdin/stdout / Buffers         │
+│                                      ▼                                      │
+│                       [ Binário Ngspice / Hardware ]                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **A Comunicação Inter-Subsistemas É 100% Unificada no NoC:**
+   * O fractal **NÃO expõe portas diretas acopladas para o Core ou para outros adaptadores**.
+   * Não há drivers de acoplamento lateral (*cross-adapter drivers*). Toda a coordenação com a física orbital do Core, com o relógio da Governança ou com o motor 3D do Cesium transita **exclusivamente pelos Canais Virtuais do NoC** (`VC-Control`, `VC-CoSimulation`, `VC-Telemetry`).
+   * A porta de entrada do fractal para o ecossistema RPS-BR é a sua **Network Interface (NI)**.
+2. **O Escopo Estrito da Camada de Drivers (`drivers/`):**
+   * A pasta `drivers/` dentro de um fractal **não se comunica com outros módulos de software do projeto**.
+   * Sua função é única e exclusiva: atuar como o **transceiver físico de baixo nível** com o agente externo concreto (o processo POSIX `/usr/bin/ngspice`, a porta serial de um receptor GNSS físico, ou o contexto WebGL da placa gráfica).
+
+---
+
+## 🏛️ 10. O Sub-Core de Aplicação no Fractal e a Governança Subordinada
+
+Uma dúvida central de projeto é: **Deve o Fractal de Nível 3 possuir seu próprio Sub-Core de Aplicação e seu próprio Sub-Core de Governança?**
+
+### 1. O Sub-Core de Aplicação Local É Necessário:
+* Sim. Para coordenar os casos de uso específicos do subsistema (ex.: sintetizar uma netlist a partir da irradiância solar, disparar a integração transiente, capturar os resultados e calcular o ponto de operação quiescente), o fractal necessita de uma **Camada de Aplicação Local** autônoma contendo seus próprios Services, DTOs, Mappers e Portas.
+
+### 2. A Governança do Fractal É Passiva e Subordinada:
+* **Não deve existir um Sub-Core de Governança Ativo no Fractal.**
+* Se o adaptador fractal instanciar seu próprio mestre de relógio ou seu próprio escalonador concorrente de background, cria-se o caos temporal: dois relógios mestres disputando o controle dos passos de integração, resultando em deriva temporal e quebra da conformidade com a norma **IEEE 1516 (HLA)**.
+* **O Princípio da Governança Subordinada:**
+  * O fractal possui apenas um **Supervisor de Integridade Local (*Local Failure Supervisor*)**, responsável por monitorar divergência numérica do integrador trapezoidal ou violação de invariantes locais;
+  * Seu ciclo de vida temporal é **estritamente escravo e subordinado** às diretrizes do `ClockMaster` central do Core, que habita em `rps_br/core/application/governance/`. O fractal avança somente quando recebe `STEP_REQUEST` do NoC e pausa imediatamente quando a Governança emite `MISSION_PAUSE`.
+
+---
+
+## 🌲 11. Isomorfismo Estrutural vs. Auto-Similaridade Semântica na Árvore Física
+
+Ao projetar a disposição dos arquivos no sistema de arquivos, surge uma questão fundamental de engenharia de software: **A fidelidade da reprodução fractal deve ser literal (espelhando a pasta `core/` no interior do adaptador) ou uma auto-similaridade semântica pragmática?**
+
+No nível macro do projeto (`rps_br/`), o "conteúdo plasmático" do sistema (o núcleo puro de regras e orquestração) é mantido segregado na pasta `core/`, enquanto os adaptadores habitam a pasta irmã `adapters/` e a infraestrutura habita em `infrastructure/`.
+
+Confrontam-se dois modelos de design para a árvore física de um fractal de Nível 3:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              CONFRONTO: MODELO ISOMÓRFICO LITERAL vs. MODELO CANÔNICO       │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│    ABORDAGEM A: ISOMORFISMO LITERAL  │    ABORDAGEM B: SEMÂNTICA CANÔNICA   │
+│       (Espelhamento Recursivo)       │        (Bounded Context Plano)       │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ rps_br/adapters/ngspice/             │ rps_br/adapters/ngspice/             │
+│ ├── core/              <-- PLASMA    │ ├── application/       <-- APLICAÇÃO │
+│ │   ├── application/                 │ │   ├── dtos/                        │
+│ │   │   ├── dtos/                    │ │   ├── mappers/                     │
+│ │   │   ├── mappers/                 │ │   ├── services/                    │
+│ │   │   └── services/                │ │   └── ports/                       │
+│ │   └── domain/        <-- DOMÍNIO   │ ├── domain/            <-- DOMÍNIO   │
+│ │       ├── aggregates/              │ │   ├── aggregates/                  │
+│ │       ├── entities/                │ │   ├── entities/                    │
+│ │       └── value_objects/           │ │   ├── value_objects/               │
+│ ├── adapters/          <-- DRIVERS   │ │   └── ... (8 elementos DDD)        │
+│ │   └── async_driver.py              │ ├── drivers/           <-- DRIVERS   │
+│ └── infrastructure/    <-- SUBSTRATOS│ │   └── async_driver.py              │
+│     └── netlist_compiler.py          │ └── substrates/        <-- SUBSTRATOS│
+│                                      │     └── netlist_compiler.py          │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ • Pró: Cópia 1:1 exata da raiz.      │ • Pró: Fidelidade total aos 12 ele-  │
+│ • Contra: Hiper-aninhamento estéril  │   mentos sem burocracia de pastas.   │
+│   (caminhos quilométricos em imports)│ • Pró: Imports concisos e idiomáticos│
+│ • Contra: Confusão cognitiva com o   │ • Pró: Alinhado ao PEP 20            │
+│   verdadeiro Core do sistema.        │   ("Flat is better than nested").    │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+```
+
+### Recomendação Formal de Engenharia para o RPS-BR
+
+A literatura clássica de Domain-Driven Design (Eric Evans, Vaughn Vernon) e as normas de arquitetura de software de missão crítica (ESA ECSS-E-ST-40C / NASA Systems Engineering Handbook) recomendam formalmente a **Abordagem B (Auto-Similaridade Semântica Canônica)**:
+
+1. **A Auto-Similaridade é Conceitual e de Contratos, Não de Nomes de Pastas:**
+   * A propriedade fractal reside no fato de que o subsistema possui seu próprio Domínio isolado, seus próprios Casos de Uso, suas próprias Portas e seus próprios Substratos.
+   * Inserir uma pasta redundante `core/` dentro de `adapters/ngspice/` introduz o antipadrão de **Hiper-Aninhamento (*Over-Nesting / Deep Hierarchy Smell*)**, forçando imports artificiais como:
+     `from rps_br.adapters.ngspice.core.domain.aggregates.circuit import SatelliteCircuitAggregate`
+     em vez da forma límpida e expressiva:
+     `from rps_br.adapters.ngspice.domain.aggregates.circuit import SatelliteCircuitAggregate`.
+2. **Preservação da Singularidade do Core da Missão:**
+   * No vocabulário ubíquo de todo o projeto, **"O Core"** refere-se exclusivamente ao Núcleo da Missão de Radionavegação e Astrodinâmica (`rps_br/core/`). Ter múltiplos subdiretórios chamados `core/` espalhados pelo repositório geraria ruído cognitivo severo para novos engenheiros e ferramentas de análise estática.
+3. **Isolamento Plasmático Preservado:**
+   * O "conteúdo plasmático" do fractal permanece 100% puro dentro de `adapters/ngspice/domain/` e `adapters/ngspice/application/`. Ele **não depende de nenhum detalhe externo de `drivers/` ou `substrates/`**, garantindo a mesma inviolabilidade da Regra de Dependência Concêntrica observada no hexágono central.
+4. **Prontidão para Desacoplamento Externo (*Standalone Extraction*):**
+   * Caso o módulo Ngspice precise futuramente ser extraído para um pacote Python independente no PyPI (ex.: `brazilian-rps-ngspice`), a estrutura da Abordagem B já corresponde exatamente ao layout padrão de um pacote autônomo, dispensando qualquer refatoração.
+
+---
+
+## 🗂️ 12. Árvore Canônica Completa de um Fractal de Nível 3
+
+Consolidando todas as decisões arquiteturais, a topologia canônica final de um Smart Adapter Fractal de Nível 3 é especificada formalmente como:
 
 ```text
 rps_br/adapters/ngspice/
-├── __init__.py               # Fachada pública do adaptador fractal
-├── application/              # Camada de Aplicação do Fractal
-│   ├── services/             # NgspiceCoSimulationService
-│   └── dtos/                 # DTOs de circuito e telemetria elétrica
-├── domain/                   # Domínio Rico do Fractal (8 Elementos DDD)
-│   ├── aggregates/           # SatelliteCircuitAggregate
-│   ├── entities/             # CircuitNodeEntity, ComponentEntity
-│   ├── value_objects/        # ResistanceVO, CapacitanceVO, TransientResultVO
-│   ├── specifications/       # BatteryUnderVoltageSpecification
-│   ├── policies/             # SolverConvergenceRemediationPolicy
-│   └── services/             # NetlistTopologicalValidatorService
-├── ports/                    # Portas Internas do Fractal
-│   ├── driver_port.py        # INgspiceProcessDriver
-│   └── parser_port.py        # INetlistParserPort
-├── drivers/                  # ADAPTADORES LOCAIS DO FRACTAL
-│   ├── async_process_driver.py # Adaptador de subprocesso POSIX real
-│   ├── mock_process_driver.py  # Adaptador mock para testes unitários
-│   └── shm_driver.py           # Adaptador de leitura em /dev/shm
-└── substrates/               # SUBSTRATOS LOCAIS PRIVADOS (Infraestrutura Local)
-    ├── netlist_compiler.py   # Gerador/compilador procedural de sintaxe SPICE
-    └── model_cache.py        # Cache em disco de bibliotecas de semicondutores
+├── __init__.py                     # Fachada pública do Fractal: exporta fábrica e Network Interface
+├── noc_interface.py                # EDGE NETWORK INTERFACE: Transceiver conectado ao NoC central
+│
+├── application/                    # CAMADA DE APLICAÇÃO DO FRACTAL (4 Elementos Canônicos)
+│   ├── __init__.py                 # Fachada dos casos de uso locais
+│   ├── services/                   # 1. APPLICATION SERVICES (Orquestradores de fluxo e transientes)
+│   │   ├── ngspice_simulation_service.py
+│   │   └── circuit_convergence_monitor.py
+│   ├── dtos/                       # 2. DTOs LOCAIS (Contratos de dados desacoplados do Core)
+│   │   ├── circuit_parameters_dto.py
+│   │   └── transient_telemetry_dto.py
+│   ├── mappers/                    # 3. MAPPERS (Conversores NoC Packet <-> DTO <-> Domínio)
+│   │   ├── spice_telemetry_mapper.py
+│   │   └── netlist_dto_mapper.py
+│   └── ports/                      # 4. INTERFACES / PORTAS INTERNAS DO FRACTAL
+│       ├── ngspice_process_port.py # INgspiceProcessDriver (contrato do driver)
+│       └── netlist_compiler_port.py# INetlistCompilerSubstrate (contrato do compilador)
+│
+├── domain/                         # CAMADA DE DOMÍNIO DO FRACTAL (8 Elementos Táticos DDD)
+│   ├── __init__.py                 # Fachada ontológica do circuito
+│   ├── aggregates/                 # 5. AGGREGATES (Raiz transacional e invariantes de Kirchhoff)
+│   │   └── satellite_circuit_aggregate.py
+│   ├── entities/                   # 6. ENTITIES (Identidade unívoca de dispositivos e nós)
+│   │   ├── circuit_node_entity.py
+│   │   └── spice_device_entity.py
+│   ├── value_objects/              # 7. VALUE OBJECTS (Grandezas físicas e invariantes imutáveis)
+│   │   ├── electrical_units_vo.py  # VoltsVO, AmperesVO, OhmsVO, FaradsVO
+│   │   ├── transient_result_vo.py  # Vetores temporais de tensão e corrente
+│   │   └── spice_directive_vo.py   # .tran, .step, .options
+│   ├── services/                   # 8. DOMAIN SERVICES (Física pura de semicondutores e validação)
+│   │   ├── netlist_topology_service.py
+│   │   └── power_budget_domain_service.py
+│   ├── specifications/             # 9. SPECIFICATIONS (Predicados de invariantes e limites)
+│   │   ├── battery_undervoltage_spec.py
+│   │   └── thermal_junction_limit_spec.py
+│   ├── policies/                   # 10. POLICIES (Estratégias de convergência e envelhecimento)
+│   │   ├── solver_convergence_policy.py
+│   │   └── battery_cycle_aging_policy.py
+│   ├── events/                     # 11. DOMAIN EVENTS (Notificações de estado e anomalias)
+│   │   ├── battery_critical_depletion_event.py
+│   │   └── rf_amplifier_compression_event.py
+│   └── factories/                  # 12. FACTORIES (Hidratação segura de grafos de circuitos)
+│       └── satellite_circuit_factory.py
+│
+├── drivers/                        # ADAPTADORES LOCAIS PRIVADOS (Fronteira com o Mundo Externo)
+│   ├── __init__.py
+│   ├── async_process_driver.py     # Implementação real via subprocess POSIX (/usr/bin/ngspice)
+│   ├── in_memory_mock_driver.py    # Implementação mock hermética para testes unitários rápidos
+│   └── shm_raw_reader.py           # Leitor de buffers vetoriais em /dev/shm
+│
+└── substrates/                     # SUBSTRATOS LOCAIS PRIVADOS (Fundação Técnica do Fractal)
+    ├── __init__.py
+    ├── netlist_compiler.py         # Substrato de compilação textual e higienização de netlists
+    └── model_library_cache.py      # Cache em disco de bibliotecas de transistores e diodos
 ```
 
-### Regra de Subsidiariedade de Substratos:
-1. **Substrato Global (`rps_br/infrastructure/`):** Utilizado para recursos de missão compartilhados (enlace de NoC em memória compartilhada, carregador de parâmetros YAML da simulação, cofre de telemetria da missão).
-2. **Substrato Local Privado (`adapters/<fractal>/substrates/`):** Utilizado estritamente para suporte técnico específico daquela tecnologia (parser de netlists SPICE, cache de shaders 3D, drivers seriais de hardware dedicado).
