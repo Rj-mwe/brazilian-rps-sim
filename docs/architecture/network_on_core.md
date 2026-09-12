@@ -4,14 +4,13 @@ A malha de transporte de alto nível e o órgão regulador de ciclo de vida, int
 
 ---
 
-## 🎯 1. Desmistificando o NoC em Software (Da Microeletrônica à Engenharia de Software)
+## 🎯 1. Desmistificando o NoC em Software: Network-on-Core
 
-No projeto **Vanguard** e na concepção de sistemas ciber-físicos aeroespaciais avançados, o conceito de **Network on Core (NoC)** importa o princípio de *Network on Chip* da microeletrônica moderna para resolver um gargalo arquitetural crítico:
+No projeto **Vanguard** e na concepção de sistemas ciber-físicos aeroespaciais avançados, a sigla **NoC** significa rigorosa e exclusivamente **Network-on-Core** (e **não** *Network-on-Chip*). O termo foi cunhado para designar a **rede e malha de transporte lógico que opera sobre e entre os núcleos de software** (*Core*, *Sub-Cores* e *Cores Fractais dos Smart Adapters*):
 
-* **Na Microeletrônica:** Em circuitos integrados de muitos núcleos (*MPSoCs*), o NoC substituiu os barramentos compartilhados e as trilhas dedicadas ponto-a-ponto porque a proliferação de conexões gerava contenção, acoplamento físico e capacitância parasita.
-* **Na Engenharia de Software de Grande Porte:** O problema é estruturalmente idêntico:
-  * À medida que o sistema cresce para comportar dezenas de *Smart Adapters* (CesiumJS, Gazebo Sim, Ngspice, NMEA 0183, REST Gateway, CLI, Agentes de IA), se cada adaptador exigir portas ponto-a-ponto acopladas com o Core ou entre si, o sistema degenera em uma malha espaguete incontrolável ($O(N^2)$ dependências cruzadas).
-  * O **NoC (Network on Core)** é o **middleware e malha de transporte de alto nível do ecossistema de software**, responsável por rotear eventos, comandos e telemetria através de envelopes universais, roteadores semânticos, árbitros de QoS e canais virtuais segregados.
+* **A Analogia Epistemológica:** Na microeletrônica avançada (*MPSoCs*), a indústria migrou de barramentos compartilhados e trilhas ponto-a-ponto para roteamento em malha para evitar capacitância e estrangulamento físico. Em software de grande porte, o desafio de escala é estruturalmente homólogo:
+  * À medida que o sistema cresce para comportar dezenas de subsistemas complexos (*Smart Adapters* como CesiumJS, Gazebo Sim, Ngspice, NMEA 0183, REST Gateway, CLI, Agentes de IA), se cada adaptador exigir portas e contratos ponto-a-ponto acoplados diretamente ao Core ou entre si, a arquitetura degenera em um acoplamento espaguete de complexidade combinatória $\mathcal{O}(N^2)$.
+* **A Definição Canônica:** O **NoC (Network-on-Core)** é o **middleware e malha de transporte de alto nível do ecossistema de software**, responsável por rotear eventos, comandos e pacotes de telemetria através de envelopes universais tipados, roteadores semânticos, árbitros de QoS e canais virtuais segregados entre os núcleos do sistema.
 
 ---
 

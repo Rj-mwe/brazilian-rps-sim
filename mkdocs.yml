@@ -69,6 +69,7 @@ nav:
       - "Co-Simulação com Ngspice": "architecture/cosimulation_ngspice.md"
       - "Network on Core (NoC) & Governança": "architecture/network_on_core.md"
       - "Infraestrutura & Substrato Vanguard": "architecture/infrastructure_substrate.md"
+      - "Comparativo, Automação & Precedentes": "architecture/comparative_and_automation.md"
   - "🏛️ Decisões de Arquitetura (ADRs)":
       - "0001 - Arquitetura Hexagonal": "adr/0001-hexagonal-architecture.md"
       - "0002 - Builder Pattern glTF 2.0": "adr/0002-gltf-builder-pattern.md"

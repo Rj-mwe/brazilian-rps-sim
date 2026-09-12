@@ -147,3 +147,11 @@ Para navegar em cada dimensão formal da arquitetura, consulte os capítulos ded
 * **Persistência de Dados Poliglota:** SQLite, DuckDB, HDF5 e a escala de maturidade Níveis 0 a 3.
 * **Padrão Edge Network Interface (Edge NI):** Interoperabilidade simétrica (Porta Inbound vs. Outbound Shim).
 * **Decisão Lexical Canônica:** Justificativa formal de `/infrastructure/` no singular.
+
+### 7. 📊 [Comparativo, Automação & Precedentes de Missão Crítica](architecture/comparative_and_automation.md)
+* **Confronto Arquitetural Multidimensional:** Análise detalhada frente a Monolito, Microsserviços/SOA, Event-Driven (EDA), Hexagonal Canônico (Cockburn), Clean/Onion e Modelo de Atores (Erlang/Akka).
+* **A Tese da Automabilidade da Vanguard:** Por que a padronização isomórfica dos 12 elementos canônicos e o barramento simétrico NoC viabilizam a geração de código e infraestrutura autônoma por IA.
+* **O Pipeline de Síntese Automatizada:** Do modelo declarativo (DSL) à geração determinística de código e harnesses de testes.
+* **Enquadramento Experimental:** Síntese pioneira no meio comercial e validação formal.
+* **Precedentes de Nicho em Missão Crítica:** Equivalências estruturais no estado da arte aeroespacial (NASA cFS Software Bus, NASA JPL F Prime com Typed Ports, ESA TASTE/AADL, AUTOSAR Adaptive com Virtual Functional Bus e IEEE 1516 HLA).
+
