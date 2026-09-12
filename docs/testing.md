@@ -107,3 +107,38 @@ python3 -m pytest --cov=rps_br --cov-report=term-missing tests/
 ```bash
 python3 -m pytest -q
 ```
+
+---
+
+## 🛡️ A Tríade da Garantia de Qualidade da Vanguard (Tests, Evals e Audits)
+
+Para além da pirâmide de testes tradicional, o simulador RPS-BR orienta-se pela **Tríade de Garantia do Ecossistema Vanguard**, segmentando a validação em três instâncias epistemológicas e operacionais complementares:
+
+```mermaid
+graph LR
+    subgraph "A Tríade de Garantia Vanguard no RPS-BR"
+        T["🧪 1. TESTS (TestService)<br/>• Verificação Funcional (Pass/Fail)<br/>• Suíte Pytest (78 testes)<br/>• Invariantes & TDD"]
+        E["📈 2. EVALS (EvalService)<br/>• Avaliação de Eficiência & Benchmarks<br/>• Acurácia Física (Kepler RMS, DOP)<br/>• Latência de Mensageria NoC"]
+        A["🛡️ 3. AUDITS (AuditService)<br/>• Conformidade Arquitetural & AST<br/>• Blindagem Plasmática do Core<br/>• Normas DO-178C / ECSS"]
+    end
+
+    T --> E
+    E --> A
+```
+
+### 1. Nível 1: Tests (Exatidão Comportamental Booleana)
+Verificação lógica e funcional executada na pasta `tests/` via `pytest`. Garante que cada fórmula matemática, serviço kepleriano e adaptador de borda responda com fidelidade binária (`Pass` / `Fail`) à especificação formal.
+
+### 2. Nível 2: Evals (Acurácia Física & Benchmarks de Desempenho)
+Métricas contínuas de eficiência e precisão numérica, gerando scorecards analíticos:
+* **Convergência Numérica:** Tempo médio e número de iterações do método de Newton-Raphson na Equação de Kepler ($\epsilon < 10^{-10}\text{ rad}$).
+* **Acurácia PVT:** Erro quadrático médio ($\text{RMS}$) da solução de navegação WLS frente a oráculos de verdade terrestre (*Ground Truth*).
+* **Latência de Transporte NoC:** Medição de dispersão temporal ($P_{50}$, $P_{99}$) na transmissão in-process do envelope `MissionPacket` sob o padrão *Zero-Overhead*.
+
+### 3. Nível 3: Audits (Conformidade Arquitetural & Segurança Estática)
+Inspeção formal automatizada da integridade estrutural e segurança do código-fonte:
+* **Auditoria de Blindagem Plasmática:** Varredura estática de AST para comprovar que nenhuma classe em `core/` referencia ou importa módulos em `adapters/` ou `infrastructure/`.
+* **Auditoria de Imutabilidade:** Validação sistemática garantindo que todas as estruturas de dados fundamentais utilizem `@dataclass(frozen=True)`.
+* **Auditoria de Segurança & Segredos:** Rastreamento contínuo de credenciais, chaves criptográficas ou dados sensíveis embutidos em arquivos versionados.
+* **Auditoria Normativa:** Verificação de rastreabilidade de requisitos para conformidade com DO-178C e ECSS.
+
