@@ -131,8 +131,10 @@ brazilian-rps-sim/
 │   │   ├── ros2/                    # Nós de temporização e tópicos de robótica em ROS 2 Jazzy
 │   │   ├── gazebo/                  # Descrição de mundos SDF, modelos 3D e controle de física
 │   │   └── export/                  # Exportador de séries temporais de trajetória (JSON/CSV)
-│   └── infrastructure/              # INFRAESTRUTURA DE APOIO
-│       └── config/                  # Carregamento e validação de arquivos YAML
+│   └── infrastructure/              # INFRAESTRUTURA DE APOIO (Substrato Técnico)
+│       ├── config/                  # Carregamento e validação de arquivos YAML
+│       ├── noc/                     # Drivers de enlace físico concreto do NoC (/dev/shm, IPC)
+│       └── persistence/             # Repositórios de telemetria histórica e séries temporais
 ├── scripts/                         # Executáveis e lançadores de conveniência
 │   ├── rps-sim                      # Atalho para a CLI
 │   ├── rps_constellation_node       # Executável do nó ROS 2 de dinâmica
@@ -732,6 +734,144 @@ A relação entre a Governança e os demais sub-cores resolve o dilema entre dup
   * **Soberania de Estado (*State Sovereignty*):** O estado da máquina de ciclo de vida (`MissionLifecycleState`) é imutável para agentes externos. Nenhum sub-core ou adaptador pode forçar ou alterar o estado do sistema; apenas a Governança delibera e transiciona.
   * **Soberania de Regras (*Rule Sovereignty*):** As especificações de integridade, limites de tolerância de erro e políticas de quarentena residem encapsuladas dentro de `governance/`. Os sub-cores executivos não podem desativar ou contornar essas regras.
   * **Soberania de Resiliência (*Fault Independence*):** Se o subdomínio de astrodinâmica lançar uma exceção catastrófica ou o Ngspice travar em divergência numérica, a Governança **não morre junto**. Ela intercepta a falha, isola o componente em quarentena e comuta autonomamente a constelação para `SAFE_MODE`, garantindo que o sistema como um todo sobreviva.
+
+---
+
+## 🏗️ 8. A Camada de Infraestrutura (`/infrastructure/`) e o Substrato Vanguard
+
+### A. A Dicotomia de Borda: Adaptadores (`/adapters/`) vs. Infraestrutura (`/infrastructure/`)
+Um dos equívocos conceituais mais comuns em sistemas orientados a Portas e Adaptadores (Arquitetura Hexagonal) é a confusão entre o que pertence a `/adapters/` e o que pertence a `/infrastructure/`. A distinção rigorosa é delimitada pela **natureza do ator** com o qual o módulo interage:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      CORE DO SISTEMA (DOMÍNIO & CASOS DE USO)               │
+└──────────────────────┬───────────────────────────────┬──────────────────────┘
+                       │                               │
+                       ▼                               ▼
+       ┌───────────────────────────────┐ ┌───────────────────────────────┐
+       │     CAMADA DE ADAPTADORES     │ │    CAMADA DE INFRAESTRUTURA   │
+       │         (/adapters/)          │ │       (/infrastructure/)      │
+       ├───────────────────────────────┤ ├───────────────────────────────┤
+       │ • Falam a língua do MUNDO     │ │ • Falam a língua do SISTEMA   │
+       │   EXTERIOR (Atores Externos)  │ │   OPERACIONAL e do HARDWARE   │
+       │ • Tradutores de Protocolo     │ │ • Provedores de Serviços de   │
+       │ • Orientados à Entrada/Saída  │ │   Baixo Nível e Utilitários   │
+       │   de Clientes e Dispositivos  │ │ • Suporte transversal a todo  │
+       │ • Exemplos:                   │ │   o sistema interno           │
+       │   - REST API (FastAPI)        │ │ • Exemplos:                   │
+       │   - WebSocket Streaming       │ │   - Config Loader (YAML/Env)  │
+       │   - NMEA 0183 ($GNGGA)        │ │   - ShmLinkDriver (/dev/shm)  │
+       │   - Cesium CZML Viewer        │ │   - Repositórios SQLite/HDF5  │
+       │   - ROS 2 Nodes (rclpy)       │ │   - Hashes Criptográficos     │
+       │   - Gazebo World Bridge       │ │   - Logging de Telemetria     │
+       └───────────────────────────────┘ └───────────────────────────────┘
+```
+
+1. **Adaptadores (`/adapters/`):**
+   * Traduzem as intenções de **atores externos** (usuários na UI web, receptores GNSS comerciais, simulador Gazebo, scripts de linha de comando) para as Portas de Caso de Uso do Core, e vice-versa.
+   * Se removermos o navegador ou o robô ROS 2, o adaptador de visualização ou nó DDS deixa de fazer sentido existir.
+2. **Infraestrutura (`/infrastructure/`):**
+   * Fornece o **substrato técnico fundamental e utilitários de baixo nível** sobre os quais o próprio Core e os adaptadores se apoiam para operar.
+   * Não responde diretamente a um protocolo externo de usuário; em vez disso, interage com o sistema de arquivos, variáveis de ambiente, primitivas de IPC do kernel Linux (`shm_open`, `mmap`), drivers de persistência e algoritmos criptográficos.
+
+---
+
+### B. Os Quatro Pilares da Camada de Infraestrutura no RPS-BR
+A camada `/infrastructure/` do RPS-BR organiza-se em quatro responsabilidades técnicas fundamentais:
+
+```text
+rps_br/infrastructure/
+├── __init__.py
+├── config/                  # 1. Carregamento e validação declarativa de parâmetros
+│   ├── __init__.py
+│   └── config_loader.py     # Parser seguro de simulation_parameters.yaml
+├── noc/                     # 2. Drivers concretos de transporte físico do NoC
+│   ├── __init__.py
+│   ├── shm_link_driver.py   # IPC de alta performance em memória compartilhada (/dev/shm)
+│   └── posix_pipe_driver.py # Enlace via pipes FIFO POSIX assíncronos
+├── persistence/             # 3. Armazenamento e gravação de séries temporais
+│   ├── __init__.py
+│   ├── telemetry_vault.py   # Gravador imutável de telemetria ("Caixa-Preta" de missão)
+│   └── ephemeris_cache.py   # Cache local de efemérides orbitais precisas
+└── security/                # 4. Criptografia pura e integridade
+    ├── __init__.py
+    └── packet_signer.py     # Verificação de hash SHA-256 e assinaturas de telecomando
+```
+
+---
+
+### C. O Substrato Vanguard (*Foundation & Structures Layer*)
+Nas formulações conceituais do ecossistema **Vanguard** (*Hexágono Dourado*), a infraestrutura é denominada formalmente como a camada de **Substrato Fundamental (*Foundation & Structures Layer*)**.
+
+Na cosmologia arquitetural da Vanguard:
+* O **Core** representa a *Cognição e o Domínio* (as leis físicas, os modelos matemáticos e a lógica da missão);
+* Os **Adaptadores** representam os *Sentidos e Atuadores* (a interface gráfica, a ponte com sensores externos, o enlace de rádio);
+* A **Infraestrutura / Substrato** representa o *Esqueleto Físico e os Meios Vitais*:
+  1. **Substrato Físico de Enlace (*Physical Link Substrate*):** A canalização concreta de bits (memória física mapeada, barramentos de IPC de latência determinística) sobre a qual a malha lógica do NoC navega;
+  2. **Cofre de Telemetria (*Telemetry Vault / Mission Black-Box*):** Estrutura de persistência contínua com garantia de não-repúdio e registro cronológico estrito de cada amostra de voo;
+  3. **Registro Canônico de Configuração (*Configuration Registry*):** Garante que todas as autarquias e fractais inicializem a partir de um manifesto de parâmetros imutável e auditado;
+  4. **Raiz de Confiança e Integridade (*Root of Trust*):** Garante a higienização criptográfica e a autenticação das mensagens que entram no sistema.
+
+---
+
+### D. Encapsulamento das Validações: Specifications de Domínio vs. Validações de Aplicação e Governança
+
+#### 1. As Specifications de Domínio Devem Ser Visíveis à Camada de Aplicação?
+**Não. As Specifications de domínio são cidadãos de domínio puro e devem permanecer encapsuladas internamente em seus respectivos sub-cores.**
+
+* **Fundamentação Técnica:**
+  * O padrão **Specification** (ex.: `ZenithVisibilitySpec`, `BatteryUnderVoltageSpecification`, `KeplerianEccentricityBoundedSpec`) encapsula predicados de regras de negócio (`is_satisfied_by(candidate) -> bool`).
+  * No design rigoroso de DDD, a Camada de Aplicação deve orquestrar casos de uso através de **intenções semânticas de alto nível** (ex.: `calculate_visible_satellites()`, `solve_pvt_for_ground_station()`, `propagate_step()`).
+  * Se a Camada de Aplicação precisasse importar e instanciar manualmente cada Specification para verificar se o satélite está visível ou se a órbita fechou, estaríamos cometendo o antipadrão clássico do **Modelo de Domínio Anêmico (*Anemic Domain Model*)** com **Vazamento de Lógica de Negócio (*Domain Logic Leaking*)**: o caso de uso deixaria de ser um coordenador e se transformaria em um script procedural checando dezenas de `if` de negócio.
+* **Quem Consome as Specifications?**
+  * As Specifications são consumidas internamente por **Entidades**, **Agregados**, **Políticas de Domínio** ou **Serviços de Domínio**. A Aplicação recebe apenas o resultado consolidado da operação ou invoca o Serviço de Domínio que já executa a checagem internamente.
+
+#### 2. Como se Dividem as Camadas de Validação no Sistema?
+Cada camada possui sua própria fronteira soberana de validação:
+
+| Camada | Tipo de Validação | O que valida? | Exemplo Concreto |
+| :--- | :--- | :--- | :--- |
+| **Borda / Adaptadores** | Validação Sintática de Entrada | Formato de JSON, query params, tipos básicos de dados. | Pydantic / DTO Schemas no FastAPI. |
+| **Aplicação / Governança** | Validação de Contrato & Ciclo de Vida | Envelopes NoC, transições de estado, sincronismo temporal. | `ContractCensor.validate(packet)`, `ClockMaster`. |
+| **Domínio Puro** | Validação Semântica & Invariantes | Leis físicas, regras astronômicas e limites matemáticos. | `ZenithVisibilitySpec`, `KeplerianElementsVO.__post_init__`. |
+
+---
+
+### E. O Relógio da Simulação: Do Modelo Imperativo Atual ao Mestre de Barreira Temporal (IEEE 1516)
+
+#### 1. O Contraste entre o Modelo Atual e a Nova Arquitetura
+A comparação entre a implementação atual (`SimulationSessionService`) e o modelo baseado em **Sub-Core de Governança + NoC** evidencia um salto qualitativo de robustez:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       EVOLUÇÃO DO CONTROLE DE RELÓGIO                       │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│    MODELO ATUAL (Imperativo / Lock)  │     NOVO MODELO (Governança / NoC)   │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ • Variável escalar (_sim_time_sec)   │ • ClockMaster (Entidade Soberana)    │
+│ • Acoplamento procedural in-memory   │ • Barramento reativo NoC (VC-Control)│
+│ • Lista direta de portas registradas │ • Publicação de pacotes de tick      │
+│ • Flags booleanas (_is_paused)       │ • Máquina de Estados Finita formal   │
+│ • Sincronismo "Best-Effort"          │ • Barreira Temporal Rígida (IEEE 1516│
+│   (adaptadores podem desincronizar)  │   lock-step rendezvous)              │
+│ • Recuperação por timeout ad-hoc     │ • Políticas formais de quarentena    │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+```
+
+#### 2. O Funcionamento da Barreira Temporal (*Lock-Step Synchronization*)
+No modelo atual, se o Gazebo avança física, o Cesium no navegador roda seu próprio laço e o Ngspice efetua integração pesada, há risco permanente de drift temporal ou assincronia silenciosa.
+
+Com a Governança e o NoC:
+1. **Disparo do Passo:** O `ClockMaster` publica um `MissionPacket` no canal `VC-Control` com o comando `STEP_REQUEST(target_time=t_{k+1})` e prioridade máxima (Prioridade 7).
+2. **Execução Concorrente e Hermética:** Cada subsistema registrado (Física no Gazebo, Circuito no Ngspice, Solver PVT no Core) executa seu avanço local para o tempo $t_{k+1}$.
+3. **Barreira de Rendezvous (*Time-Barrier*):** Nenhum subsistema pode avançar para $t_{k+2}$ até que todos os nós críticos emitam `STEP_CONFIRMED(sim_time=t_{k+1})` de volta para a Governança.
+4. **Resiliência e Tolerância:** Se um nó (ex.: Ngspice) sofrer timeout ou falhar na barreira, a Governança não trava o sistema: ela ativa a política de quarentena, preenche a telemetria com modelo linear aproximado e avança o relógio da constelação de forma segura.
+
+#### 3. Transição Suave e Compatibilidade Regressiva
+Essa evolução arquitetural **não quebra** os contratos existentes:
+* O `SimulationSessionService` atual continua existindo como a **Fachada de Caso de Uso** consumida pelos adaptadores REST e CLI;
+* Em vez de gerenciar variáveis de estado imperativas diretamente em memória, o `SimulationSessionService` passa a delegar os comandos de relógio para o `ClockMaster` da Governança e consultar o estado consolidado da missão. As rotas `/api/simulation/pause`, `/step` e `/status` continuam respondendo exatamente aos mesmos contratos.
+
 
 
 
