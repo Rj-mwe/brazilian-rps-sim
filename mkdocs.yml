@@ -61,12 +61,28 @@ extra_javascript:
 
 nav:
   - "Início": "index.md"
+  - "🏛️ Arquitetura do Sistema":
+      - "Sumário Executivo": "architecture.md"
+      - "Visão Geral & Hexágono Dourado": "architecture/index.md"
+      - "Árvore do Projeto & Design Patterns": "architecture/tree_and_patterns.md"
+      - "Smart Adapters & Taxonomia Fractal": "architecture/smart_adapters.md"
+      - "Co-Simulação com Ngspice": "architecture/cosimulation_ngspice.md"
+      - "Network on Core (NoC) & Governança": "architecture/network_on_core.md"
+      - "Infraestrutura & Substrato Vanguard": "architecture/infrastructure_substrate.md"
   - "🏛️ Decisões de Arquitetura (ADRs)":
       - "0001 - Arquitetura Hexagonal": "adr/0001-hexagonal-architecture.md"
       - "0002 - Builder Pattern glTF 2.0": "adr/0002-gltf-builder-pattern.md"
       - "0003 - Métricas DOP (Strategy & Observer)": "adr/0003-dop-strategy-observer.md"
       - "0004 - Docs-as-Code & Typst": "adr/0004-docs-as-code-and-typst.md"
       - "0005 - Níveis de Maturidade do Hexágono": "adr/0005_hexagonal_architecture_maturity_levels.md"
+      - "0006 - Fractais & Multi-Engine": "adr/0006_fractal_adapters_and_multi_engine_architecture.md"
+  - "🔌 Interfaces & Engenharia":
+      - "API Gateway (REST / WS / NMEA)": "api.md"
+      - "Interface CLI (rps-sim)": "cli.md"
+      - "Engenharia de Testes": "testing.md"
+      - "Qualidade & DO-178C": "quality_safety.md"
+      - "Cibersegurança & Proteção": "cybersecurity.md"
+      - "Algoritmos & Complexidade": "algorithms_complexity.md"
   - "📋 Especificações & Normas":
       - "Requisitos de Missão": "specifications/mission_requirements.md"
       - "Conformidade RTCA & ICAO": "specifications/standards_compliance.md"

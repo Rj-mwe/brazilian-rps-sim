@@ -21,7 +21,7 @@ A documentação deste repositório é tratada com o mesmo rigor, versionamento 
 ```mermaid
 graph TD
     A["Documentação da Missão"] --> B["🏛️ Decisões de Arquitetura (ADRs)"]
-    A --> AR["🏛️ [Arquitetura & Design](architecture.md)"]
+    A --> AR["🏛️ [Arquitetura & Design (Portal)](architecture/index.md)"]
     A --> AL["🧮 [Algoritmos & Complexidade](algorithms_complexity.md)"]
     A --> C["📋 Especificações & Normas"]
     A --> D["📐 Formulações Teóricas & Físicas"]
@@ -56,7 +56,7 @@ graph TD
 
 ## 📚 Guias Técnicos Rápidos
 
-* 🏛️ **[Arquitetura do Sistema, Árvore do Projeto e Decisões de Design](architecture.md)**
+* 🏛️ **[Arquitetura do Sistema: Portal Modular & Hexágono Dourado](architecture/index.md)** (ou [Sumário Executivo](architecture.md))
 * 🧮 **[Análise de Algoritmos, Complexidade Estrutural e Estruturas de Dados](algorithms_complexity.md)**
 * 🔒 **[Arquitetura de Cibersegurança e Proteção de Interfaces](cybersecurity.md)**
 * 🌐 **[Documentação da Interface API (REST, WebSocket, NMEA 0183, Cesium 3D)](api.md)**
