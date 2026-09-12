@@ -98,10 +98,12 @@ Como um **Smart Adapter de Nível 3 (Fractal)**, o adaptador do Ngspice implemen
 
 ## 🛠️ 4. A Camada de Driver do Ngspice (Fronteira Física de Baixo Nível)
 
-O acesso ao motor SPICE é blindado pela interface `INgspiceProcessDriver`, que isola o fractal de particularidades do sistema operacional:
+Quando operando na **Variante Mediada por Shim (Variante 2 do NoC)**, o acesso ao executável externo SPICE é blindado pela interface `INgspiceProcessDriver`, cujas implementações residem em `adapters/drivers/`:
 * `AsyncSubprocessNgspiceDriver`: Implementação de produção que gerencia a invocação do executável `ngspice -b` via processos assíncronos POSIX, redireciona o binário `.raw` para `/dev/shm` e faz o parse vetorial em C/NumPy em tempo real;
 * `InMemoryMockNgspiceDriver`: Implementação de teste hermético que emula as respostas transientes sem depender da presença do binário Ngspice no ambiente de desenvolvimento ou CI/CD;
 * `ShmRawReader`: Transceiver de memória compartilhada para leitura vetorial zero-copy de curvas transientes de alta frequência.
+
+> **Transição para NoC Zero-Driver (Variante 1):** Se o motor Ngspice for executado como daemon autônomo com suporte ao protocolo NoC, esta camada de `drivers/` é eliminada, comunicando-se exclusivamente via `adapters/noc_edge/`.
 
 ---
 

@@ -118,7 +118,7 @@ Para navegar em cada dimensão formal da arquitetura, consulte os capítulos ded
 * **A Natureza Fractal:** Auto-similaridade multiescala e conformidade com IEEE 1516 / HLA.
 * **Antipadrão Utilitário:** Por que agrupar funções genéricas em um adaptador quebra a coesão.
 * **Taxonomia de Maturidade:** Níveis 1 a 3 (conforme [ADR 0005](adr/0005_hexagonal_architecture_maturity_levels.md)).
-* **Anatomia Canônica de um Fractal (Nível 3):** Os 12 Elementos (4 de Aplicação + 8 de Domínio), NoC Edge Interface, Drivers Locais e Substratos Privados.
+* **Anatomia Canônica de um Fractal (Nível 3):** Os 12 Elementos (4 de Aplicação + 8 de Domínio), Sub-Core de Governança Local Subordinada, Adaptadores de Borda Locais (`adapters/`) e Substratos Privados.
 * **Isomorfismo Estrutural vs. Auto-Similaridade Semântica:** Preservação do conteúdo plasmático sem hiper-aninhamento estéril.
 
 ### 4. ⚡ [Subsistema de Co-Simulação com Ngspice](architecture/cosimulation_ngspice.md)
@@ -131,6 +131,8 @@ Para navegar em cada dimensão formal da arquitetura, consulte os capítulos ded
 ### 5. 🌐 [Network on Core (NoC) & Governança](architecture/network_on_core.md)
 * **Desmistificando o NoC em Software:** Do hardware MPSoC à malha lógica de software.
 * **Os 5 Pilares do NoC:** Envelopes universais (`MissionPacket`), Network Interface, Logical Router, Arbiter/QoS e Canais Virtuais (`VC-Control`, `VC-Telemetry`, `VC-CoSim`).
+* **Topologia e Nomenclatura Formal:** Root NoC (Core Backbone) vs. Leaf NoC (Autarquias) e Topologia Federada Híbrida.
+* **As Quatro Variantes Estruturais do NoC:** Variante 1 (Nativa / Zero-Driver sem pasta de drivers), Variante 2 (Mediada por Shim), Variante 3 (In-Process Fast-Path) e Variante 4 (Federada WAN).
 * **Arquitetura em Duas Camadas:** Pilha Lógica da Aplicação vs. Pilha de Enlace da Infraestrutura.
 * **Dicotomia Vanguard:** NoC Passivo (determinístico, local) vs. NoC Ativo (centralizado, federado).
 * **Sub-Core de Governança:** O "Poder Judiciário", conformidade de contratos e barreira temporal (IEEE 1516).

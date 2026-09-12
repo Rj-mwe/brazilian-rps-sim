@@ -178,7 +178,106 @@ A engenharia de software de alta resiliência recomenda que o sistema **nasça c
 
 ---
 
-## 🏛️ 6. Localização Arquitetural do NoC e o Sub-Core de Governança
+## 🏛️ 6. Topologia e Nomenclatura Formal: Root NoC vs. Leaf NoC (Autarquias)
+
+A distribuição da malha de transporte pelo ecossistema exige uma diferenciação formal de anatomia e nomenclatura entre o nó que habita o centro regulatório e os nós que habitam os adaptadores e subsistemas:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              TOPOLOGIA FEDERADA HÍBRIDA DO NETWORK ON CORE (NoC)            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│                  ┌────────────────────────────────────────┐                 │
+│                  │        ROOT NoC (CORE BACKBONE)        │                 │
+│                  │  • Hospedado em: core/application/noc/ │                 │
+│                  │  • CentralArbiter & Global Router      │                 │
+│                  │  • Mestre de Canais Virtuais Centrais  │                 │
+│                  │  • Acoplamento: Governança Central     │                 │
+│                  └───────▲────────────────────────▲───────┘                 │
+│                          │                        │                         │
+│            Backbone Link │                        │ Backbone Link           │
+│                          ▼                        ▼                         │
+│     ┌───────────────────────────┐   ┌───────────────────────────┐           │
+│     │ LEAF NoC (AUTARQUIA 1)    │   │ LEAF NoC (AUTARQUIA 2)    │           │
+│     │ (Ex: Adaptador Ngspice)   │   │ (Ex: Adaptador Gazebo)    │           │
+│     │ • EdgeNetworkInterface    │   │ • EdgeNetworkInterface    │           │
+│     │ • LocalEdgeRouter         │   │ • LocalEdgeRouter         │           │
+│     │ • Buffer & Fila Local     │   │ • Buffer & Fila Local     │           │
+│     │ • Acoplamento: Governança │   │ • Acoplamento: Governança │           │
+│     │   Local Subordinada       │   │   Local Subordinada       │           │
+│     └───────────────────────────┘   └───────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Nomenclatura e Papéis Formais
+
+* **Root NoC (*NoC Backbone / Vanguard Core Hub*):**
+  * Habita em `rps_br/core/application/noc/`.
+  * Atua como o **Servidor / Tronco de Transporte Central** do sistema.
+  * Mantém a Tabela Global de Roteamento Semântico, gerencia os Canais Virtuais principais (`VC-Control`, `VC-Telemetry`, `VC-CoSimulation`), aplica a arbitragem de QoS do sistema global e responde aos comandos de relógio do `ClockMaster` do Sub-Core de Governança Central.
+* **Leaf NoC (*Edge NoC / Autarchy NoC Node*):**
+  * Habita no interior de cada Smart Adapter ou Fractal de Nível 3 (ex.: `adapters/ngspice/noc_interface.py`).
+  * Atua como o **Transceptor de Borda da Autarquia Cliente**.
+  * É responsável por empacotar e desempacotar dados locais em envelopes `MissionPacket`, manter buffers locais de desacoplamento temporal e interagir com o Sub-Core de Governança Local daquela autarquia.
+
+### 2. O NoC é Centralizado ou Descentralizado? (A Topologia Híbrida)
+A arquitetura do NoC não se enquadra na falsa dicotomia purista entre "totalmente centralizado" ou "totalmente descentralizado"; ela adota a **Topologia Federada Híbrida**:
+* **No Plano de Dados (*Data Plane* - Tráfego e Execução): DESCENTRALIZADO.**
+  * O processamento numérico, a integração de circuitos e a renderização gráfica ocorrem nas autarquias locais. Um Leaf NoC pode rotear mensagens entre submódulos da própria autarquia sem onerar o Backbone.
+* **No Plano de Controle (*Control Plane* - Governança e Relógio): CENTRALIZADO.**
+  * O avanço dos passos de tempo (IEEE 1516), a máquina de estados da missão e os critérios de aceitação de pacotes são governados soberanamente pelo Root NoC e pela Governança Central.
+
+---
+
+## 🔄 7. As Quatro Variantes Estruturais do NoC (Incluindo a Variante Zero-Driver)
+
+Sendo o NoC a **interface unificada de comunicação com o meio exterior**, sua implementação se adapta ao nível de acoplamento e à natureza dos motores externos:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         AS QUATRO VARIANTES DO NoC                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  VARIANTE 1: NoC NATIVO END-TO-END (ZERO-DRIVER)                            │
+│  └── O motor externo implementa a Network Interface nativamente.            │
+│      A pasta 'drivers/' DESAPARECE por completo do adaptador fractal!       │
+│      Comunicação puramente via envelopes MissionPacket no NoC.              │
+│                                                                             │
+│  VARIANTE 2: NoC MEDIADO POR SHIM / PROCESS DRIVER                          │
+│  └── Para ferramentas externas legadas (ex: binário C /usr/bin/ngspice).    │
+│      O fractal mantém 'drivers/' para traduzir o NoC em pipes POSIX/stdio.  │
+│                                                                             │
+│  VARIANTE 3: IN-PROCESS FAST-PATH MEMORY CROSSBAR                           │
+│  └── Para módulos no mesmo runtime (Core <-> Solver WLS PVT).               │
+│      Bypass de serialização: chamada in-memory direta com latência zero.    │
+│                                                                             │
+│  VARIANTE 4: NoC FEDERADO INTER-MISSÕES (VANGUARD WAN UPLINK)               │
+│  └── Conexão de rede distribuída inter-projetos (RPS-BR <-> AOCS Sim).      │
+│      Roteamento WAN com QoS e sincronização de tempo distribuído.           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Variante 1: NoC Nativo End-to-End (*Zero-Driver Architecture*)
+* **Conceito:** O motor externo (seja um microsserviço, um container isolado, um processo em Rust ou uma versão daemonizada do Ngspice) é construído ou envelopado para **falar o protocolo NoC nativamente**. Ele possui seu próprio *Leaf NoC Endpoint* e escuta diretamente em um soquete IPC ou fila em `/dev/shm`.
+* **Impacto Radical na Árvore do Adaptador:**
+  * **A pasta `drivers/` é 100% ELIMINADA do adaptador fractal!**
+  * O adaptador não precisa de subprocessos manuais em Python, nem de gestão de sinais POSIX (`SIGTERM`), nem de parsers de stream de texto `stdin/stdout`.
+  * O adaptador resume-se à sua **Aplicação**, ao seu **Domínio**, aos seus **Mappers** e à sua **Porta NoC**. A camada de transporte concreto fica inteiramente delegada à infraestrutura de enlace do NoC (`infrastructure/noc/`).
+
+### Variante 2: NoC Mediado com Driver de Enlace (*Shimmed NoC*)
+* **Conceito:** Utilizado quando o software de terceiros é uma "caixa preta" compilada que não suporta NoC (ex.: o binário padrão `/usr/bin/ngspice` distribuído pelo Debian/Ubuntu, que só aceita argumentos CLI e gera arquivos `.raw`).
+* **Estrutura:** O adaptador mantém sua camada `drivers/` local (ou dentro de `adapters/drivers/`), atuando como um *Shim Adapter* que consome os pacotes NoC e aciona o binário legado via subprocessos do sistema operacional.
+
+### Variante 3: In-Process Fast-Path Memory Crossbar
+* **Conceito:** Quando emissor e receptor coabitam o mesmo processo (ex.: Core chamando o solucionador WLS PVT ou o calculador de Saastamoinen). A Network Interface detecta a proximidade espacial e executa um *crossbar bypass*, entregando os dados por referência de memória compartilhada em nanossegundos, sem serialização.
+
+### Variante 4: NoC Federado Inter-Missões (*Vanguard WAN Uplink*)
+* **Conceito:** Permite ao RPS-BR conectar-se a simulações de outros domínios da engenharia aeroespacial (ex.: Simulador de Controle de Atitude - AOCS, Simuladores de Redes Terrestres de Telemetria), roteando pacotes via UDP/TCP com envelopes universais `MissionPacket`.
+
+---
+
+## 🏛️ 8. Localização Arquitetural do NoC e o Sub-Core de Governança
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -239,7 +338,7 @@ Enquanto a Camada de Aplicação e o Domínio formam o "Poder Executivo" (execut
 
 ---
 
-## 🌐 7. Escalabilidade e Federação Inter-Projetos: O Papel do NoC Ativo
+## 🌐 9. Escalabilidade e Federação Inter-Projetos: O Papel do NoC Ativo
 
 À medida que o simulador RPS-BR expande suas fronteiras e passa a se integrar com outros sistemas e projetos de grande porte (ex.: Simulador de Dinâmica e Controle de Atitude - AOCS, Simuladores de Cargas Úteis de Comunicação, Redes Reais de Rastreamento de Satélites e Sistemas Multi-Agente de IA), a topologia de malha evolui naturalmente:
 
@@ -274,7 +373,7 @@ Enquanto a Camada de Aplicação e o Domínio formam o "Poder Executivo" (execut
 
 ---
 
-## 🛠️ 8. Diretrizes de Engenharia para o RPS-BR
+## 🛠️ 10. Diretrizes de Engenharia para o RPS-BR
 
 | Diretriz | Regra de Engenharia | Justificativa Arquitetural |
 | :--- | :--- | :--- |
@@ -287,7 +386,7 @@ Enquanto a Camada de Aplicação e o Domínio formam o "Poder Executivo" (execut
 
 ---
 
-## 📁 9. Topologia de Diretórios e Fronteiras de Soberania
+## 📁 11. Topologia de Diretórios e Fronteiras de Soberania
 
 ### 1. Endereçamento do NoC: Por que `core/application/noc/` e Não um Maior Aninhamento?
 
