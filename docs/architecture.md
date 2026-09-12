@@ -107,11 +107,13 @@ brazilian-rps-sim/
 │       └── paper_rps_brazil.pdf     # PDF compilado do artigo
 ├── rps_br/                          # Pacote Python principal da biblioteca
 │   ├── core/                        # NÚCLEO PURO (Hexágono Central - Zero dependências externas)
-│   │   ├── application/             # Casos de Uso, Serviços de Aplicação, DTOs e Mappers
+│   │   ├── application/             # Casos de Uso, Orquestração, NoC e Governança
 │   │   │   ├── dtos/                # Data Transfer Objects com tipagem estática
-│   │   │   ├── interfaces/          # Portas abstratas de casos de uso
+│   │   │   ├── interfaces/          # Portas abstratas de casos de uso (driven/driving)
 │   │   │   ├── mappers/             # Mapeadores entre entidades e DTOs
-│   │   │   └── services/            # SimulationSessionService, CalculateGroundStationDopUseCase
+│   │   │   ├── services/            # Casos de uso: SimulationSessionService, CalculateGroundStationDopUseCase
+│   │   │   ├── noc/                 # [NETWORK ON CORE] Malha lógica de transporte, envelopes e canais virtuais
+│   │   │   └── governance/          # [SUB-CORE DE GOVERNANÇA] Mestre do relógio, compliance e ciclo de vida
 │   │   └── domain/                  # Domínio Astrodinâmico e de Radionavegação
 │   │       ├── astrodynamics/       # Agregados de Satélite/Constelação, Políticas de Órbita
 │   │       ├── navigation_pvt/      # Estratégias de cálculo DOP e Observadores de alerta
@@ -663,6 +665,74 @@ Para guiar o desenvolvimento prático do sistema, são fixadas as seguintes dire
 | **NoC Fractal Passivo** | Adaptadores fractais (Ngspice, Gazebo) devem usar NoC interno passivo subordinado ao Core. | Evita concorrência e condições de corrida entre múltiplos daemons de orquestração. |
 | **Governança Separada** | Manter o Sub-Core de Governança responsável por Schemas, Relógio e Ciclo de Vida. | Desonera o Domínio puro de preocupações regulatórias e garante contenção de falhas (*fail-safe*). |
 | **Prontidão para Federação** | Projetar os envelopes de pacotes com identificadores universais (`source_id`, `destination_id`, `system_id`). | Viabiliza conexão plug-and-play futura com o NoC Ativo da Vanguard sem necessidade de refatoração. |
+
+---
+
+### I. Topologia de Diretórios e Fronteiras de Soberania da Governança
+
+#### 1. Endereçamento do NoC: Por que `core/application/noc/` e Não um Maior Aninhamento?
+A escolha de posicionar a malha em `core/application/noc/` em vez de subdiretórios convolutos (como `core/application/services/mesh/noc/` ou `core/application/infrastructure/noc/`) fundamenta-se em princípios consolidados de design de software:
+* **Prevenção do Antipadrão de Hiper-Aninhamento (*Over-Nesting / Deep Hierarchy Smell*):**
+  * Hierarquias excessivamente profundas em Python geram importações quilométricas, aumentam o risco de ciclos de importação espúrios e impõem burocracia cognitiva desnecessária.
+  * O PEP 20 (*The Zen of Python*) prescreve expressamente: *"Flat is better than nested"* e *"Namespaces are one honking great idea -- let's do more of those!"*.
+* **O NoC como Cidadão de Primeira Classe da Aplicação:**
+  * O NoC não é um "serviço comum" (como um caso de uso pontual), nem mero DTO. Ele é a própria infraestrutura lógica de comunicação da camada de aplicação.
+  * O endereço `rps_br/core/application/noc/` concede a granularidade ideal:
+    ```text
+    rps_br/core/application/noc/
+    ├── __init__.py          # Exporta a Fachada: INetworkInterface, MissionPacket, VirtualChannel
+    ├── ports/               # Portas abstratas: INetworkInterface, ILinkDriver, INoCRouter
+    ├── models/              # Envelopes e VOs: MissionPacket, VirtualChannel, PriorityVO
+    ├── mesh/                # Implementação lógica: NoCFabric, LogicalRouter, StrictPriorityArbiter
+    └── drivers/             # Driver in-memory puro (Fast-Path zero-copy com stdlib)
+    ```
+  * Drivers concretos pesados ou com dependências externas de SO/rede (ex.: POSIX `/dev/shm`, DDS/ROS 2, WebSockets) residem em `rps_br/infrastructure/noc/` ou nos adaptadores de borda, implementando a porta `ILinkDriver`.
+
+#### 2. Endereçamento do Sub-Core de Governança: Por que em `core/application/governance/`?
+* **A Pureza Atemporal do Domínio:**
+  * O Domínio Matemático Puro (`core/domain/astrodynamics`, `signal_propagation`, `navigation_pvt`) é atemporal e passivo: equações diferenciais orbitais, modelos ionosféricos de Klobuchar e solvers WLS não têm consciência de estados de simulação ("Pausa", "Reset", "Modo de Segurança", "Quarentena"). Eles operam como funções puras $f(t, \mathbf{x})$.
+* **A Governança como Órgão Especial da Aplicação (O "Poder Judiciário"):**
+  * O controle da máquina de estados global, a imposição de barreiras temporais de sincronização (*time-barriers*) e a censura/sanção de pacotes malformados são atribuições executivas e regulatórias da Camada de Aplicação.
+  * A Governança habita formalmente em `rps_br/core/application/governance/`:
+    ```text
+    rps_br/core/application/governance/
+    ├── __init__.py          # Exporta: MissionLifecycleState, ClockMaster, ContractCensor
+    ├── lifecycle/           # Máquina de estados: MissionStateMachine, ClockBarrierMaster
+    ├── compliance/          # Validação constitucional: ContractCensor, SchemaValidator
+    └── supervision/         # Quarentena e sanção: FailureSupervisor, CircuitBreakerPolicy
+    ```
+
+#### 3. Fronteiras de Soberania: Compartilhamento vs. Autossuficiência da Governança
+A relação entre a Governança e os demais sub-cores resolve o dilema entre duplicação de código e acoplamento tóxico através do **Modelo de Soberania Constitucional**:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   MODELO DE SOBERANIA CONSTITUCIONAL                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   [ RECURSOS COMPARTILHADOS ]               [ SOBERANIA E AUTOSSUFICIÊNCIA ]│
+│   (Shared Kernel Mínimo / Imutável)         (Propriedade Exclusiva da Governança)
+│                                                                             │
+│   • core/domain/shared/                     • Estado Global do Ciclo de Vida│
+│     - JulianDate, Vector3DVO,                 (INIT, RUN, PAUSE, SAFE_MODE) │
+│       GeodeticCoordinatesVO, SatelliteId    • Relógio Mestre & Time Barriers│
+│   • core/application/noc/                   • Critérios de Censura & Schemas│
+│     - MissionPacket, VirtualChannel,        • Regras de Quarentena & Sanção │
+│       PriorityVO                            • Mecanismos de Fail-Safe       │
+│                                                                             │
+│   "A Governança compartilha a língua         "A Governança é autossuficiente│
+│    e a Constituição do sistema..."            em sua autoridade deliberativa"│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+* **O que a Governança COMPARTILHA:**
+  * **O Shared Kernel Mínimo Imutável (`core/domain/shared/`):** Objetos de valor atômicos livres de efeitos colaterais (`JulianDate`, `Vector3DVO`, `GeodeticCoordinatesVO`). Compartilhar esses VOs evita a aberração de duplicar conceitos fundamentais e preserva a Linguagem Ubíqua.
+  * **Os Envelopes do NoC (`core/application/noc/`):** Tipos universais de transporte (`MissionPacket`, `VirtualChannel`).
+* **No que a Governança é TOTALMENTE AUTOSSUFICIENTE:**
+  * **Soberania de Estado (*State Sovereignty*):** O estado da máquina de ciclo de vida (`MissionLifecycleState`) é imutável para agentes externos. Nenhum sub-core ou adaptador pode forçar ou alterar o estado do sistema; apenas a Governança delibera e transiciona.
+  * **Soberania de Regras (*Rule Sovereignty*):** As especificações de integridade, limites de tolerância de erro e políticas de quarentena residem encapsuladas dentro de `governance/`. Os sub-cores executivos não podem desativar ou contornar essas regras.
+  * **Soberania de Resiliência (*Fault Independence*):** Se o subdomínio de astrodinâmica lançar uma exceção catastrófica ou o Ngspice travar em divergência numérica, a Governança **não morre junto**. Ela intercepta a falha, isola o componente em quarentena e comuta autonomamente a constelação para `SAFE_MODE`, garantindo que o sistema como um todo sobreviva.
+
 
 
 
